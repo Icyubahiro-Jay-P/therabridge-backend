@@ -27,12 +27,12 @@ app.use("/api/chat", chatRoutes);
 
 // Health check
 app.get("/", (req, res) => {
-  res.status(200).json({ message: "🌿 Therabridge API is running!" });
+  res.status(200).json({ message: "Therabridge API is running!" });
 });
 
 // ====================== START SERVER ======================
 connectDB().then(() => {
   app.listen(PORT, () => {
-    console.log(`🌿 Therabridge server running on port ${PORT}`);
+    console.log(`Therabridge server running on port ${PORT}`);
   });
 });
