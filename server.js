@@ -2,10 +2,15 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import "dotenv/config";
+import path from "path";
+import { fileURLToPath } from "url";
 import { connectDB } from "./db/connectDB.js";
 import userRoutes from "./routes/user.route.js";
 import exerciseRoutes from "./routes/exercise.route.js";
 import chatRoutes from "./routes/chat.route.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,6 +24,9 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+
+// Serve uploaded files statically
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ====================== ROUTES ======================
 app.use("/api/users", userRoutes);

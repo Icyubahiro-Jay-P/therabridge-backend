@@ -11,10 +11,12 @@ import {
   resetPassword,
   getAllUsers,
   getUserById,
-  changePassword,   // added this one too
+  changePassword,
+  uploadProfilePicture,
 } from "../controllers/user.controller.js";
 
 import { authMiddleware } from "../middleware/auth.middleware.js";
+import { uploadProfilePic } from "../middleware/upload.js";
 
 const router = express.Router();
 
@@ -35,6 +37,7 @@ router.put("/profile", authMiddleware, updateProfile);      // or patch if you p
 router.delete("/profile", authMiddleware, deleteProfile);
 
 router.post("/change-password", authMiddleware, changePassword);
+router.post("/upload-avatar", authMiddleware, uploadProfilePic, uploadProfilePicture);
 
 // Catch-all for now (you had this empty)
 router.get("/", (req, res) => {

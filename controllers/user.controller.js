@@ -2,7 +2,13 @@ import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import sendEmail from "../utils/nodemailer.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const register = async (req, res) => {
   try {
@@ -10,6 +16,15 @@ export const register = async (req, res) => {
       req.body;
 
     // === Validations ===
+    if (!username || !email || !password || !firstName || !lastName || !dateOfBirth) {
+      return res.status(400).json({ message: "All fields are required." });
+    }
+
+    // Password length
+    if (password.length < 8) {
+      return res.status(400).json({ message: "Password must be at least 8 characters long." });
+    }
+
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
     const age = today.getFullYear() - birthDate.getFullYear();
@@ -99,8 +114,11 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    // one input to check email or username
     const { identifier, password } = req.body;
+
+    if (!identifier || !password) {
+      return res.status(400).json({ message: "Email/username and password are required." });
+    }
 
     // Find user by email or username
     const user = await User.findOne({
@@ -237,6 +255,51 @@ export const updateProfile = async (req, res) => {
 
     res.status(200).json({ message: "Profile updated successfully", user });
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const uploadProfilePicture = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Delete previous avatar if it was an uploaded file
+    if (user.avatar && user.avatar.startsWith("/uploads/")) {
+      const oldPath = path.join(__dirname, "..", user.avatar);
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+    }
+
+    const avatarPath = "/uploads/" + req.file.filename;
+    user.avatar = avatarPath;
+    await user.save();
+
+    res.status(200).json({
+      message: "Profile picture uploaded successfully",
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        avatar: user.avatar,
+        bio: user.bio,
+      },
+    });
+  } catch (error) {
+    if (req.file) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+    }
     res.status(500).json({ message: error.message });
   }
 };
