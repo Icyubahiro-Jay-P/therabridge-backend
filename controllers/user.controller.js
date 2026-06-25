@@ -488,7 +488,7 @@ export const forgotPassword = async (req, res) => {
                 Click the button below to create a new one. This link will expire in <strong>10 minutes</strong> for your security.
             </p>
             <div class="button-container">
-                <a href="${resetUrl}" class="button" target="_blank">Reset Password Now</a>
+                <a href="${resetUrl}" style="color: white; text-decoration: none;" class="button" target="_blank">Reset Password Now</a>
             </div>
             <div class="warning">
                 <strong>⚠️ Didn't request this?</strong><br>
