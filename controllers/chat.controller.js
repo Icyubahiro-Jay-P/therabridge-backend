@@ -55,7 +55,7 @@ export const getConversation = async (req, res) => {
     // Mark messages as read
     await Message.updateMany(
       { sender: userId, recipient: myId, read: false },
-      { $set: { read: true } }
+      { $set: { read: true, readAt: new Date() } }
     );
 
     res.status(200).json(messages);
@@ -259,6 +259,173 @@ export const sendCommunityMessage = async (req, res) => {
     const newMessage = updatedCommunity.messages[updatedCommunity.messages.length - 1];
 
     res.status(201).json(newMessage);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ====================== COMMUNITY MANAGEMENT ======================
+
+export const updateCommunity = async (req, res) => {
+  try {
+    const { communityId } = req.params;
+    const { name, description } = req.body;
+
+    const community = await Community.findById(communityId);
+    if (!community) {
+      return res.status(404).json({ message: "Community not found." });
+    }
+
+    if (community.owner.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Only the owner can update this community." });
+    }
+
+    if (name) {
+      if (name.length < 2) {
+        return res.status(400).json({ message: "Community name must be at least 2 characters." });
+      }
+      community.name = name.trim();
+    }
+
+    if (description !== undefined) {
+      community.description = description.trim();
+    }
+
+    await community.save();
+    await community.populate("owner", "username firstName lastName avatar");
+    await community.populate("members", "username firstName lastName avatar");
+
+    res.status(200).json(community);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const removeMember = async (req, res) => {
+  try {
+    const { communityId } = req.params;
+    const { userId } = req.body;
+
+    const community = await Community.findById(communityId);
+    if (!community) {
+      return res.status(404).json({ message: "Community not found." });
+    }
+
+    if (community.owner.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Only the owner can remove members." });
+    }
+
+    if (userId === req.user.id) {
+      return res.status(400).json({ message: "Owner cannot remove themselves." });
+    }
+
+    community.members = community.members.filter(
+      (m) => m.toString() !== userId
+    );
+
+    await community.save();
+
+    res.status(200).json({ message: "Member removed successfully." });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getCommunityByKey = async (req, res) => {
+  try {
+    const { inviteKey } = req.params;
+
+    const community = await Community.findOne({ inviteKey: inviteKey.toUpperCase() })
+      .populate("messages.sender", "username firstName lastName avatar")
+      .populate("owner", "username firstName lastName avatar")
+      .populate("members", "username firstName lastName avatar");
+
+    if (!community) {
+      return res.status(404).json({ message: "Community not found." });
+    }
+
+    const isMember = community.members.some(
+      (m) => m._id.toString() === req.user.id
+    );
+    if (!isMember) {
+      return res.status(403).json({ message: "You are not a member of this community." });
+    }
+
+    res.status(200).json(community);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const markCommunityMessagesRead = async (req, res) => {
+  try {
+    const { communityId } = req.params;
+
+    const community = await Community.findById(communityId);
+    if (!community) {
+      return res.status(404).json({ message: "Community not found." });
+    }
+
+    // Mark all unread messages as read by this user
+    let updated = false;
+    for (const msg of community.messages) {
+      if (!msg.readBy.includes(req.user.id)) {
+        msg.readBy.push(req.user.id);
+        updated = true;
+      }
+    }
+
+    if (updated) {
+      await community.save();
+    }
+
+    res.status(200).json({ message: "Messages marked as read." });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteAllMyMessages = async (req, res) => {
+  try {
+    const myId = req.user.id;
+
+    // Delete all DMs where user is sender or recipient
+    const dmResult = await Message.deleteMany({
+      $or: [{ sender: myId }, { recipient: myId }],
+    });
+
+    res.status(200).json({
+      message: `Deleted ${dmResult.deletedCount} messages.`,
+      deletedCount: dmResult.deletedCount,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteAllMyCommunityMessages = async (req, res) => {
+  try {
+    const myId = req.user.id;
+
+    // Find all communities where user is a member
+    const communities = await Community.find({ members: myId });
+
+    let deletedCount = 0;
+    for (const community of communities) {
+      const before = community.messages.length;
+      community.messages = community.messages.filter(
+        (msg) => msg.sender.toString() !== myId
+      );
+      deletedCount += before - community.messages.length;
+      if (community.messages.length !== before) {
+        await community.save();
+      }
+    }
+
+    res.status(200).json({
+      message: `Deleted ${deletedCount} community messages.`,
+      deletedCount,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

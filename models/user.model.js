@@ -71,6 +71,13 @@ const userSchema = new mongoose.Schema(
       default: "",
       maxlength: 300,
     },
+    privacySettings: {
+      firstName: { type: String, enum: ["public", "private"], default: "public" },
+      lastName: { type: String, enum: ["public", "private"], default: "public" },
+      email: { type: String, enum: ["public", "private"], default: "public" },
+      dateOfBirth: { type: String, enum: ["public", "private"], default: "public" },
+      bio: { type: String, enum: ["public", "private"], default: "public" },
+    },
   },
   { timestamps: true }
 );

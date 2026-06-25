@@ -10,9 +10,11 @@ import {
   forgotPassword,
   resetPassword,
   getAllUsers,
+  getTherapists,
   getUserById,
   changePassword,
   uploadProfilePicture,
+  updatePrivacy,
 } from "../controllers/user.controller.js";
 
 import { authMiddleware } from "../middleware/auth.middleware.js";
@@ -30,14 +32,16 @@ router.post("/reset-password/:token", resetPassword);
 // ====================== PROTECTED ROUTES ======================
 router.get("/profile", authMiddleware, profile);
 router.get("/users", authMiddleware, getAllUsers);
+router.get("/therapists", authMiddleware, getTherapists);
 router.get("/users/:id", authMiddleware, getUserById);
-router.get("/:username", authMiddleware, getUserProfile);   // e.g. /john_doe
+router.get("/:username", getUserProfile);   // public — privacy-filtered
 
 router.put("/profile", authMiddleware, updateProfile);      // or patch if you prefer
 router.delete("/profile", authMiddleware, deleteProfile);
 
 router.post("/change-password", authMiddleware, changePassword);
 router.post("/upload-avatar", authMiddleware, uploadProfilePic, uploadProfilePicture);
+router.put("/privacy", authMiddleware, updatePrivacy);
 
 // Catch-all for now (you had this empty)
 router.get("/", (req, res) => {

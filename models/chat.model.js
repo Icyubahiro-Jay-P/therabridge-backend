@@ -22,6 +22,10 @@ const messageSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    readAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
@@ -44,6 +48,12 @@ const communityMessageSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  readBy: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
 });
 
 const communitySchema = new mongoose.Schema(

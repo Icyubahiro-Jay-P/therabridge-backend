@@ -105,6 +105,7 @@ export const register = async (req, res) => {
         role: user.role,
         avatar: user.avatar,
         bio: user.bio,
+        privacySettings: user.privacySettings,
       },
     });
   } catch (error) {
@@ -156,6 +157,7 @@ export const login = async (req, res) => {
         role: user.role,
         avatar: user.avatar,
         bio: user.bio,
+        privacySettings: user.privacySettings,
       },
     });
   } catch (error) {
@@ -170,7 +172,7 @@ export const logout = (req, res) => {
 
 export const profile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id).select("-password -oldPasswords");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -180,16 +182,40 @@ export const profile = async (req, res) => {
   }
 };
 
-// get other user profile by username
+// get other user profile by username (privacy-filtered)
 export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username }).select(
-      "-password"
+      "-password -oldPasswords -passwordResetToken -passwordResetTokenExpiry -resetPasswordToken -resetPasswordExpire"
     );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.status(200).json(user);
+
+    // If requesting own profile, return everything
+    if (req.user && user._id.toString() === req.user.id) {
+      return res.status(200).json(user);
+    }
+
+    // Filter based on privacy settings
+    const privacy = user.privacySettings || {};
+    const filtered = user.toObject();
+
+    for (const field of ["firstName", "lastName", "email", "dateOfBirth", "bio"]) {
+      if (privacy[field] === "private") {
+        filtered[field] = null;
+      }
+    }
+
+    // Always include these regardless
+    filtered.username = user.username;
+    filtered.role = user.role;
+    filtered.avatar = user.avatar;
+    filtered._id = user._id;
+    filtered.createdAt = user.createdAt;
+    filtered.privacySettings = undefined;
+
+    res.status(200).json(filtered);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -198,11 +224,34 @@ export const getUserProfile = async (req, res) => {
 // get user by ID (admin / chat lookup)
 export const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-password");
+    const user = await User.findById(req.params.id).select("-password -oldPasswords");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.status(200).json(user);
+
+    // If requesting own profile, return everything
+    if (req.user && user._id.toString() === req.user.id) {
+      return res.status(200).json(user);
+    }
+
+    // Filter based on privacy settings
+    const privacy = user.privacySettings || {};
+    const filtered = user.toObject();
+
+    for (const field of ["firstName", "lastName", "email", "dateOfBirth", "bio"]) {
+      if (privacy[field] === "private") {
+        filtered[field] = null;
+      }
+    }
+
+    filtered.username = user.username;
+    filtered.role = user.role;
+    filtered.avatar = user.avatar;
+    filtered._id = user._id;
+    filtered.createdAt = user.createdAt;
+    filtered.privacySettings = undefined;
+
+    res.status(200).json(filtered);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -251,9 +300,10 @@ export const updateProfile = async (req, res) => {
       req.user.id,
       { $set: updates },
       { new: true }
-    ).select("-password");
+    ).select("-password -oldPasswords -passwordResetToken -passwordResetTokenExpiry -resetPasswordToken -resetPasswordExpire");
 
-    res.status(200).json({ message: "Profile updated successfully", user });
+    res.status(200).json({
+      message: "Profile updated successfully", user });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -294,6 +344,7 @@ export const uploadProfilePicture = async (req, res) => {
         role: user.role,
         avatar: user.avatar,
         bio: user.bio,
+        privacySettings: user.privacySettings,
       },
     });
   } catch (error) {
@@ -351,6 +402,15 @@ export const changePassword = async (req, res) => {
     user.password = hashedPassword;
     await user.save();
     res.status(200).json({ message: "Password changed successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getTherapists = async (req, res) => {
+  try {
+    const therapists = await User.find({ role: "therapist" }).select("-password -oldPasswords");
+    res.status(200).json(therapists);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -466,7 +526,6 @@ export const forgotPassword = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
   try {
-    // Get hashed token
     const resetPasswordToken = crypto
       .createHash("sha256")
       .update(req.params.token)
@@ -481,7 +540,6 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ error: "Invalid or expired token" });
     }
 
-    // Set new password
     user.password = await bcrypt.hash(req.body.password, 10);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
@@ -493,5 +551,39 @@ export const resetPassword = async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+};
+
+export const updatePrivacy = async (req, res) => {
+  try {
+    const { privacySettings } = req.body;
+    const allowedFields = ["firstName", "lastName", "email", "dateOfBirth", "bio"];
+
+    const updates = {};
+    let privateCount = 0;
+
+    for (const field of allowedFields) {
+      if (privacySettings[field] !== undefined) {
+        if (!["public", "private"].includes(privacySettings[field])) {
+          return res.status(400).json({ message: `Invalid value for ${field}` });
+        }
+        updates[`privacySettings.${field}`] = privacySettings[field];
+        if (privacySettings[field] === "private") privateCount++;
+      }
+    }
+
+    if (privateCount > 3) {
+      return res.status(400).json({ message: "You can hide at most 3 profile fields." });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updates },
+      { new: true }
+    ).select("-password -oldPasswords");
+
+    res.status(200).json({ message: "Privacy settings updated", privacySettings: user.privacySettings });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
