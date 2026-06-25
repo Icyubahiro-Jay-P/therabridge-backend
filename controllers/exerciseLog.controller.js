@@ -1,5 +1,6 @@
 import ExerciseLog from "../models/exerciseLog.model.js";
 import Exercise from "../models/exercise.model.js";
+import User from "../models/user.model.js";
 
 export const startExercise = async (req, res) => {
   try {
@@ -51,7 +52,39 @@ export const completeExercise = async (req, res) => {
     log.timeSpent = timeSpent;
     await log.save();
 
-    res.status(200).json({ message: "Exercise completed!", log });
+    // Update exercise score and streak
+    const pointsEarned = Math.max(10, Math.floor(timeSpent / 60) * 5);
+    const user = await User.findById(req.user.id);
+    if (user) {
+      user.exerciseScore = (user.exerciseScore || 0) + pointsEarned;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const lastExercise = user.lastExerciseDate ? new Date(user.lastExerciseDate) : null;
+      if (lastExercise) {
+        lastExercise.setHours(0, 0, 0, 0);
+        const diffDays = Math.floor((today - lastExercise) / 86400000);
+        if (diffDays === 1) {
+          user.exerciseStreak = (user.exerciseStreak || 0) + 1;
+        } else if (diffDays > 1) {
+          user.exerciseStreak = 1;
+        }
+      } else {
+        user.exerciseStreak = 1;
+      }
+      if (user.exerciseStreak > (user.longestExerciseStreak || 0)) {
+        user.longestExerciseStreak = user.exerciseStreak;
+      }
+      user.lastExerciseDate = today;
+      await user.save();
+    }
+
+    res.status(200).json({
+      message: "Exercise completed!",
+      log,
+      pointsEarned,
+      exerciseScore: user?.exerciseScore || 0,
+      exerciseStreak: user?.exerciseStreak || 0,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

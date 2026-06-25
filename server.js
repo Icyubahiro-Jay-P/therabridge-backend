@@ -8,6 +8,10 @@ import { connectDB } from "./db/connectDB.js";
 import userRoutes from "./routes/user.route.js";
 import exerciseRoutes from "./routes/exercise.route.js";
 import chatRoutes from "./routes/chat.route.js";
+import notificationRoutes from "./routes/notification.route.js";
+import moodRoutes from "./routes/mood.route.js";
+import crisisRoutes from "./routes/crisis.route.js";
+import therryRoutes from "./routes/therry.route.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,6 +36,10 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/users", userRoutes);
 app.use("/api/exercises", exerciseRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/mood", moodRoutes);
+app.use("/api/crisis", crisisRoutes);
+app.use("/api/therry", therryRoutes);
 
 // Health check
 app.get("/", (req, res) => {

@@ -15,6 +15,12 @@ import {
   changePassword,
   uploadProfilePicture,
   updatePrivacy,
+  disableUser,
+  changeUserRole,
+  deleteUserByAdmin,
+  getFullUserData,
+  updateLoginStreak,
+  getScoreAndStreak,
 } from "../controllers/user.controller.js";
 
 import { authMiddleware } from "../middleware/auth.middleware.js";
@@ -42,6 +48,18 @@ router.delete("/profile", authMiddleware, deleteProfile);
 router.post("/change-password", authMiddleware, changePassword);
 router.post("/upload-avatar", authMiddleware, uploadProfilePic, uploadProfilePicture);
 router.put("/privacy", authMiddleware, updatePrivacy);
+
+// Score & Streak
+router.get("/score-streak", authMiddleware, getScoreAndStreak);
+router.post("/login-streak", authMiddleware, updateLoginStreak);
+
+// Admin routes
+router.put("/admin/disable/:id", authMiddleware, disableUser);
+router.put("/admin/role/:id", authMiddleware, changeUserRole);
+router.delete("/admin/user/:id", authMiddleware, deleteUserByAdmin);
+
+// Therapist routes
+router.get("/therapist/user/:id", authMiddleware, getFullUserData);
 
 // Catch-all for now (you had this empty)
 router.get("/", (req, res) => {

@@ -78,6 +78,38 @@ const userSchema = new mongoose.Schema(
       dateOfBirth: { type: String, enum: ["public", "private"], default: "public" },
       bio: { type: String, enum: ["public", "private"], default: "public" },
     },
+    isDisabled: {
+      type: Boolean,
+      default: false,
+    },
+    exerciseScore: {
+      type: Number,
+      default: 0,
+    },
+    loginStreak: {
+      type: Number,
+      default: 0,
+    },
+    exerciseStreak: {
+      type: Number,
+      default: 0,
+    },
+    longestLoginStreak: {
+      type: Number,
+      default: 0,
+    },
+    longestExerciseStreak: {
+      type: Number,
+      default: 0,
+    },
+    lastLoginDate: {
+      type: Date,
+      default: null,
+    },
+    lastExerciseDate: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

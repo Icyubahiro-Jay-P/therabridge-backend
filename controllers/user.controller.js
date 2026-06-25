@@ -587,3 +587,148 @@ export const updatePrivacy = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ====================== ADMIN & THERAPIST FEATURES ======================
+
+export const disableUser = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can disable users." });
+    }
+    const { id } = req.params;
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    if (user.role === "admin") {
+      return res.status(400).json({ message: "Cannot disable another admin." });
+    }
+    user.isDisabled = !user.isDisabled;
+    await user.save();
+    res.status(200).json({
+      message: `User ${user.isDisabled ? "disabled" : "enabled"} successfully.`,
+      user: { _id: user._id, isDisabled: user.isDisabled, username: user.username },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const changeUserRole = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can change user roles." });
+    }
+    const { id } = req.params;
+    const { role } = req.body;
+    if (!["user", "therapist", "admin"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role." });
+    }
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    user.role = role;
+    await user.save();
+    res.status(200).json({
+      message: `User role updated to ${role}.`,
+      user: { _id: user._id, username: user.username, role: user.role },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteUserByAdmin = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can delete users." });
+    }
+    const { id } = req.params;
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    if (user.role === "admin") {
+      return res.status(400).json({ message: "Cannot delete another admin." });
+    }
+    await User.findByIdAndDelete(id);
+    res.status(200).json({ message: "User deleted by admin." });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getFullUserData = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentUser = req.user;
+    if (currentUser.role !== "therapist" && currentUser.role !== "admin") {
+      return res.status(403).json({ message: "Access denied." });
+    }
+    const user = await User.findById(id).select("-password -oldPasswords -passwordResetToken -passwordResetTokenExpiry -resetPasswordToken -resetPasswordExpire");
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    if (currentUser.role === "therapist") {
+      if (user.role === "therapist" || user.role === "admin") {
+        return res.status(403).json({ message: "Therapists can only view user profiles." });
+      }
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateLoginStreak = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const lastLogin = user.lastLoginDate ? new Date(user.lastLoginDate) : null;
+    if (lastLogin) {
+      lastLogin.setHours(0, 0, 0, 0);
+      const diffDays = Math.floor((today - lastLogin) / 86400000);
+      if (diffDays === 1) {
+        user.loginStreak += 1;
+      } else if (diffDays > 1) {
+        user.loginStreak = 1;
+      }
+    } else {
+      user.loginStreak = 1;
+    }
+    if (user.loginStreak > user.longestLoginStreak) {
+      user.longestLoginStreak = user.loginStreak;
+    }
+    user.lastLoginDate = today;
+    await user.save();
+    res.status(200).json({
+      loginStreak: user.loginStreak,
+      longestLoginStreak: user.longestLoginStreak,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getScoreAndStreak = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("exerciseScore loginStreak exerciseStreak longestLoginStreak longestExerciseStreak lastLoginDate lastExerciseDate");
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    res.status(200).json({
+      exerciseScore: user.exerciseScore,
+      loginStreak: user.loginStreak,
+      exerciseStreak: user.exerciseStreak,
+      longestLoginStreak: user.longestLoginStreak,
+      longestExerciseStreak: user.longestExerciseStreak,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

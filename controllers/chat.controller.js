@@ -47,6 +47,7 @@ export const getConversation = async (req, res) => {
         { sender: myId, recipient: userId },
         { sender: userId, recipient: myId },
       ],
+      deletedFor: { $ne: myId },
     })
       .sort({ createdAt: 1 })
       .populate("sender", "username firstName lastName avatar")
@@ -68,9 +69,9 @@ export const getMyConversations = async (req, res) => {
   try {
     const myId = req.user.id;
 
-    // Get all distinct users I've talked to
     const messages = await Message.find({
       $or: [{ sender: myId }, { recipient: myId }],
+      deletedFor: { $ne: myId },
     })
       .sort({ createdAt: -1 })
       .populate("sender", "username firstName lastName avatar")
@@ -311,12 +312,17 @@ export const removeMember = async (req, res) => {
       return res.status(404).json({ message: "Community not found." });
     }
 
-    if (community.owner.toString() !== req.user.id) {
-      return res.status(403).json({ message: "Only the owner can remove members." });
+    // Owner or admin can remove members; therapists can also remove users
+    const isOwner = community.owner.toString() === req.user.id;
+    const isAdmin = req.user.role === "admin";
+    const isTherapist = req.user.role === "therapist";
+
+    if (!isOwner && !isAdmin && !isTherapist) {
+      return res.status(403).json({ message: "Only the owner, therapists, or admins can remove members." });
     }
 
-    if (userId === req.user.id) {
-      return res.status(400).json({ message: "Owner cannot remove themselves." });
+    if (userId === req.user.id && !isAdmin) {
+      return res.status(400).json({ message: "You cannot remove yourself." });
     }
 
     community.members = community.members.filter(
@@ -389,15 +395,60 @@ export const deleteAllMyMessages = async (req, res) => {
   try {
     const myId = req.user.id;
 
-    // Delete all DMs where user is sender or recipient
-    const dmResult = await Message.deleteMany({
-      $or: [{ sender: myId }, { recipient: myId }],
-    });
+    // Soft delete: mark messages as deleted for this user only
+    const result = await Message.updateMany(
+      {
+        $or: [{ sender: myId }, { recipient: myId }],
+        deletedFor: { $ne: myId },
+      },
+      { $push: { deletedFor: myId } }
+    );
 
     res.status(200).json({
-      message: `Deleted ${dmResult.deletedCount} messages.`,
-      deletedCount: dmResult.deletedCount,
+      message: `Deleted ${result.modifiedCount} messages from your view.`,
+      modifiedCount: result.modifiedCount,
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const unsendMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const myId = req.user.id;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found." });
+    }
+
+    if (message.sender.toString() !== myId) {
+      return res.status(403).json({ message: "You can only unsend your own messages." });
+    }
+
+    message.unsent = true;
+    message.content = "[Message unsent]";
+    await message.save();
+
+    res.status(200).json({ message: "Message unsent.", unsentMessage: message });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteCommunity = async (req, res) => {
+  try {
+    const { communityId } = req.params;
+    const community = await Community.findById(communityId);
+    if (!community) {
+      return res.status(404).json({ message: "Community not found." });
+    }
+    if (req.user.role !== "admin" && community.owner.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Only admins or the owner can delete this community." });
+    }
+    await Community.findByIdAndDelete(communityId);
+    res.status(200).json({ message: "Community deleted successfully." });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
