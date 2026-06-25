@@ -16,7 +16,10 @@ import {
   deleteAllMyMessages,
   deleteAllMyCommunityMessages,
   unsendMessage,
+  editMessage,
   deleteCommunity,
+  getChatSettings,
+  updateChatSettings,
 } from "../controllers/chat.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
@@ -30,6 +33,8 @@ router.get("/conversations", getMyConversations);
 router.get("/conversation/:userId", getConversation);
 router.post("/send", sendMessage);
 router.get("/search", searchUsers);
+router.get("/settings", getChatSettings);
+router.put("/settings", updateChatSettings);
 
 // ====================== COMMUNITY ROOMS ======================
 router.get("/communities", getMyCommunities);
@@ -45,6 +50,7 @@ router.delete("/communities/:communityId", deleteCommunity);
 
 router.delete("/messages", deleteAllMyMessages);
 router.delete("/community-messages", deleteAllMyCommunityMessages);
+router.put("/edit/:messageId", editMessage);
 router.delete("/unsend/:messageId", unsendMessage);
 
 export default router;

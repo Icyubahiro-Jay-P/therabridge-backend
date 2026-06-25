@@ -53,11 +53,14 @@ export const getConversation = async (req, res) => {
       .populate("sender", "username firstName lastName avatar")
       .populate("recipient", "username firstName lastName avatar");
 
-    // Mark messages as read
-    await Message.updateMany(
-      { sender: userId, recipient: myId, read: false },
-      { $set: { read: true, readAt: new Date() } }
-    );
+    // Mark messages as read (respect recipient's readReceipts setting)
+    const myUser = await User.findById(myId).select("chatSettings");
+    if (myUser?.chatSettings?.readReceipts !== false) {
+      await Message.updateMany(
+        { sender: userId, recipient: myId, read: false },
+        { $set: { read: true, readAt: new Date() } }
+      );
+    }
 
     res.status(200).json(messages);
   } catch (error) {
@@ -432,6 +435,100 @@ export const unsendMessage = async (req, res) => {
     await message.save();
 
     res.status(200).json({ message: "Message unsent.", unsentMessage: message });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ====================== CHAT SETTINGS ======================
+
+export const getChatSettings = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("chatSettings");
+    res.status(200).json(user.chatSettings);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const updateChatSettings = async (req, res) => {
+  try {
+    const { chatSettings } = req.body;
+    const allowedFields = ["readReceipts"];
+
+    const updates = {};
+    for (const field of allowedFields) {
+      if (chatSettings[field] !== undefined) {
+        if (typeof chatSettings[field] !== "boolean") {
+          return res.status(400).json({ message: `${field} must be a boolean.` });
+        }
+        updates[`chatSettings.${field}`] = chatSettings[field];
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: "No valid settings provided." });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updates },
+      { new: true }
+    ).select("chatSettings");
+
+    res.status(200).json({ message: "Chat settings updated", chatSettings: user.chatSettings });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const editMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { content } = req.body;
+    const myId = req.user.id;
+
+    if (!content || content.trim() === "") {
+      return res.status(400).json({ message: "Message content cannot be empty." });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found." });
+    }
+
+    if (message.sender.toString() !== myId) {
+      return res.status(403).json({ message: "You can only edit your own messages." });
+    }
+
+    if (message.unsent) {
+      return res.status(400).json({ message: "Cannot edit an unsent message." });
+    }
+
+    if (message.editCount >= 3) {
+      return res.status(400).json({ message: "Maximum of 3 edits per message." });
+    }
+
+    const tenMinutes = 10 * 60 * 1000;
+    const age = Date.now() - new Date(message.createdAt).getTime();
+    if (age > tenMinutes) {
+      return res.status(400).json({ message: "Can only edit messages within 10 minutes." });
+    }
+
+    // Save old content to history
+    message.editHistory.push({
+      content: message.content,
+      editedAt: new Date(),
+    });
+    message.content = content.trim();
+    message.edited = true;
+    message.editCount += 1;
+
+    await message.save();
+    await message.populate("sender", "username firstName lastName avatar");
+    await message.populate("recipient", "username firstName lastName avatar");
+
+    res.status(200).json(message);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

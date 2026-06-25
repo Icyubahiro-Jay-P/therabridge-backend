@@ -71,6 +71,9 @@ const userSchema = new mongoose.Schema(
       default: "",
       maxlength: 300,
     },
+    chatSettings: {
+      readReceipts: { type: Boolean, default: true },
+    },
     privacySettings: {
       firstName: { type: String, enum: ["public", "private"], default: "public" },
       lastName: { type: String, enum: ["public", "private"], default: "public" },
