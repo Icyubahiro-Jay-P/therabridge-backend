@@ -1,15 +1,27 @@
 import jwt from "jsonwebtoken";
-// check the cookies for the token
-export const authMiddleware = (req, res, next) => {
+import User from "../models/user.model.js";
+
+export const authMiddleware = async (req, res, next) => {
   const token = req.cookies.token;
   if (!token) {
-    return res.status(401).json({ message: "Access denied. No token provided." });
+    return res.status(401).json({ message: "Authentication required. Please log in." });
   }
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    const user = await User.findById(decoded.id).select("isDisabled role");
+    if (!user) {
+      return res.status(401).json({ message: "User account no longer exists." });
+    }
+    if (user.isDisabled) {
+      return res.status(403).json({ message: "Account has been disabled. Contact support." });
+    }
+    req.user = { id: decoded.id, role: decoded.role };
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Invalid token." });
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "Session expired. Please log in again." });
+    }
+    return res.status(401).json({ message: "Invalid or malformed token." });
   }
 };

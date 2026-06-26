@@ -12,6 +12,7 @@ import notificationRoutes from "./routes/notification.route.js";
 import moodRoutes from "./routes/mood.route.js";
 import crisisRoutes from "./routes/crisis.route.js";
 import therryRoutes from "./routes/therry.route.js";
+import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,6 +46,10 @@ app.use("/api/therry", therryRoutes);
 app.get("/", (req, res) => {
   res.status(200).json({ message: "Therabridge API is running!" });
 });
+
+// ====================== ERROR HANDLING ======================
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 // ====================== START SERVER ======================
 connectDB().then(() => {
