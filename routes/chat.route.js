@@ -17,6 +17,8 @@ import {
   deleteAllMyCommunityMessages,
   unsendMessage,
   editMessage,
+  editCommunityMessage,
+  unsendCommunityMessage,
   deleteCommunity,
   getChatSettings,
   updateChatSettings,
@@ -44,6 +46,8 @@ router.get("/communities/:communityId", getCommunityMessages);
 router.get("/communities/by-key/:inviteKey", getCommunityByKey);
 router.put("/communities/:communityId", updateCommunity);
 router.post("/communities/:communityId/messages", sendCommunityMessage);
+router.put("/communities/:communityId/messages/:messageId", editCommunityMessage);
+router.delete("/communities/:communityId/messages/:messageId", unsendCommunityMessage);
 router.post("/communities/:communityId/read", markCommunityMessagesRead);
 router.post("/communities/:communityId/members/remove", removeMember);
 router.delete("/communities/:communityId", deleteCommunity);

@@ -78,6 +78,24 @@ const communityMessageSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
+  unsent: {
+    type: Boolean,
+    default: false,
+  },
+  edited: {
+    type: Boolean,
+    default: false,
+  },
+  editCount: {
+    type: Number,
+    default: 0,
+  },
+  editHistory: [
+    {
+      content: { type: String, required: true },
+      editedAt: { type: Date, default: Date.now },
+    },
+  ],
 });
 
 const communitySchema = new mongoose.Schema(

@@ -30,6 +30,8 @@ import {
   createCommunity,
   joinCommunity,
   deleteCommunity,
+  editCommunityMessage,
+  unsendCommunityMessage,
 } from "../controllers/chat.controller.js"
 import { Message, Community } from "../models/chat.model.js"
 import User from "../models/user.model.js"
@@ -191,6 +193,135 @@ describe("Chat Controller", () => {
       })
       await deleteCommunity(req, res)
       expect(res.status).toHaveBeenCalledWith(404)
+    })
+  })
+
+  describe("editCommunityMessage", () => {
+    function makeMockCommunity(opts = {}) {
+      return {
+        _id: "comm123",
+        messages: {
+          id: vi.fn().mockReturnValue({
+            _id: "msg123",
+            sender: { toString: () => opts.senderId ?? "user123" },
+            content: opts.content ?? "original",
+            createdAt: opts.createdAt ?? new Date(),
+            unsent: opts.unsent ?? false,
+            editCount: opts.editCount ?? 0,
+            editHistory: [],
+            edited: false,
+            ...opts.msgOverrides,
+          }),
+        },
+        save: vi.fn().mockResolvedValue(true),
+        populate: vi.fn().mockResolvedValue(true),
+      }
+    }
+
+    it("should reject empty edit content", async () => {
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123", messageId: "msg123" },
+        body: { content: "" },
+      })
+      await editCommunityMessage(req, res)
+      expect(res.status).toHaveBeenCalledWith(400)
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Message content cannot be empty." })
+      )
+    })
+
+    it("should reject non-existent message", async () => {
+      Community.findOne.mockResolvedValue(null)
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123", messageId: "nonexistent" },
+        body: { content: "edited" },
+      })
+      await editCommunityMessage(req, res)
+      expect(res.status).toHaveBeenCalledWith(404)
+    })
+
+    it("should reject editing another user's message", async () => {
+      Community.findOne.mockResolvedValue(makeMockCommunity({ senderId: "otheruser" }))
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123", messageId: "msg123" },
+        body: { content: "edited" },
+      })
+      await editCommunityMessage(req, res)
+      expect(res.status).toHaveBeenCalledWith(403)
+    })
+
+    it("should reject editing an unsent message", async () => {
+      Community.findOne.mockResolvedValue(makeMockCommunity({ unsent: true }))
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123", messageId: "msg123" },
+        body: { content: "edited" },
+      })
+      await editCommunityMessage(req, res)
+      expect(res.status).toHaveBeenCalledWith(400)
+    })
+
+    it("should edit own message", async () => {
+      const community = makeMockCommunity({})
+      Community.findOne.mockResolvedValue(community)
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123", messageId: "msg123" },
+        body: { content: "edited content" },
+      })
+      await editCommunityMessage(req, res)
+      expect(community.save).toHaveBeenCalled()
+      expect(res.status).toHaveBeenCalledWith(200)
+    })
+  })
+
+  describe("unsendCommunityMessage", () => {
+    function makeMockCommunity(opts = {}) {
+      return {
+        _id: "comm123",
+        messages: {
+          id: vi.fn().mockReturnValue({
+            _id: "msg123",
+            sender: { toString: () => opts.senderId ?? "user123" },
+            content: "original",
+            createdAt: new Date(),
+            unsent: false,
+            ...opts.msgOverrides,
+          }),
+        },
+        save: vi.fn().mockResolvedValue(true),
+        populate: vi.fn().mockResolvedValue(true),
+      }
+    }
+
+    it("should reject non-existent message", async () => {
+      Community.findOne.mockResolvedValue(null)
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123", messageId: "nonexistent" },
+      })
+      await unsendCommunityMessage(req, res)
+      expect(res.status).toHaveBeenCalledWith(404)
+    })
+
+    it("should reject unsending another user's message", async () => {
+      Community.findOne.mockResolvedValue(makeMockCommunity({ senderId: "otheruser" }))
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123", messageId: "msg123" },
+      })
+      await unsendCommunityMessage(req, res)
+      expect(res.status).toHaveBeenCalledWith(403)
+    })
+
+    it("should unsend own message", async () => {
+      const community = makeMockCommunity({})
+      Community.findOne.mockResolvedValue(community)
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123", messageId: "msg123" },
+      })
+      await unsendCommunityMessage(req, res)
+      expect(community.save).toHaveBeenCalled()
+      expect(res.status).toHaveBeenCalledWith(200)
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Message unsent." })
+      )
     })
   })
 })

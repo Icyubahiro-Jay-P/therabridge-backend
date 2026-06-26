@@ -534,6 +534,95 @@ export const editMessage = async (req, res) => {
   }
 };
 
+// ====================== COMMUNITY MESSAGE EDIT / UNSEND ======================
+
+export const editCommunityMessage = async (req, res) => {
+  try {
+    const { communityId, messageId } = req.params;
+    const { content } = req.body;
+    const myId = req.user.id;
+
+    if (!content || content.trim() === "") {
+      return res.status(400).json({ message: "Message content cannot be empty." });
+    }
+
+    const community = await Community.findOne({ _id: communityId, "messages._id": messageId });
+    if (!community) {
+      return res.status(404).json({ message: "Message not found." });
+    }
+
+    const message = community.messages.id(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found." });
+    }
+
+    if (message.sender.toString() !== myId) {
+      return res.status(403).json({ message: "You can only edit your own messages." });
+    }
+
+    if (message.unsent) {
+      return res.status(400).json({ message: "Cannot edit an unsent message." });
+    }
+
+    if (message.editCount >= 3) {
+      return res.status(400).json({ message: "Maximum of 3 edits per message." });
+    }
+
+    const tenMinutes = 10 * 60 * 1000;
+    const age = Date.now() - new Date(message.createdAt).getTime();
+    if (age > tenMinutes) {
+      return res.status(400).json({ message: "Can only edit messages within 10 minutes." });
+    }
+
+    message.editHistory.push({
+      content: message.content,
+      editedAt: new Date(),
+    });
+    message.content = content.trim();
+    message.edited = true;
+    message.editCount += 1;
+
+    await community.save();
+    await community.populate("messages.sender", "username firstName lastName avatar");
+
+    const updated = community.messages.id(messageId);
+    res.status(200).json(updated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const unsendCommunityMessage = async (req, res) => {
+  try {
+    const { communityId, messageId } = req.params;
+    const myId = req.user.id;
+
+    const community = await Community.findOne({ _id: communityId, "messages._id": messageId });
+    if (!community) {
+      return res.status(404).json({ message: "Message not found." });
+    }
+
+    const message = community.messages.id(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found." });
+    }
+
+    if (message.sender.toString() !== myId) {
+      return res.status(403).json({ message: "You can only unsend your own messages." });
+    }
+
+    message.unsent = true;
+    message.content = "[Message unsent]";
+    await community.save();
+    await community.populate("messages.sender", "username firstName lastName avatar");
+
+    const updated = community.messages.id(messageId);
+    res.status(200).json({ message: "Message unsent.", unsentMessage: updated });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const deleteCommunity = async (req, res) => {
   try {
     const { communityId } = req.params;
