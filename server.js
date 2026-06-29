@@ -24,7 +24,7 @@ const PORT = process.env.PORT || 5000;
 app.use(
   cors({
     credentials: true,
-    origin:[process.env.CLIENT_URL || "http://localhost:5173", "https://therabridge.vercel.app"],
+    origin:[process.env.CLIENT_URL || "http://localhost:5173", ...(process.env.CLIENT_URL_2 ? [process.env.CLIENT_URL_2] : [])],
   })
 );
 app.use(express.json());
