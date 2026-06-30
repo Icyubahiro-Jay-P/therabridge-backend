@@ -40,14 +40,6 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    passwordResetToken: {
-      type: String,
-      default: null,
-    },
-    passwordResetTokenExpiry: {
-      type: Date,
-      default: null,
-    },
     // Fields used by forgotPassword / resetPassword controller
     resetPasswordToken: {
       type: String,
@@ -75,10 +67,22 @@ const userSchema = new mongoose.Schema(
       readReceipts: { type: Boolean, default: true },
     },
     privacySettings: {
-      firstName: { type: String, enum: ["public", "private"], default: "public" },
-      lastName: { type: String, enum: ["public", "private"], default: "public" },
+      firstName: {
+        type: String,
+        enum: ["public", "private"],
+        default: "public",
+      },
+      lastName: {
+        type: String,
+        enum: ["public", "private"],
+        default: "public",
+      },
       email: { type: String, enum: ["public", "private"], default: "public" },
-      dateOfBirth: { type: String, enum: ["public", "private"], default: "public" },
+      dateOfBirth: {
+        type: String,
+        enum: ["public", "private"],
+        default: "public",
+      },
       bio: { type: String, enum: ["public", "private"], default: "public" },
     },
     isDisabled: {
@@ -114,7 +118,7 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.model("User", userSchema);

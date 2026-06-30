@@ -12,7 +12,10 @@ import notificationRoutes from "./routes/notification.route.js";
 import moodRoutes from "./routes/mood.route.js";
 import crisisRoutes from "./routes/crisis.route.js";
 import therryRoutes from "./routes/therry.route.js";
-import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js";
+import {
+  errorHandler,
+  notFoundHandler,
+} from "./middleware/error.middleware.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,8 +27,17 @@ const PORT = process.env.PORT || 5000;
 app.use(
   cors({
     credentials: true,
-    origin:[process.env.CLIENT_URL || "http://localhost:5173", "https://therabridge.vercel.app"],
-  })
+    origin: (origin, callback) => {
+      const allowed = [
+        process.env.CLIENT_URL || "http://localhost:5173",
+        "https://therabridge.vercel.app",
+      ].filter(Boolean);
+      // allow requests with no origin (mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      if (allowed.includes(origin)) return callback(null, true);
+      return callback(new Error("CORS policy: Origin not allowed"));
+    },
+  }),
 );
 app.use(express.json());
 app.use(cookieParser());

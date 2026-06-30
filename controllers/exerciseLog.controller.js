@@ -1,6 +1,8 @@
 import ExerciseLog from "../models/exerciseLog.model.js";
 import Exercise from "../models/exercise.model.js";
 import User from "../models/user.model.js";
+import { createNotification } from "./notification.controller.js";
+import { isMilestone, getMilestoneInfo } from "../utils/streakMilestones.js";
 
 export const startExercise = async (req, res) => {
   try {
@@ -60,11 +62,12 @@ export const completeExercise = async (req, res) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const lastExercise = user.lastExerciseDate ? new Date(user.lastExerciseDate) : null;
+      const oldStreak = user.exerciseStreak || 0;
       if (lastExercise) {
         lastExercise.setHours(0, 0, 0, 0);
         const diffDays = Math.floor((today - lastExercise) / 86400000);
         if (diffDays === 1) {
-          user.exerciseStreak = (user.exerciseStreak || 0) + 1;
+          user.exerciseStreak = oldStreak + 1;
         } else if (diffDays > 1) {
           user.exerciseStreak = 1;
         }
@@ -76,6 +79,26 @@ export const completeExercise = async (req, res) => {
       }
       user.lastExerciseDate = today;
       await user.save();
+
+      const wasPreviousMilestone = isMilestone(oldStreak);
+      const hitMilestone = isMilestone(user.exerciseStreak) && !wasPreviousMilestone;
+
+      await createNotification(
+        user._id,
+        "exercise_reminder",
+        "Exercise Complete!",
+        `You earned ${pointsEarned} points for completing "${exercise.title}". Keep going!`,
+      );
+
+      if (hitMilestone) {
+        const info = getMilestoneInfo(user.exerciseStreak);
+        await createNotification(
+          user._id,
+          "streak_milestone",
+          `${info.emoji} ${info.title}!`,
+          `You've hit a ${user.exerciseStreak}-day exercise streak! Amazing dedication.`,
+        );
+      }
     }
 
     res.status(200).json({

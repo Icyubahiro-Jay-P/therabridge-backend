@@ -6,6 +6,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import sendEmail from "../utils/nodemailer.js";
+import { createNotification } from "./notification.controller.js";
+import { isMilestone, getMilestoneInfo } from "../utils/streakMilestones.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,13 +18,22 @@ export const register = async (req, res) => {
       req.body;
 
     // === Validations ===
-    if (!username || !email || !password || !firstName || !lastName || !dateOfBirth) {
+    if (
+      !username ||
+      !email ||
+      !password ||
+      !firstName ||
+      !lastName ||
+      !dateOfBirth
+    ) {
       return res.status(400).json({ message: "All fields are required." });
     }
 
     // Password length
     if (password.length < 8) {
-      return res.status(400).json({ message: "Password must be at least 8 characters long." });
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 8 characters long." });
     }
 
     const today = new Date();
@@ -62,7 +73,9 @@ export const register = async (req, res) => {
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) {
       if (existingUser.email === email) {
-        return res.status(400).json({ message: "Email is already registered." });
+        return res
+          .status(400)
+          .json({ message: "Email is already registered." });
       }
       return res.status(400).json({ message: "Username is already taken." });
     }
@@ -85,7 +98,7 @@ export const register = async (req, res) => {
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "30d" }
+      { expiresIn: "30d" },
     );
     res.cookie("token", token, {
       httpOnly: true,
@@ -118,7 +131,9 @@ export const login = async (req, res) => {
     const { identifier, password } = req.body;
 
     if (!identifier || !password) {
-      return res.status(400).json({ message: "Email/username and password are required." });
+      return res
+        .status(400)
+        .json({ message: "Email/username and password are required." });
     }
 
     // Find user by email or username
@@ -137,7 +152,7 @@ export const login = async (req, res) => {
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "30d" }
+      { expiresIn: "30d" },
     );
     res.cookie("token", token, {
       httpOnly: true,
@@ -172,7 +187,9 @@ export const logout = (req, res) => {
 
 export const profile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password -oldPasswords");
+    const user = await User.findById(req.user.id).select(
+      "-password -oldPasswords",
+    );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -186,7 +203,7 @@ export const profile = async (req, res) => {
 export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username }).select(
-      "-password -oldPasswords -passwordResetToken -passwordResetTokenExpiry -resetPasswordToken -resetPasswordExpire"
+      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire",
     );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -201,7 +218,13 @@ export const getUserProfile = async (req, res) => {
     const privacy = user.privacySettings || {};
     const filtered = user.toObject();
 
-    for (const field of ["firstName", "lastName", "email", "dateOfBirth", "bio"]) {
+    for (const field of [
+      "firstName",
+      "lastName",
+      "email",
+      "dateOfBirth",
+      "bio",
+    ]) {
       if (privacy[field] === "private") {
         filtered[field] = null;
       }
@@ -224,7 +247,9 @@ export const getUserProfile = async (req, res) => {
 // get user by ID (admin / chat lookup)
 export const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-password -oldPasswords");
+    const user = await User.findById(req.params.id).select(
+      "-password -oldPasswords",
+    );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -238,7 +263,13 @@ export const getUserById = async (req, res) => {
     const privacy = user.privacySettings || {};
     const filtered = user.toObject();
 
-    for (const field of ["firstName", "lastName", "email", "dateOfBirth", "bio"]) {
+    for (const field of [
+      "firstName",
+      "lastName",
+      "email",
+      "dateOfBirth",
+      "bio",
+    ]) {
       if (privacy[field] === "private") {
         filtered[field] = null;
       }
@@ -299,11 +330,15 @@ export const updateProfile = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: updates },
-      { new: true }
-    ).select("-password -oldPasswords -passwordResetToken -passwordResetTokenExpiry -resetPasswordToken -resetPasswordExpire");
+      { new: true },
+    ).select(
+      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire",
+    );
 
     res.status(200).json({
-      message: "Profile updated successfully", user });
+      message: "Profile updated successfully",
+      user,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -349,7 +384,9 @@ export const uploadProfilePicture = async (req, res) => {
     });
   } catch (error) {
     if (req.file) {
-      try { fs.unlinkSync(req.file.path); } catch {}
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch {}
     }
     res.status(500).json({ message: error.message });
   }
@@ -380,19 +417,37 @@ export const changePassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     // Check if current password is correct
     const user = await User.findById(req.user.id);
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    const isPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
     if (!isPasswordValid) {
       return res.status(400).json({ message: "Invalid current password" });
     }
     // check if the new password is not the same as the current password or any of the old passwords
-    if (
-      currentPassword === newPassword ||
-      user.oldPasswords.includes(newPassword)
-    ) {
+    if (currentPassword === newPassword) {
       return res.status(400).json({
-        message:
-          "New password cannot be the same as the current password or any of the old passwords",
+        message: "New password cannot be the same as the current password",
       });
+    }
+
+    // Ensure new password isn't equal to current hashed password or any previously used hashed passwords
+    const isSameAsCurrent = await bcrypt.compare(newPassword, user.password);
+    if (isSameAsCurrent) {
+      return res.status(400).json({
+        message: "New password cannot be the same as the current password",
+      });
+    }
+
+    for (const oldHash of user.oldPasswords || []) {
+      // compare new plaintext password with previously stored hashed passwords
+      // eslint-disable-next-line no-await-in-loop
+      const isOld = await bcrypt.compare(newPassword, oldHash);
+      if (isOld) {
+        return res.status(400).json({
+          message: "New password cannot match any previously used password",
+        });
+      }
     }
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -409,7 +464,9 @@ export const changePassword = async (req, res) => {
 
 export const getTherapists = async (req, res) => {
   try {
-    const therapists = await User.find({ role: "therapist" }).select("-password -oldPasswords");
+    const therapists = await User.find({ role: "therapist" }).select(
+      "-password -oldPasswords",
+    );
     res.status(200).json(therapists);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -557,7 +614,13 @@ export const resetPassword = async (req, res) => {
 export const updatePrivacy = async (req, res) => {
   try {
     const { privacySettings } = req.body;
-    const allowedFields = ["firstName", "lastName", "email", "dateOfBirth", "bio"];
+    const allowedFields = [
+      "firstName",
+      "lastName",
+      "email",
+      "dateOfBirth",
+      "bio",
+    ];
 
     const updates = {};
     let privateCount = 0;
@@ -565,7 +628,9 @@ export const updatePrivacy = async (req, res) => {
     for (const field of allowedFields) {
       if (privacySettings[field] !== undefined) {
         if (!["public", "private"].includes(privacySettings[field])) {
-          return res.status(400).json({ message: `Invalid value for ${field}` });
+          return res
+            .status(400)
+            .json({ message: `Invalid value for ${field}` });
         }
         updates[`privacySettings.${field}`] = privacySettings[field];
         if (privacySettings[field] === "private") privateCount++;
@@ -573,16 +638,21 @@ export const updatePrivacy = async (req, res) => {
     }
 
     if (privateCount > 3) {
-      return res.status(400).json({ message: "You can hide at most 3 profile fields." });
+      return res
+        .status(400)
+        .json({ message: "You can hide at most 3 profile fields." });
     }
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: updates },
-      { new: true }
+      { new: true },
     ).select("-password -oldPasswords");
 
-    res.status(200).json({ message: "Privacy settings updated", privacySettings: user.privacySettings });
+    res.status(200).json({
+      message: "Privacy settings updated",
+      privacySettings: user.privacySettings,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -593,7 +663,9 @@ export const updatePrivacy = async (req, res) => {
 export const disableUser = async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "Only admins can disable users." });
+      return res
+        .status(403)
+        .json({ message: "Only admins can disable users." });
     }
     const { id } = req.params;
     const user = await User.findById(id);
@@ -607,7 +679,11 @@ export const disableUser = async (req, res) => {
     await user.save();
     res.status(200).json({
       message: `User ${user.isDisabled ? "disabled" : "enabled"} successfully.`,
-      user: { _id: user._id, isDisabled: user.isDisabled, username: user.username },
+      user: {
+        _id: user._id,
+        isDisabled: user.isDisabled,
+        username: user.username,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -617,7 +693,9 @@ export const disableUser = async (req, res) => {
 export const changeUserRole = async (req, res) => {
   try {
     if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "Only admins can change user roles." });
+      return res
+        .status(403)
+        .json({ message: "Only admins can change user roles." });
     }
     const { id } = req.params;
     const { role } = req.body;
@@ -666,13 +744,17 @@ export const getFullUserData = async (req, res) => {
     if (currentUser.role !== "therapist" && currentUser.role !== "admin") {
       return res.status(403).json({ message: "Access denied." });
     }
-    const user = await User.findById(id).select("-password -oldPasswords -passwordResetToken -passwordResetTokenExpiry -resetPasswordToken -resetPasswordExpire");
+    const user = await User.findById(id).select(
+      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire",
+    );
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
     if (currentUser.role === "therapist") {
       if (user.role === "therapist" || user.role === "admin") {
-        return res.status(403).json({ message: "Therapists can only view user profiles." });
+        return res
+          .status(403)
+          .json({ message: "Therapists can only view user profiles." });
       }
     }
     res.status(200).json(user);
@@ -706,6 +788,17 @@ export const updateLoginStreak = async (req, res) => {
     }
     user.lastLoginDate = today;
     await user.save();
+
+    if (isMilestone(user.loginStreak)) {
+      const info = getMilestoneInfo(user.loginStreak);
+      await createNotification(
+        user._id,
+        "streak_milestone",
+        `${info.emoji} ${info.title}!`,
+        `You've hit a ${user.loginStreak}-day login streak! Keep showing up for yourself.`,
+      );
+    }
+
     res.status(200).json({
       loginStreak: user.loginStreak,
       longestLoginStreak: user.longestLoginStreak,
@@ -717,7 +810,9 @@ export const updateLoginStreak = async (req, res) => {
 
 export const getScoreAndStreak = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("exerciseScore loginStreak exerciseStreak longestLoginStreak longestExerciseStreak lastLoginDate lastExerciseDate");
+    const user = await User.findById(req.user.id).select(
+      "exerciseScore loginStreak exerciseStreak longestLoginStreak longestExerciseStreak lastLoginDate lastExerciseDate",
+    );
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
