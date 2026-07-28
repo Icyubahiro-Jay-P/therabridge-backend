@@ -16,6 +16,7 @@ import {
   errorHandler,
   notFoundHandler,
 } from "./middleware/error.middleware.js";
+import { idempotencyMiddleware } from "./middleware/idempotency.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,6 +42,9 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+
+// Idempotency middleware for write operations
+app.use(idempotencyMiddleware);
 
 // Serve uploaded files statically
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

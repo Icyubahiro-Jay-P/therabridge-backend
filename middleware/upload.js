@@ -21,12 +21,17 @@ const fileFilter = (req, file, cb) => {
   if (allowed.test(path.extname(file.originalname))) {
     cb(null, true);
   } else {
-    cb(new Error("Only image files (jpg, jpeg, png, gif, webp) are allowed"), false);
+    cb(
+      new Error("Only image files (jpg, jpeg, png, gif, webp) are allowed"),
+      false,
+    );
   }
 };
+
+const MAX_UPLOAD_SIZE = 1.4 * 1024 * 1024; // 1.4 MB
 
 export const uploadProfilePic = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: MAX_UPLOAD_SIZE },
 }).single("avatar");

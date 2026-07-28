@@ -2,12 +2,14 @@ import express from "express";
 import {
   sendMessage,
   getConversation,
+  getConversationUpdates,
   getMyConversations,
   searchUsers,
   createCommunity,
   joinCommunity,
   getMyCommunities,
   getCommunityMessages,
+  getCommunityUpdates,
   sendCommunityMessage,
   updateCommunity,
   removeMember,
@@ -33,6 +35,7 @@ router.use(authMiddleware);
 // ====================== DIRECT MESSAGES ======================
 router.get("/conversations", getMyConversations);
 router.get("/conversation/:userId", getConversation);
+router.get("/conversation/:userId/updates", getConversationUpdates);
 router.post("/send", sendMessage);
 router.get("/search", searchUsers);
 router.get("/settings", getChatSettings);
@@ -42,12 +45,19 @@ router.put("/settings", updateChatSettings);
 router.get("/communities", getMyCommunities);
 router.post("/communities", createCommunity);
 router.post("/communities/join", joinCommunity);
-router.get("/communities/:communityId", getCommunityMessages);
 router.get("/communities/by-key/:inviteKey", getCommunityByKey);
+router.get("/communities/:communityId", getCommunityMessages);
+router.get("/communities/:communityId/updates", getCommunityUpdates);
 router.put("/communities/:communityId", updateCommunity);
 router.post("/communities/:communityId/messages", sendCommunityMessage);
-router.put("/communities/:communityId/messages/:messageId", editCommunityMessage);
-router.delete("/communities/:communityId/messages/:messageId", unsendCommunityMessage);
+router.put(
+  "/communities/:communityId/messages/:messageId",
+  editCommunityMessage,
+);
+router.delete(
+  "/communities/:communityId/messages/:messageId",
+  unsendCommunityMessage,
+);
 router.post("/communities/:communityId/read", markCommunityMessagesRead);
 router.post("/communities/:communityId/members/remove", removeMember);
 router.delete("/communities/:communityId", deleteCommunity);

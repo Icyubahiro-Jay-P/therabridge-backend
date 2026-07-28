@@ -23,9 +23,13 @@
     "mongoose": "^9.7.1",
     "multer": "^2.2.0",
     "nodemailer": "^9.0.1",
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "sharp": "^0.32.6"
   },
   "devDependencies": {
     "vitest": "^4.1.9"
+  },
+  "allowScripts": {
+    "sharp@0.32.6": true
   }
 }

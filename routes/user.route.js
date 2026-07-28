@@ -31,7 +31,7 @@ const router = express.Router();
 // ====================== PUBLIC ROUTES ======================
 router.post("/register", register);
 router.post("/login", login);
-router.post("/logout", logout);                    // better as POST for security
+router.post("/logout", logout); // better as POST for security
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 
@@ -40,13 +40,17 @@ router.get("/profile", authMiddleware, profile);
 router.get("/users", authMiddleware, getAllUsers);
 router.get("/therapists", authMiddleware, getTherapists);
 router.get("/users/:id", authMiddleware, getUserById);
-router.get("/:username", getUserProfile);   // public — privacy-filtered
 
-router.put("/profile", authMiddleware, updateProfile);      // or patch if you prefer
+router.put("/profile", authMiddleware, updateProfile); // or patch if you prefer
 router.delete("/profile", authMiddleware, deleteProfile);
 
 router.post("/change-password", authMiddleware, changePassword);
-router.post("/upload-avatar", authMiddleware, uploadProfilePic, uploadProfilePicture);
+router.post(
+  "/upload-avatar",
+  authMiddleware,
+  uploadProfilePic,
+  uploadProfilePicture,
+);
 router.put("/privacy", authMiddleware, updatePrivacy);
 
 // Score & Streak
@@ -60,6 +64,8 @@ router.delete("/admin/user/:id", authMiddleware, deleteUserByAdmin);
 
 // Therapist routes
 router.get("/therapist/user/:id", authMiddleware, getFullUserData);
+
+router.get("/:username", getUserProfile); // public — privacy-filtered
 
 // Catch-all for now (you had this empty)
 router.get("/", (req, res) => {

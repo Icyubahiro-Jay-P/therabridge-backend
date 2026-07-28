@@ -5,9 +5,16 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import sharp from "sharp";
 import sendEmail from "../utils/nodemailer.js";
 import { createNotification } from "./notification.controller.js";
 import { isMilestone, getMilestoneInfo } from "../utils/streakMilestones.js";
+import {
+  getPaginationParams,
+  formatPaginatedResponse,
+  parseSortParams,
+  parseFilterParams,
+} from "../utils/pagination.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -358,6 +365,27 @@ export const uploadProfilePicture = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Optimize the uploaded avatar using Sharp
+    const uploadDir = path.dirname(req.file.path);
+    const optimizedFilename = `${path.parse(req.file.filename).name}.webp`;
+    const optimizedPath = path.join(uploadDir, optimizedFilename);
+
+    await sharp(req.file.path)
+      .rotate()
+      .resize({
+        width: 1200,
+        height: 1200,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 80, effort: 6 })
+      .toFile(optimizedPath);
+
+    // Replace original uploaded file with optimized file
+    fs.unlinkSync(req.file.path);
+    req.file.path = optimizedPath;
+    req.file.filename = optimizedFilename;
+
     // Delete previous avatar if it was an uploaded file
     if (user.avatar && user.avatar.startsWith("/uploads/")) {
       const oldPath = path.join(__dirname, "..", user.avatar);
@@ -466,10 +494,27 @@ export const changePassword = async (req, res) => {
 
 export const getTherapists = async (req, res) => {
   try {
-    const therapists = await User.find({ role: "therapist" }).select(
-      "-password -oldPasswords",
-    );
-    res.status(200).json(therapists);
+    const { page, limit, offset } = getPaginationParams(req.query, 50);
+    const sort = parseSortParams(req.query, [
+      "firstName",
+      "lastName",
+      "createdAt",
+    ]);
+    const filter = parseFilterParams(req.query, ["firstName", "lastName"]);
+
+    // Add role filter
+    filter.role = "therapist";
+
+    const total = await User.countDocuments(filter);
+    const therapists = await User.find(filter)
+      .select("-password -oldPasswords")
+      .sort(sort)
+      .limit(limit)
+      .skip(offset);
+
+    res
+      .status(200)
+      .json(formatPaginatedResponse(therapists, total, page, limit));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -477,8 +522,28 @@ export const getTherapists = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
-    res.status(200).json(users);
+    const { page, limit, offset } = getPaginationParams(req.query, 100);
+    const sort = parseSortParams(req.query, [
+      "firstName",
+      "lastName",
+      "email",
+      "createdAt",
+    ]);
+    const filter = parseFilterParams(req.query, [
+      "firstName",
+      "lastName",
+      "email",
+      "role",
+    ]);
+
+    const total = await User.countDocuments(filter);
+    const users = await User.find(filter)
+      .select("-password -oldPasswords")
+      .sort(sort)
+      .limit(limit)
+      .skip(offset);
+
+    res.status(200).json(formatPaginatedResponse(users, total, page, limit));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
