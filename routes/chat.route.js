@@ -24,6 +24,7 @@ import {
   updateChatSettings,
 } from "../controllers/chat.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
+import { spamFilter } from "../middleware/spamFilter.js";
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ router.use(authMiddleware);
 // ====================== DIRECT MESSAGES ======================
 router.get("/conversations", getMyConversations);
 router.get("/conversation/:userId", getConversation);
-router.post("/send", sendMessage);
+router.post("/send", spamFilter, sendMessage);
 router.get("/search", searchUsers);
 router.get("/settings", getChatSettings);
 router.put("/settings", updateChatSettings);
@@ -45,7 +46,7 @@ router.post("/communities/join", joinCommunity);
 router.get("/communities/:communityId", getCommunityMessages);
 router.get("/communities/by-key/:inviteKey", getCommunityByKey);
 router.put("/communities/:communityId", updateCommunity);
-router.post("/communities/:communityId/messages", sendCommunityMessage);
+router.post("/communities/:communityId/messages", spamFilter, sendCommunityMessage);
 router.put("/communities/:communityId/messages/:messageId", editCommunityMessage);
 router.delete("/communities/:communityId/messages/:messageId", unsendCommunityMessage);
 router.post("/communities/:communityId/read", markCommunityMessagesRead);

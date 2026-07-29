@@ -1,3 +1,5 @@
+import { analyzeAll, checkCrisis } from "../services/mlClient.js";
+
 const THERAPY_RESPONSES = {
   anxiety: [
     "It sounds like you're experiencing anxiety. Let's try a grounding exercise together. Name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste.",
@@ -53,15 +55,50 @@ export const chat = async (req, res) => {
     if (!message || message.trim() === "") {
       return res.status(400).json({ message: "Message cannot be empty." });
     }
-    const category = getResponseCategory(message);
-    const responses = THERAPY_RESPONSES[category];
+
+    const aiResults = await analyzeAll(message);
+
+    let category = getResponseCategory(message);
+    let isCrisis = category === "crisis";
+
+    if (aiResults) {
+      if (aiResults.crisis?.is_crisis) {
+        isCrisis = true;
+        category = "crisis";
+      }
+
+      if (!isCrisis && aiResults.sentiment) {
+        const sentimentMap = {
+          negative: "sad",
+          positive: "general",
+          neutral: "general",
+        };
+        category = sentimentMap[aiResults.sentiment.sentiment] || category;
+      }
+
+      if (aiResults.spam?.is_spam) {
+        return res.status(400).json({
+          message: "I'm here to support you with meaningful conversations. Please share what's on your mind.",
+          category: "general",
+          isCrisis: false,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    const responses = THERAPY_RESPONSES[category] || THERAPY_RESPONSES.general;
     const response = responses[Math.floor(Math.random() * responses.length)];
-    const isCrisis = category === "crisis";
+
     res.status(200).json({
       reply: response,
       category,
       isCrisis,
       timestamp: new Date().toISOString(),
+      _ai: aiResults ? {
+        sentiment: aiResults.sentiment?.sentiment,
+        spam_score: aiResults.spam?.spam_score,
+        crisis_score: aiResults.crisis?.crisis_score,
+      } : undefined,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
