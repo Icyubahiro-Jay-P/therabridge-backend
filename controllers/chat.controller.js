@@ -248,18 +248,25 @@ export const createCommunity = async (req, res) => {
         .json({ message: "Community name must be at least 2 characters." });
     }
 
-    // Generate a unique 8-character invite key
-    const inviteKey = crypto.randomBytes(4).toString("hex").toUpperCase();
+    // Generate a unique 8-character invite key (with collision retry)
+    let community;
+    for (let attempts = 0; attempts < 5; attempts++) {
+      const inviteKey = crypto.randomBytes(4).toString("hex").toUpperCase();
+      community = new Community({
+        name: name.trim(),
+        description: description?.trim() || "",
+        owner: req.user.id,
+        members: [req.user.id],
+        inviteKey,
+      });
+      try {
+        await community.save();
+        break;
+      } catch (err) {
+        if (err.code !== 11000 || attempts === 4) throw err;
+      }
+    }
 
-    const community = new Community({
-      name: name.trim(),
-      description: description?.trim() || "",
-      owner: req.user.id,
-      members: [req.user.id],
-      inviteKey,
-    });
-
-    await community.save();
     await community.populate("owner", "username firstName lastName avatar");
     await community.populate("members", "username firstName lastName avatar");
 
@@ -280,7 +287,9 @@ export const joinCommunity = async (req, res) => {
         .json({ message: "Invalid invite key. Community not found." });
     }
 
-    const alreadyMember = community.members.includes(req.user.id);
+    const alreadyMember = community.members.some(
+      (m) => m.toString() === req.user.id,
+    );
     if (alreadyMember) {
       return res
         .status(400)

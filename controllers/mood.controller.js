@@ -46,9 +46,12 @@ export const getMyMoods = async (req, res) => {
 
     // Support filtering by days, mood type, and intensity
     if (req.query.days) {
-      const since = new Date();
-      since.setDate(since.getDate() - parseInt(req.query.days));
-      filter.date = { $gte: since };
+      const days = parseInt(req.query.days, 10);
+      if (!isNaN(days) && days > 0) {
+        const since = new Date();
+        since.setDate(since.getDate() - days);
+        filter.date = { $gte: since };
+      }
     }
 
     if (req.query.mood) {
@@ -57,10 +60,14 @@ export const getMyMoods = async (req, res) => {
 
     if (req.query.minIntensity || req.query.maxIntensity) {
       filter.intensity = {};
-      if (req.query.minIntensity)
-        filter.intensity.$gte = parseInt(req.query.minIntensity);
-      if (req.query.maxIntensity)
-        filter.intensity.$lte = parseInt(req.query.maxIntensity);
+      if (req.query.minIntensity) {
+        const min = parseInt(req.query.minIntensity, 10);
+        if (!isNaN(min)) filter.intensity.$gte = min;
+      }
+      if (req.query.maxIntensity) {
+        const max = parseInt(req.query.maxIntensity, 10);
+        if (!isNaN(max)) filter.intensity.$lte = max;
+      }
     }
 
     const total = await Mood.countDocuments(filter);

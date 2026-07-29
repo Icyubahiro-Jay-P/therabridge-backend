@@ -139,6 +139,9 @@ export const getExerciseById = async (req, res) => {
 
 export const createExercise = async (req, res) => {
   try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can create exercises." });
+    }
     const exercise = new Exercise(req.body);
     await exercise.save();
     res.status(201).json(exercise);

@@ -89,5 +89,6 @@ export const createNotification = async (recipientId, type, title, body, data = 
     return notification;
   } catch (error) {
     console.error("Failed to create notification:", error.message);
+    return null;
   }
 };

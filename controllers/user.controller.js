@@ -45,7 +45,11 @@ export const register = async (req, res) => {
 
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
-    const age = today.getFullYear() - birthDate.getFullYear();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
 
     // Age check
     if (age < 18 || age > 120) {
@@ -324,7 +328,11 @@ export const updateProfile = async (req, res) => {
     if (dateOfBirth) {
       const today = new Date();
       const birthDate = new Date(dateOfBirth);
-      const age = today.getFullYear() - birthDate.getFullYear();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
       if (age < 18 || age > 120) {
         return res
           .status(400)
@@ -343,6 +351,10 @@ export const updateProfile = async (req, res) => {
     ).select(
       "-password -oldPasswords -resetPasswordToken -resetPasswordExpire",
     );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
 
     res.status(200).json({
       message: "Profile updated successfully",
@@ -388,9 +400,10 @@ export const uploadProfilePicture = async (req, res) => {
 
     // Delete previous avatar if it was an uploaded file
     if (user.avatar && user.avatar.startsWith("/uploads/")) {
-      const oldPath = path.join(__dirname, "..", user.avatar);
-      if (fs.existsSync(oldPath)) {
-        fs.unlinkSync(oldPath);
+      const resolvedPath = path.resolve(path.join(__dirname, "..", user.avatar));
+      const uploadsDir = path.resolve(path.join(__dirname, "..", "uploads"));
+      if (resolvedPath.startsWith(uploadsDir) && fs.existsSync(resolvedPath)) {
+        fs.unlinkSync(resolvedPath);
       }
     }
 
@@ -447,18 +460,15 @@ export const changePassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
     // Check if current password is correct
     const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
     const isPasswordValid = await bcrypt.compare(
       currentPassword,
       user.password,
     );
     if (!isPasswordValid) {
       return res.status(400).json({ message: "Invalid current password" });
-    }
-    // check if the new password is not the same as the current password or any of the old passwords
-    if (currentPassword === newPassword) {
-      return res.status(400).json({
-        message: "New password cannot be the same as the current password",
-      });
     }
 
     // Ensure new password isn't equal to current hashed password or any previously used hashed passwords

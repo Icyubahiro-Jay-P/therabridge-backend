@@ -68,8 +68,13 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // ====================== START SERVER ======================
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Therabridge server running on port ${PORT}`);
+connectDB()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Therabridge server running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to connect to database:", err);
+    process.exit(1);
   });
-});

@@ -23,7 +23,7 @@ export const idempotencyMiddleware = (req, res, next) => {
   }
 
   // Create a unique identifier combining key + userId
-  const userId = req.user?.id || "anonymous";
+  const userId = req.user?.id || `anon:${req.ip}`;
   const storeKey = `${userId}:${idempotencyKey}`;
 
   // Check if this request has already been processed

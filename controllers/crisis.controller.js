@@ -69,6 +69,9 @@ export const acknowledgeCrisis = async (req, res) => {
     if (!crisis) {
       return res.status(404).json({ message: "Crisis alert not found." });
     }
+    if (crisis.status !== "active") {
+      return res.status(400).json({ message: "Crisis alert already acknowledged or resolved." });
+    }
     crisis.status = "acknowledged";
     crisis.acknowledgedBy = req.user.id;
     await crisis.save();
@@ -103,6 +106,9 @@ export const resolveCrisis = async (req, res) => {
 
 export const getAllActiveCrisisAlerts = async (req, res) => {
   try {
+    if (req.user.role !== "therapist" && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied." });
+    }
     const alerts = await Crisis.find({ status: "active" })
       .populate("user", "username firstName lastName avatar")
       .sort("-createdAt");
