@@ -1,36 +1,44 @@
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
 
 const sendEmail = async (options) => {
   let transporter;
 
   // Fallback to ethereal if no credentials are provided
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.log("No email credentials found in .env, generating a test ethereal account...");
+    console.log(
+      "No email credentials found in .env, generating a test ethereal account...",
+    );
     const testAccount = await nodemailer.createTestAccount();
-    
+
     transporter = nodemailer.createTransport({
       host: "smtp.ethereal.email",
       port: 587,
       secure: false,
       auth: {
-        user: testAccount.user, 
-        pass: testAccount.pass, 
+        user: testAccount.user,
+        pass: testAccount.pass,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
     });
   } else {
     transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: process.env.EMAIL_PORT || 587,
+      host: process.env.EMAIL_HOST || "smtp.gmail.com",
+      port: Number(process.env.EMAIL_PORT) || 587,
       secure: false, // Use TLS for port 587
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
     });
   }
 
   const message = {
-    from: `${process.env.FROM_NAME || 'Therabridge'} <${process.env.FROM_EMAIL || process.env.EMAIL_USER || 'no-reply@therabridge.com'}>`,
+    from: `${process.env.FROM_NAME || "Therabridge"} <${process.env.FROM_EMAIL || process.env.EMAIL_USER || "no-reply@therabridge.com"}>`,
     to: options.email,
     subject: options.subject,
     text: options.message,
@@ -38,11 +46,14 @@ const sendEmail = async (options) => {
   };
 
   const info = await transporter.sendMail(message);
-  
-  console.log('Message sent: %s', info.messageId);
-  
+
+  console.log("Message sent: %s", info.messageId);
+
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.log("Preview URL (Open this right now to see the reset link!): %s", nodemailer.getTestMessageUrl(info));
+    console.log(
+      "Preview URL (Open this right now to see the reset link!): %s",
+      nodemailer.getTestMessageUrl(info),
+    );
   }
 };
 
