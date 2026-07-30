@@ -10,6 +10,7 @@ import {
   getLogs,
 } from "../controllers/exerciseLog.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
+import { validate, createExerciseSchema } from "../utils/validation.js";
 
 const router = express.Router();
 
@@ -25,6 +26,6 @@ router.post("/:id/complete", authMiddleware, completeExercise);
 router.get("/:id", getExerciseById);
 
 // Admin only
-router.post("/", authMiddleware, createExercise);
+router.post("/", authMiddleware, validate(createExerciseSchema), createExercise);
 
 export default router;

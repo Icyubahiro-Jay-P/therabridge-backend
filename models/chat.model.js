@@ -54,6 +54,10 @@ const messageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+messageSchema.index({ sender: 1, recipient: 1, updatedAt: -1 });
+messageSchema.index({ recipient: 1, sender: 1, updatedAt: -1 });
+messageSchema.index({ deletedFor: 1 });
+
 export const Message = mongoose.model("Message", messageSchema);
 
 // Community Room model — group chat with unique invite key
@@ -132,5 +136,8 @@ const communitySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+communitySchema.index({ members: 1 });
+communitySchema.index({ inviteKey: 1 });
 
 export const Community = mongoose.model("Community", communitySchema);

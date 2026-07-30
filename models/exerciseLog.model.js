@@ -32,4 +32,6 @@ const exerciseLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+exerciseLogSchema.index({ user: 1, createdAt: -1 });
+
 export default mongoose.model("ExerciseLog", exerciseLogSchema);

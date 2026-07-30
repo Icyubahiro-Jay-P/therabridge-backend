@@ -6,12 +6,13 @@ import {
   deleteMood,
 } from "../controllers/mood.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
+import { validate, logMoodSchema } from "../utils/validation.js";
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
-router.post("/", logMood);
+router.post("/", validate(logMoodSchema), logMood);
 router.get("/", getMyMoods);
 router.get("/stats", getMoodStats);
 router.delete("/:id", deleteMood);

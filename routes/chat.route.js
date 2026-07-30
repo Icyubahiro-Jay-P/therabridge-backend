@@ -26,32 +26,39 @@ import {
   updateChatSettings,
 } from "../controllers/chat.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
+import { validate } from "../utils/validation.js";
+import {
+  sendMessageSchema,
+  createCommunitySchema,
+  editMessageSchema,
+  chatSettingsSchema,
+} from "../utils/validation.js";
 
 const router = express.Router();
 
-// All chat routes require authentication
 router.use(authMiddleware);
 
 // ====================== DIRECT MESSAGES ======================
 router.get("/conversations", getMyConversations);
 router.get("/conversation/:userId", getConversation);
 router.get("/conversation/:userId/updates", getConversationUpdates);
-router.post("/send", sendMessage);
+router.post("/send", validate(sendMessageSchema), sendMessage);
 router.get("/search", searchUsers);
 router.get("/settings", getChatSettings);
-router.put("/settings", updateChatSettings);
+router.put("/settings", validate(chatSettingsSchema), updateChatSettings);
 
 // ====================== COMMUNITY ROOMS ======================
 router.get("/communities", getMyCommunities);
-router.post("/communities", createCommunity);
+router.post("/communities", validate(createCommunitySchema), createCommunity);
 router.post("/communities/join", joinCommunity);
 router.get("/communities/by-key/:inviteKey", getCommunityByKey);
 router.get("/communities/:communityId", getCommunityMessages);
 router.get("/communities/:communityId/updates", getCommunityUpdates);
 router.put("/communities/:communityId", updateCommunity);
-router.post("/communities/:communityId/messages", sendCommunityMessage);
+router.post("/communities/:communityId/messages", validate(sendMessageSchema), sendCommunityMessage);
 router.put(
   "/communities/:communityId/messages/:messageId",
+  validate(editMessageSchema),
   editCommunityMessage,
 );
 router.delete(
@@ -64,7 +71,7 @@ router.delete("/communities/:communityId", deleteCommunity);
 
 router.delete("/messages", deleteAllMyMessages);
 router.delete("/community-messages", deleteAllMyCommunityMessages);
-router.put("/edit/:messageId", editMessage);
+router.put("/edit/:messageId", validate(editMessageSchema), editMessage);
 router.delete("/unsend/:messageId", unsendMessage);
 
 export default router;

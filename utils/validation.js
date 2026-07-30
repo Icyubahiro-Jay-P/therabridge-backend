@@ -1,0 +1,140 @@
+import { z } from "zod"
+
+export const registerSchema = z.object({
+  firstName: z.string().min(2, "First name must be at least 2 characters").max(50),
+  lastName: z.string().min(2, "Last name must be at least 2 characters").max(50),
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .max(30)
+    .regex(/^[a-zA-Z0-9_]+$/, "Username: letters, numbers, underscores only"),
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  dateOfBirth: z.string().refine(
+    (val) => {
+      const date = new Date(val)
+      if (isNaN(date.getTime())) return false
+      const today = new Date()
+      let age = today.getFullYear() - date.getFullYear()
+      const mDiff = today.getMonth() - date.getMonth()
+      if (mDiff < 0 || (mDiff === 0 && today.getDate() < date.getDate())) age--
+      return age >= 18 && age <= 120
+    },
+    { message: "Must be between 18 and 120 years old" },
+  ),
+})
+
+export const loginSchema = z.object({
+  identifier: z.string().min(1, "Email or username is required"),
+  password: z.string().min(1, "Password is required"),
+})
+
+export const updateProfileSchema = z.object({
+  firstName: z.string().min(2).max(50).optional(),
+  lastName: z.string().min(2).max(50).optional(),
+  dateOfBirth: z
+    .string()
+    .refine(
+      (val) => {
+        const date = new Date(val)
+        if (isNaN(date.getTime())) return false
+        const today = new Date()
+        let age = today.getFullYear() - date.getFullYear()
+        const mDiff = today.getMonth() - date.getMonth()
+        if (mDiff < 0 || (mDiff === 0 && today.getDate() < date.getDate())) age--
+        return age >= 18 && age <= 120
+      },
+      { message: "Must be between 18 and 120" },
+    )
+    .optional(),
+  bio: z.string().max(300).optional(),
+})
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(8, "New password must be at least 8 characters"),
+})
+
+export const sendMessageSchema = z.object({
+  recipientId: z.string().min(1, "Recipient is required"),
+  content: z.string().min(1, "Message cannot be empty").max(2000),
+})
+
+export const createCommunitySchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters").max(60),
+  description: z.string().max(200).optional(),
+})
+
+export const logMoodSchema = z.object({
+  mood: z.enum(["great", "good", "okay", "bad", "terrible"]),
+  note: z.string().max(500).optional(),
+  factors: z.array(z.string()).optional(),
+  intensity: z.number().int().min(1).max(10).optional(),
+})
+
+export const createCrisisSchema = z.object({
+  alertType: z.enum(["immediate_danger", "severe_distress", "panic_attack", "self_harm_thoughts", "emergency"]),
+  description: z.string().max(1000).optional(),
+})
+
+export const createExerciseSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().min(1),
+  duration: z.number().positive(),
+  type: z.enum(["breathing", "mindfulness", "gratitude", "movement", "grounding"]),
+  difficulty: z.enum(["beginner", "intermediate", "advanced"]).optional(),
+  steps: z
+    .array(
+      z.object({
+        instruction: z.string().min(1),
+        duration: z.number().positive(),
+      }),
+    )
+    .optional(),
+  emoji: z.string().optional(),
+  color: z.string().optional(),
+})
+
+export const privacySettingsSchema = z.object({
+  privacySettings: z.object({
+    firstName: z.enum(["public", "private"]).optional(),
+    lastName: z.enum(["public", "private"]).optional(),
+    email: z.enum(["public", "private"]).optional(),
+    dateOfBirth: z.enum(["public", "private"]).optional(),
+    bio: z.enum(["public", "private"]).optional(),
+  }),
+})
+
+export const chatSettingsSchema = z.object({
+  chatSettings: z.object({
+    readReceipts: z.boolean().optional(),
+  }),
+})
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Valid email is required"),
+})
+
+export const resetPasswordSchema = z.object({
+  password: z.string().min(8, "Password must be at least 8 characters"),
+})
+
+export const removeMemberSchema = z.object({
+  userId: z.string().min(1),
+})
+
+export const editMessageSchema = z.object({
+  content: z.string().min(1, "Message cannot be empty").max(2000),
+})
+
+export const validate = (schema) => (req, res, next) => {
+  const result = schema.safeParse(req.body)
+  if (!result.success) {
+    const messages = result.error.issues.map(
+      (issue) => `${issue.path.join(".")}: ${issue.message}`,
+    )
+    return res.status(400).json({ error: { message: messages.join("; "), code: "VALIDATION_ERROR" } })
+  }
+  req.body = result.data
+  next()
+}

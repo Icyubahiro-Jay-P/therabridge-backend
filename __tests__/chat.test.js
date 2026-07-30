@@ -58,13 +58,14 @@ describe("Chat Controller", () => {
 
   describe("sendMessage", () => {
     it("should reject empty message content", async () => {
+      User.findById.mockResolvedValue({ _id: "user456" })
       const { req, res } = mockReqRes({
         body: { recipientId: "user456", content: "" },
       })
       await sendMessage(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "Message content cannot be empty." })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("empty") }) })
       )
     })
 
@@ -75,7 +76,7 @@ describe("Chat Controller", () => {
       await sendMessage(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "Cannot send message to yourself." })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("yourself") }) })
       )
     })
   })
@@ -89,7 +90,7 @@ describe("Chat Controller", () => {
       await editMessage(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "Message content cannot be empty." })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("empty") }) })
       )
     })
   })
@@ -103,7 +104,7 @@ describe("Chat Controller", () => {
       await unsendMessage(req, res)
       expect(res.status).toHaveBeenCalledWith(404)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "Message not found." })
+        expect.objectContaining({ error: expect.objectContaining({ message: "Message not found." }) })
       )
     })
 
@@ -147,7 +148,7 @@ describe("Chat Controller", () => {
       await createCommunity(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "Community name must be at least 2 characters." })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("2") }) })
       )
     })
   })
@@ -161,7 +162,7 @@ describe("Chat Controller", () => {
       await joinCommunity(req, res)
       expect(res.status).toHaveBeenCalledWith(404)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: expect.stringContaining("Invalid") })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("Invalid") }) })
       )
     })
 
@@ -173,6 +174,7 @@ describe("Chat Controller", () => {
         owner: "ownerid",
         inviteKey: "ABCD1234",
         save: vi.fn().mockResolvedValue(true),
+        populate: vi.fn().mockResolvedValue(true),
       })
       const { req, res } = mockReqRes({
         body: { inviteKey: "ABCD1234" },
@@ -180,7 +182,7 @@ describe("Chat Controller", () => {
       await joinCommunity(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: expect.stringContaining("already") })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("already") }) })
       )
     })
   })
@@ -219,6 +221,7 @@ describe("Chat Controller", () => {
     }
 
     it("should reject empty edit content", async () => {
+      Community.findOne.mockResolvedValue(makeMockCommunity({}))
       const { req, res } = mockReqRes({
         params: { communityId: "comm123", messageId: "msg123" },
         body: { content: "" },
@@ -226,7 +229,7 @@ describe("Chat Controller", () => {
       await editCommunityMessage(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "Message content cannot be empty." })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("empty") }) })
       )
     })
 

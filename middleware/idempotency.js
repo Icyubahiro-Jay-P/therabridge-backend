@@ -1,60 +1,85 @@
-/**
- * Idempotency middleware to handle duplicate write requests
- * Stores idempotency keys in memory (for production, use Redis)
- */
+import crypto from "crypto"
+import logger from "../utils/logger.js"
 
-const idempotencyStore = new Map(); // In production, use Redis
+const memoryStore = new Map()
 
-/**
- * Idempotency middleware for write operations
- * Checks for Idempotency-Key header and prevents duplicate processing
- */
+const CLEANUP_INTERVAL = 60 * 60 * 1000
+const TTL = 24 * 60 * 60 * 1000
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, entry] of memoryStore) {
+    if (entry.expiresAt <= now) memoryStore.delete(key)
+  }
+}, CLEANUP_INTERVAL)
+
+function hashBody(body) {
+  return crypto.createHash("sha256").update(JSON.stringify(body || {})).digest("hex")
+}
+
+function getStoreKey(req, key) {
+  const userId = req.user?.id || `anon:${req.ip}`
+  return `${userId}:${key}`
+}
+
 export const idempotencyMiddleware = (req, res, next) => {
-  // Only apply to POST, PUT, PATCH, DELETE requests
-  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
-    return next();
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return next()
+
+  const idempotencyKey = req.headers["idempotency-key"]
+  if (!idempotencyKey) return next()
+
+  const storeKey = getStoreKey(req, idempotencyKey)
+  const requestHash = hashBody(req.body)
+
+  const existing = memoryStore.get(storeKey)
+  if (existing) {
+    if (existing.status === "processing") {
+      return res.status(425).json({
+        error: { message: "Request is already being processed", code: "TOO_EARLY" },
+      })
+    }
+
+    if (existing.requestHash !== requestHash) {
+      return res.status(422).json({
+        error: {
+          message: "Idempotency key reused with different request body",
+          code: "IDEMPOTENCY_KEY_MISMATCH",
+        },
+      })
+    }
+
+    return res.status(existing.statusCode).json(existing.data)
   }
 
-  const idempotencyKey = req.headers["idempotency-key"];
-  if (!idempotencyKey) {
-    // No idempotency key provided - continue normally
-    // In production, you might want to require this
-    return next();
-  }
+  memoryStore.set(storeKey, {
+    requestHash,
+    status: "processing",
+    expiresAt: Date.now() + TTL,
+  })
 
-  // Create a unique identifier combining key + userId
-  const userId = req.user?.id || `anon:${req.ip}`;
-  const storeKey = `${userId}:${idempotencyKey}`;
-
-  // Check if this request has already been processed
-  const cachedResponse = idempotencyStore.get(storeKey);
-  if (cachedResponse) {
-    // Return the previous response
-    return res.status(cachedResponse.statusCode).json(cachedResponse.data);
-  }
-
-  // Wrap the original res.json to cache the response
-  const originalJson = res.json.bind(res);
+  const originalJson = res.json.bind(res)
   res.json = function (data) {
-    // Store the response for future identical requests (TTL: 24 hours)
-    const ttl = 24 * 60 * 60 * 1000;
-    idempotencyStore.set(storeKey, {
+    memoryStore.set(storeKey, {
+      requestHash,
       statusCode: res.statusCode,
       data,
-    });
+      status: "completed",
+      expiresAt: Date.now() + TTL,
+    })
 
-    // Clean up after TTL
-    setTimeout(() => idempotencyStore.delete(storeKey), ttl);
+    return originalJson(data)
+  }
 
-    return originalJson(data);
-  };
+  res.on("finish", () => {
+    const entry = memoryStore.get(storeKey)
+    if (entry && entry.status === "processing") {
+      memoryStore.delete(storeKey)
+    }
+  })
 
-  next();
-};
+  next()
+}
 
-/**
- * Clear idempotency cache (useful for testing)
- */
 export const clearIdempotencyCache = () => {
-  idempotencyStore.clear();
-};
+  memoryStore.clear()
+}

@@ -1,14 +1,24 @@
 import Notification from "../models/notification.model.js";
+import {
+  getPaginationParams,
+  formatPaginatedResponse,
+} from "../utils/pagination.js";
 
 export const getMyNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({ recipient: req.user.id })
+    const { page, limit, offset } = getPaginationParams(req.query, 100);
+
+    const filter = { recipient: req.user.id };
+    const total = await Notification.countDocuments(filter);
+    const notifications = await Notification.find(filter)
       .sort("-createdAt")
       .populate("sender", "username firstName lastName avatar")
-      .limit(100);
-    res.status(200).json(notifications);
+      .skip(offset)
+      .limit(limit);
+
+    res.status(200).json(formatPaginatedResponse(notifications, total, page, limit));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -17,7 +27,7 @@ export const getUnreadCount = async (req, res) => {
     const count = await Notification.countDocuments({ recipient: req.user.id, read: false });
     res.status(200).json({ count });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -30,11 +40,11 @@ export const markAsRead = async (req, res) => {
       { new: true }
     );
     if (!notification) {
-      return res.status(404).json({ message: "Notification not found." });
+      return res.status(404).json({ error: { message: "Notification not found.", code: "NOT_FOUND" } });
     }
     res.status(200).json(notification);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -46,7 +56,7 @@ export const markAllAsRead = async (req, res) => {
     );
     res.status(200).json({ message: "All notifications marked as read." });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -58,11 +68,11 @@ export const deleteNotification = async (req, res) => {
       recipient: req.user.id,
     });
     if (!notification) {
-      return res.status(404).json({ message: "Notification not found." });
+      return res.status(404).json({ error: { message: "Notification not found.", code: "NOT_FOUND" } });
     }
     res.status(200).json({ message: "Notification deleted." });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -71,7 +81,7 @@ export const deleteAllNotifications = async (req, res) => {
     await Notification.deleteMany({ recipient: req.user.id });
     res.status(200).json({ message: "All notifications deleted." });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 

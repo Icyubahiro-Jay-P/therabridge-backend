@@ -1,25 +1,60 @@
+import logger from "../utils/logger.js"
+
 export const errorHandler = (err, req, res, _next) => {
-  console.error("Unhandled error:", err)
+  const requestId = req.requestId
 
   if (err.name === "ValidationError") {
     const messages = Object.values(err.errors).map((e) => e.message)
-    return res.status(400).json({ message: messages.join(", ") })
+    logger.warn({ requestId, err }, "Validation error")
+    return res.status(400).json({
+      error: { message: messages.join("; "), code: "VALIDATION_ERROR" },
+    })
   }
 
   if (err.code === 11000) {
     const field = Object.keys(err.keyValue)[0]
-    return res.status(409).json({ message: `${field} already exists.` })
+    logger.warn({ requestId, field }, "Duplicate key error")
+    return res.status(409).json({
+      error: { message: `${field} already exists.`, code: "DUPLICATE_ERROR" },
+    })
   }
 
   if (err.name === "CastError") {
-    return res.status(400).json({ message: "Invalid ID format." })
+    logger.warn({ requestId, err }, "Cast error")
+    return res.status(400).json({
+      error: { message: "Invalid ID format.", code: "CAST_ERROR" },
+    })
   }
 
-  res.status(err.statusCode || 500).json({
-    message: err.message || "Internal server error",
+  if (err.name === "ZodError") {
+    const messages = err.issues.map(
+      (issue) => `${issue.path.join(".")}: ${issue.message}`,
+    )
+    return res.status(400).json({
+      error: { message: messages.join("; "), code: "VALIDATION_ERROR" },
+    })
+  }
+
+  const statusCode = err.statusCode || 500
+  const isServerError = statusCode >= 500
+
+  if (isServerError) {
+    logger.error({ requestId, err }, "Internal server error")
+  } else {
+    logger.warn({ requestId, err }, "Request error")
+  }
+
+  res.status(statusCode).json({
+    error: {
+      message: isServerError ? "Internal server error" : err.message,
+      code: err.code || "INTERNAL_ERROR",
+    },
   })
 }
 
 export const notFoundHandler = (req, res) => {
-  res.status(404).json({ message: `Route ${req.originalUrl} not found` })
+  logger.warn({ method: req.method, url: req.originalUrl }, "Route not found")
+  res.status(404).json({
+    error: { message: `Route ${req.originalUrl} not found`, code: "NOT_FOUND" },
+  })
 }

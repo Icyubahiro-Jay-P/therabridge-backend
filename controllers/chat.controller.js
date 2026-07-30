@@ -4,16 +4,12 @@ import crypto from "crypto";
 import {
   getPaginationParams,
   formatPaginatedResponse,
-  parseSortParams,
+  getCursorPaginationParams,
+  formatCursorPaginatedResponse,
 } from "../utils/pagination.js";
 
 // ====================== DIRECT MESSAGES ======================
 
-/**
- * Send a message to another user
- * Supports idempotency via Idempotency-Key header
- * Header: Idempotency-Key: unique-key-value
- */
 export const sendMessage = async (req, res) => {
   try {
     const { recipientId, content } = req.body;
@@ -21,18 +17,18 @@ export const sendMessage = async (req, res) => {
     if (!content || content.trim() === "") {
       return res
         .status(400)
-        .json({ message: "Message content cannot be empty." });
+        .json({ error: { message: "Message content cannot be empty.", code: "BAD_REQUEST" } });
     }
 
     if (recipientId === req.user.id) {
       return res
         .status(400)
-        .json({ message: "Cannot send message to yourself." });
+        .json({ error: { message: "Cannot send message to yourself.", code: "BAD_REQUEST" } });
     }
 
     const recipient = await User.findById(recipientId);
     if (!recipient) {
-      return res.status(404).json({ message: "Recipient not found." });
+      return res.status(404).json({ error: { message: "Recipient not found.", code: "NOT_FOUND" } });
     }
 
     const message = new Message({
@@ -47,7 +43,7 @@ export const sendMessage = async (req, res) => {
 
     res.status(201).json(message);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -109,9 +105,31 @@ export const getConversation = async (req, res) => {
     const { userId } = req.params;
     const myId = req.user.id;
 
-    const messages = await fetchConversationMessages(myId, userId);
+    const { cursor, limit } = getCursorPaginationParams(req.query, 100);
 
-    // Mark messages as read (respect recipient's readReceipts setting)
+    let query = {
+      $or: [
+        { sender: myId, recipient: userId },
+        { sender: userId, recipient: myId },
+      ],
+      deletedFor: { $ne: myId },
+    };
+
+    if (cursor) {
+      query._id = { $lt: cursor };
+    }
+
+    const messages = await Message.find(query)
+      .sort({ _id: -1 })
+      .limit(limit + 1)
+      .populate("sender", "username firstName lastName avatar")
+      .populate("recipient", "username firstName lastName avatar");
+
+    const hasMore = messages.length > limit;
+    if (hasMore) messages.pop();
+
+    const nextCursor = hasMore ? messages[messages.length - 1]?._id : null;
+
     const myUser = await User.findById(myId).select("chatSettings");
     if (myUser?.chatSettings?.readReceipts !== false) {
       await Message.updateMany(
@@ -120,14 +138,9 @@ export const getConversation = async (req, res) => {
       );
     }
 
-    const lastUpdated = await getLatestConversationTimestamp(myId, userId);
-    if (lastUpdated) {
-      res.set("X-Last-Updated", lastUpdated.toISOString());
-    }
-
-    res.status(200).json(messages);
+    res.status(200).json(formatCursorPaginatedResponse(messages, limit, nextCursor));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -154,7 +167,7 @@ export const getConversationUpdates = async (req, res) => {
     const messages = await fetchConversationMessages(myId, userId);
     res.status(200).json(messages);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -171,7 +184,6 @@ export const getMyConversations = async (req, res) => {
       .populate("sender", "username firstName lastName avatar")
       .populate("recipient", "username firstName lastName avatar");
 
-    // Build a conversation list (last message per partner)
     const seen = new Set();
     const conversations = [];
 
@@ -195,7 +207,6 @@ export const getMyConversations = async (req, res) => {
       }
     }
 
-    // Apply pagination
     const total = conversations.length;
     const paginatedConversations = conversations.slice(offset, offset + limit);
 
@@ -205,26 +216,27 @@ export const getMyConversations = async (req, res) => {
         formatPaginatedResponse(paginatedConversations, total, page, limit),
       );
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
-// Get all users (for starting a new conversation)
 export const searchUsers = async (req, res) => {
   try {
     const { q } = req.query;
     if (!q || q.length < 2) {
       return res
         .status(400)
-        .json({ message: "Query must be at least 2 characters." });
+        .json({ error: { message: "Query must be at least 2 characters.", code: "BAD_REQUEST" } });
     }
+
+    const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
     const users = await User.find({
       _id: { $ne: req.user.id },
       $or: [
-        { username: { $regex: q, $options: "i" } },
-        { firstName: { $regex: q, $options: "i" } },
-        { lastName: { $regex: q, $options: "i" } },
+        { username: { $regex: escapedQuery, $options: "i" } },
+        { firstName: { $regex: escapedQuery, $options: "i" } },
+        { lastName: { $regex: escapedQuery, $options: "i" } },
       ],
     })
       .select("username firstName lastName avatar bio")
@@ -232,7 +244,7 @@ export const searchUsers = async (req, res) => {
 
     res.status(200).json(users);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -245,10 +257,9 @@ export const createCommunity = async (req, res) => {
     if (!name || name.length < 2) {
       return res
         .status(400)
-        .json({ message: "Community name must be at least 2 characters." });
+        .json({ error: { message: "Community name must be at least 2 characters.", code: "BAD_REQUEST" } });
     }
 
-    // Generate a unique 8-character invite key (with collision retry)
     let community;
     for (let attempts = 0; attempts < 5; attempts++) {
       const inviteKey = crypto.randomBytes(4).toString("hex").toUpperCase();
@@ -272,7 +283,7 @@ export const createCommunity = async (req, res) => {
 
     res.status(201).json(community);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -284,7 +295,7 @@ export const joinCommunity = async (req, res) => {
     if (!community) {
       return res
         .status(404)
-        .json({ message: "Invalid invite key. Community not found." });
+        .json({ error: { message: "Invalid invite key. Community not found.", code: "NOT_FOUND" } });
     }
 
     const alreadyMember = community.members.some(
@@ -293,7 +304,7 @@ export const joinCommunity = async (req, res) => {
     if (alreadyMember) {
       return res
         .status(400)
-        .json({ message: "You are already a member of this community." });
+        .json({ error: { message: "You are already a member of this community.", code: "BAD_REQUEST" } });
     }
 
     community.members.push(req.user.id);
@@ -305,20 +316,27 @@ export const joinCommunity = async (req, res) => {
       .status(200)
       .json({ message: "Joined community successfully!", community });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
 export const getMyCommunities = async (req, res) => {
   try {
-    const communities = await Community.find({ members: req.user.id })
+    const { page, limit, offset } = getPaginationParams(req.query, 50);
+
+    const filter = { members: req.user.id };
+    const total = await Community.countDocuments(filter);
+    const communities = await Community.find(filter)
       .populate("owner", "username firstName lastName avatar")
       .populate("members", "username firstName lastName avatar")
-      .select("-messages"); // Don't load all messages in list view
+      .select("-messages")
+      .sort({ updatedAt: -1 })
+      .skip(offset)
+      .limit(limit);
 
-    res.status(200).json(communities);
+    res.status(200).json(formatPaginatedResponse(communities, total, page, limit));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -328,14 +346,10 @@ const fetchCommunityMessages = async (communityId, userId) => {
     .populate("owner", "username firstName lastName avatar")
     .populate("members", "username firstName lastName avatar");
 
-  if (!community) {
-    return null;
-  }
+  if (!community) return null;
 
   const isMember = community.members.some((m) => m._id.toString() === userId);
-  if (!isMember) {
-    return null;
-  }
+  if (!isMember) return null;
 
   return community;
 };
@@ -376,7 +390,7 @@ export const getCommunityMessages = async (req, res) => {
 
     const community = await fetchCommunityMessages(communityId, req.user.id);
     if (!community) {
-      return res.status(404).json({ message: "Community not found." });
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
     }
 
     const lastUpdated = await getLatestCommunityTimestamp(communityId);
@@ -386,7 +400,7 @@ export const getCommunityMessages = async (req, res) => {
 
     res.status(200).json(community);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -398,7 +412,7 @@ export const getCommunityUpdates = async (req, res) => {
     if (!since) {
       const community = await fetchCommunityMessages(communityId, req.user.id);
       if (!community) {
-        return res.status(404).json({ message: "Community not found." });
+        return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
       }
       const lastUpdated = await getLatestCommunityTimestamp(communityId);
       if (lastUpdated) {
@@ -414,7 +428,7 @@ export const getCommunityUpdates = async (req, res) => {
 
     const community = await fetchCommunityMessages(communityId, req.user.id);
     if (!community) {
-      return res.status(404).json({ message: "Community not found." });
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
     }
 
     const lastUpdated = await getLatestCommunityTimestamp(communityId);
@@ -424,7 +438,7 @@ export const getCommunityUpdates = async (req, res) => {
 
     res.status(200).json(community);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -433,15 +447,9 @@ export const sendCommunityMessage = async (req, res) => {
     const { communityId } = req.params;
     const { content } = req.body;
 
-    if (!content || content.trim() === "") {
-      return res
-        .status(400)
-        .json({ message: "Message content cannot be empty." });
-    }
-
     const community = await Community.findById(communityId);
     if (!community) {
-      return res.status(404).json({ message: "Community not found." });
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
     }
 
     const isMember = community.members.some(
@@ -450,7 +458,7 @@ export const sendCommunityMessage = async (req, res) => {
     if (!isMember) {
       return res
         .status(403)
-        .json({ message: "You are not a member of this community." });
+        .json({ error: { message: "You are not a member of this community.", code: "FORBIDDEN" } });
     }
 
     community.messages.push({
@@ -460,7 +468,6 @@ export const sendCommunityMessage = async (req, res) => {
 
     await community.save();
 
-    // Return the just-added message populated
     const updatedCommunity = await Community.findById(communityId).populate(
       "messages.sender",
       "username firstName lastName avatar",
@@ -471,7 +478,7 @@ export const sendCommunityMessage = async (req, res) => {
 
     res.status(201).json(newMessage);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -484,21 +491,16 @@ export const updateCommunity = async (req, res) => {
 
     const community = await Community.findById(communityId);
     if (!community) {
-      return res.status(404).json({ message: "Community not found." });
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
     }
 
     if (community.owner.toString() !== req.user.id) {
       return res
         .status(403)
-        .json({ message: "Only the owner can update this community." });
+        .json({ error: { message: "Only the owner can update this community.", code: "FORBIDDEN" } });
     }
 
     if (name) {
-      if (name.length < 2) {
-        return res
-          .status(400)
-          .json({ message: "Community name must be at least 2 characters." });
-      }
       community.name = name.trim();
     }
 
@@ -512,7 +514,7 @@ export const updateCommunity = async (req, res) => {
 
     res.status(200).json(community);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -523,22 +525,21 @@ export const removeMember = async (req, res) => {
 
     const community = await Community.findById(communityId);
     if (!community) {
-      return res.status(404).json({ message: "Community not found." });
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
     }
 
-    // Owner or admin can remove members; therapists can also remove users
     const isOwner = community.owner.toString() === req.user.id;
     const isAdmin = req.user.role === "admin";
     const isTherapist = req.user.role === "therapist";
 
     if (!isOwner && !isAdmin && !isTherapist) {
       return res.status(403).json({
-        message: "Only the owner, therapists, or admins can remove members.",
+        error: { message: "Only the owner, therapists, or admins can remove members.", code: "FORBIDDEN" },
       });
     }
 
     if (userId === req.user.id && !isAdmin) {
-      return res.status(400).json({ message: "You cannot remove yourself." });
+      return res.status(400).json({ error: { message: "You cannot remove yourself.", code: "BAD_REQUEST" } });
     }
 
     community.members = community.members.filter(
@@ -549,7 +550,7 @@ export const removeMember = async (req, res) => {
 
     res.status(200).json({ message: "Member removed successfully." });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -565,7 +566,7 @@ export const getCommunityByKey = async (req, res) => {
       .populate("members", "username firstName lastName avatar");
 
     if (!community) {
-      return res.status(404).json({ message: "Community not found." });
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
     }
 
     const isMember = community.members.some(
@@ -574,12 +575,12 @@ export const getCommunityByKey = async (req, res) => {
     if (!isMember) {
       return res
         .status(403)
-        .json({ message: "You are not a member of this community." });
+        .json({ error: { message: "You are not a member of this community.", code: "FORBIDDEN" } });
     }
 
     res.status(200).json(community);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -589,10 +590,9 @@ export const markCommunityMessagesRead = async (req, res) => {
 
     const community = await Community.findById(communityId);
     if (!community) {
-      return res.status(404).json({ message: "Community not found." });
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
     }
 
-    // Mark all unread messages as read by this user
     let updated = false;
     for (const msg of community.messages) {
       if (!msg.readBy.includes(req.user.id)) {
@@ -607,7 +607,7 @@ export const markCommunityMessagesRead = async (req, res) => {
 
     res.status(200).json({ message: "Messages marked as read." });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -615,7 +615,6 @@ export const deleteAllMyMessages = async (req, res) => {
   try {
     const myId = req.user.id;
 
-    // Soft delete: mark messages as deleted for this user only
     const result = await Message.updateMany(
       {
         $or: [{ sender: myId }, { recipient: myId }],
@@ -629,7 +628,7 @@ export const deleteAllMyMessages = async (req, res) => {
       modifiedCount: result.modifiedCount,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -640,13 +639,13 @@ export const unsendMessage = async (req, res) => {
 
     const message = await Message.findById(messageId);
     if (!message) {
-      return res.status(404).json({ message: "Message not found." });
+      return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
     }
 
     if (message.sender.toString() !== myId) {
       return res
         .status(403)
-        .json({ message: "You can only unsend your own messages." });
+        .json({ error: { message: "You can only unsend your own messages.", code: "FORBIDDEN" } });
     }
 
     message.unsent = true;
@@ -657,7 +656,7 @@ export const unsendMessage = async (req, res) => {
       .status(200)
       .json({ message: "Message unsent.", unsentMessage: message });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -668,29 +667,29 @@ export const getChatSettings = async (req, res) => {
     const user = await User.findById(req.user.id).select("chatSettings");
     res.status(200).json(user.chatSettings);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
 export const updateChatSettings = async (req, res) => {
   try {
     const { chatSettings } = req.body;
-    const allowedFields = ["readReceipts"];
 
+    const allowedFields = ["readReceipts"];
     const updates = {};
     for (const field of allowedFields) {
       if (chatSettings[field] !== undefined) {
         if (typeof chatSettings[field] !== "boolean") {
           return res
             .status(400)
-            .json({ message: `${field} must be a boolean.` });
+            .json({ error: { message: `${field} must be a boolean.`, code: "VALIDATION_ERROR" } });
         }
         updates[`chatSettings.${field}`] = chatSettings[field];
       }
     }
 
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ message: "No valid settings provided." });
+      return res.status(400).json({ error: { message: "No valid settings provided.", code: "VALIDATION_ERROR" } });
     }
 
     const user = await User.findByIdAndUpdate(
@@ -704,7 +703,7 @@ export const updateChatSettings = async (req, res) => {
       chatSettings: user.chatSettings,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -717,30 +716,30 @@ export const editMessage = async (req, res) => {
     if (!content || content.trim() === "") {
       return res
         .status(400)
-        .json({ message: "Message content cannot be empty." });
+        .json({ error: { message: "Message content cannot be empty.", code: "BAD_REQUEST" } });
     }
 
     const message = await Message.findById(messageId);
     if (!message) {
-      return res.status(404).json({ message: "Message not found." });
+      return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
     }
 
     if (message.sender.toString() !== myId) {
       return res
         .status(403)
-        .json({ message: "You can only edit your own messages." });
+        .json({ error: { message: "You can only edit your own messages.", code: "FORBIDDEN" } });
     }
 
     if (message.unsent) {
       return res
         .status(400)
-        .json({ message: "Cannot edit an unsent message." });
+        .json({ error: { message: "Cannot edit an unsent message.", code: "BAD_REQUEST" } });
     }
 
     if (message.editCount >= 3) {
       return res
         .status(400)
-        .json({ message: "Maximum of 3 edits per message." });
+        .json({ error: { message: "Maximum of 3 edits per message.", code: "BAD_REQUEST" } });
     }
 
     const tenMinutes = 10 * 60 * 1000;
@@ -748,10 +747,9 @@ export const editMessage = async (req, res) => {
     if (age > tenMinutes) {
       return res
         .status(400)
-        .json({ message: "Can only edit messages within 10 minutes." });
+        .json({ error: { message: "Can only edit messages within 10 minutes.", code: "BAD_REQUEST" } });
     }
 
-    // Save old content to history
     message.editHistory.push({
       content: message.content,
       editedAt: new Date(),
@@ -766,7 +764,7 @@ export const editMessage = async (req, res) => {
 
     res.status(200).json(message);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -781,7 +779,7 @@ export const editCommunityMessage = async (req, res) => {
     if (!content || content.trim() === "") {
       return res
         .status(400)
-        .json({ message: "Message content cannot be empty." });
+        .json({ error: { message: "Message content cannot be empty.", code: "BAD_REQUEST" } });
     }
 
     const community = await Community.findOne({
@@ -789,30 +787,30 @@ export const editCommunityMessage = async (req, res) => {
       "messages._id": messageId,
     });
     if (!community) {
-      return res.status(404).json({ message: "Message not found." });
+      return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
     }
 
     const message = community.messages.id(messageId);
     if (!message) {
-      return res.status(404).json({ message: "Message not found." });
+      return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
     }
 
     if (message.sender.toString() !== myId) {
       return res
         .status(403)
-        .json({ message: "You can only edit your own messages." });
+        .json({ error: { message: "You can only edit your own messages.", code: "FORBIDDEN" } });
     }
 
     if (message.unsent) {
       return res
         .status(400)
-        .json({ message: "Cannot edit an unsent message." });
+        .json({ error: { message: "Cannot edit an unsent message.", code: "BAD_REQUEST" } });
     }
 
     if (message.editCount >= 3) {
       return res
         .status(400)
-        .json({ message: "Maximum of 3 edits per message." });
+        .json({ error: { message: "Maximum of 3 edits per message.", code: "BAD_REQUEST" } });
     }
 
     const tenMinutes = 10 * 60 * 1000;
@@ -820,7 +818,7 @@ export const editCommunityMessage = async (req, res) => {
     if (age > tenMinutes) {
       return res
         .status(400)
-        .json({ message: "Can only edit messages within 10 minutes." });
+        .json({ error: { message: "Can only edit messages within 10 minutes.", code: "BAD_REQUEST" } });
     }
 
     message.editHistory.push({
@@ -840,7 +838,7 @@ export const editCommunityMessage = async (req, res) => {
     const updated = community.messages.id(messageId);
     res.status(200).json(updated);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -854,18 +852,18 @@ export const unsendCommunityMessage = async (req, res) => {
       "messages._id": messageId,
     });
     if (!community) {
-      return res.status(404).json({ message: "Message not found." });
+      return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
     }
 
     const message = community.messages.id(messageId);
     if (!message) {
-      return res.status(404).json({ message: "Message not found." });
+      return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
     }
 
     if (message.sender.toString() !== myId) {
       return res
         .status(403)
-        .json({ message: "You can only unsend your own messages." });
+        .json({ error: { message: "You can only unsend your own messages.", code: "FORBIDDEN" } });
     }
 
     message.unsent = true;
@@ -881,7 +879,7 @@ export const unsendCommunityMessage = async (req, res) => {
       .status(200)
       .json({ message: "Message unsent.", unsentMessage: updated });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -890,20 +888,20 @@ export const deleteCommunity = async (req, res) => {
     const { communityId } = req.params;
     const community = await Community.findById(communityId);
     if (!community) {
-      return res.status(404).json({ message: "Community not found." });
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
     }
     if (
       req.user.role !== "admin" &&
       community.owner.toString() !== req.user.id
     ) {
       return res.status(403).json({
-        message: "Only admins or the owner can delete this community.",
+        error: { message: "Only admins or the owner can delete this community.", code: "FORBIDDEN" },
       });
     }
     await Community.findByIdAndDelete(communityId);
     res.status(200).json({ message: "Community deleted successfully." });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -911,7 +909,6 @@ export const deleteAllMyCommunityMessages = async (req, res) => {
   try {
     const myId = req.user.id;
 
-    // Find all communities where user is a member
     const communities = await Community.find({ members: myId });
 
     let deletedCount = 0;
@@ -931,6 +928,6 @@ export const deleteAllMyCommunityMessages = async (req, res) => {
       deletedCount,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
