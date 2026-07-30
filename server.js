@@ -12,11 +12,13 @@ import notificationRoutes from "./routes/notification.route.js";
 import moodRoutes from "./routes/mood.route.js";
 import crisisRoutes from "./routes/crisis.route.js";
 import therryRoutes from "./routes/therry.route.js";
+import { authMiddleware } from "./middleware/auth.middleware.js";
 import {
   errorHandler,
   notFoundHandler,
 } from "./middleware/error.middleware.js";
 import { idempotencyMiddleware } from "./middleware/idempotency.js";
+import { getScoreAndStreak } from "./controllers/user.controller.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,6 +56,10 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ====================== ROUTES ======================
 app.use("/api/users", userRoutes);
+app.get("/api/users/score-streak", authMiddleware, getScoreAndStreak);
+app.get("/api/users/streak-score", authMiddleware, getScoreAndStreak);
+app.get("/api/users/stats/score-streak", authMiddleware, getScoreAndStreak);
+app.get("/api/users/stats/streak-score", authMiddleware, getScoreAndStreak);
 app.use("/api/exercises", exerciseRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
