@@ -1,4 +1,21 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { analyzeAll, checkCrisis } from "../services/mlClient.js";
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+const SYSTEM_PROMPT = `At the end of your response, add a separator "||CATEGORY||" followed by one of: anxiety, sad, stress, lonely, angry, general, crisis
+If the user expresses suicidal or self-harm ideation, always use "crisis" as the category.`;
+
+function getResponseCategory(message) {
+  const lower = message.toLowerCase();
+  if (/suicid|kill myself|end my life|want to die|self.?harm/i.test(lower)) return "crisis";
+  if (/anxious|anxiety|panic|worried|nervous/i.test(lower)) return "anxiety";
+  if (/sad|depress|unhappy|cry|crying|hopeless/i.test(lower)) return "sad";
+  if (/stress|overwhelm|burnout|exhausted|pressure/i.test(lower)) return "stress";
+  if (/lonely|alone|isolated|no one|nobody/i.test(lower)) return "lonely";
+  if (/angry|frustrated|annoyed|irritated|rage/i.test(lower)) return "angry";
+  return "general";
+}
 
 const THERAPY_RESPONSES = {
   anxiety: [
@@ -37,9 +54,6 @@ const THERAPY_RESPONSES = {
     "Your safety is the most important thing. Please contact emergency services immediately if you're in danger. You deserve support and care.",
   ],
 };
-
-At the end of your response, add a separator "||CATEGORY||" followed by one of: anxiety, sad, stress, lonely, angry, general, crisis
-If the user expresses suicidal or self-harm ideation, always use "crisis" as the category.`;
 
 const model = genAI.getGenerativeModel({
   model: "gemini-2.0-flash",
@@ -87,7 +101,7 @@ export const chat = async (req, res) => {
     const response = responses[Math.floor(Math.random() * responses.length)];
 
     res.status(200).json({
-      reply,
+      response,
       category,
       isCrisis,
       timestamp: new Date().toISOString(),

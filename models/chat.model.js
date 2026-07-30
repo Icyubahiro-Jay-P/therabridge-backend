@@ -138,6 +138,4 @@ const communitySchema = new mongoose.Schema(
 );
 
 communitySchema.index({ members: 1 });
-communitySchema.index({ inviteKey: 1 });
-
 export const Community = mongoose.model("Community", communitySchema);

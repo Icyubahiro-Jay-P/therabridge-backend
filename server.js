@@ -39,11 +39,14 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  logger.info({ req }, "incoming request");
   const start = Date.now();
   res.on("finish", () => {
     const duration = Date.now() - start;
-    logger.info({ res, duration: `${duration}ms` }, "request completed");
+    if (duration > 1000) {
+      logger.warn({ req, duration: `${duration}ms` }, "slow request");
+    } else if (res.statusCode >= 400) {
+      logger.warn({ req, res, duration: `${duration}ms` }, "request error");
+    }
   });
   next();
 });
@@ -75,7 +78,7 @@ app.use(
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 40,
+  max: 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { message: "Too many attempts, try again later", code: "RATE_LIMITED" } },
