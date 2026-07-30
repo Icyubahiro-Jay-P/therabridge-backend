@@ -55,7 +55,9 @@ router.put("/privacy", authMiddleware, updatePrivacy);
 
 // Score & Streak
 router.get("/score-streak", authMiddleware, getScoreAndStreak);
+router.get("/streak-score", authMiddleware, getScoreAndStreak);
 router.get("/stats/score-streak", authMiddleware, getScoreAndStreak);
+router.get("/stats/streak-score", authMiddleware, getScoreAndStreak);
 router.post("/login-streak", authMiddleware, updateLoginStreak);
 
 // Admin routes
