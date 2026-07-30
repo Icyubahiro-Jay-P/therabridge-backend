@@ -134,6 +134,11 @@ export const register = async (req, res) => {
         avatar: user.avatar,
         bio: user.bio,
         privacySettings: user.privacySettings,
+        exerciseScore: user.exerciseScore,
+        loginStreak: user.loginStreak,
+        exerciseStreak: user.exerciseStreak,
+        longestLoginStreak: user.longestLoginStreak,
+        longestExerciseStreak: user.longestExerciseStreak,
       },
     });
   } catch (error) {
@@ -189,6 +194,11 @@ export const login = async (req, res) => {
         avatar: user.avatar,
         bio: user.bio,
         privacySettings: user.privacySettings,
+        exerciseScore: user.exerciseScore,
+        loginStreak: user.loginStreak,
+        exerciseStreak: user.exerciseStreak,
+        longestLoginStreak: user.longestLoginStreak,
+        longestExerciseStreak: user.longestExerciseStreak,
       },
     });
   } catch (error) {
