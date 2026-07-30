@@ -47,7 +47,10 @@ export const register = async (req, res) => {
     const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
       age--;
     }
 
@@ -330,7 +333,10 @@ export const updateProfile = async (req, res) => {
       const birthDate = new Date(dateOfBirth);
       let age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && today.getDate() < birthDate.getDate())
+      ) {
         age--;
       }
       if (age < 18 || age > 120) {
@@ -400,7 +406,9 @@ export const uploadProfilePicture = async (req, res) => {
 
     // Delete previous avatar if it was an uploaded file
     if (user.avatar && user.avatar.startsWith("/uploads/")) {
-      const resolvedPath = path.resolve(path.join(__dirname, "..", user.avatar));
+      const resolvedPath = path.resolve(
+        path.join(__dirname, "..", user.avatar),
+      );
       const uploadsDir = path.resolve(path.join(__dirname, "..", "uploads"));
       if (resolvedPath.startsWith(uploadsDir) && fs.existsSync(resolvedPath)) {
         fs.unlinkSync(resolvedPath);
@@ -649,7 +657,10 @@ export const forgotPassword = async (req, res) => {
         user.resetPasswordExpire = undefined;
         await user.save({ validateBeforeSave: false });
       } catch (saveError) {
-        console.error("Failed to clear reset token after email failure:", saveError);
+        console.error(
+          "Failed to clear reset token after email failure:",
+          saveError,
+        );
       }
     });
 
