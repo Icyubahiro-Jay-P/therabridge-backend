@@ -673,7 +673,7 @@ export const unsendMessage = async (req, res) => {
     }
 
     message.unsent = true;
-    message.content = "[Message unsent]";
+    message.content = "Message unsent";
     await message.save();
 
     res
@@ -891,7 +891,7 @@ export const unsendCommunityMessage = async (req, res) => {
     }
 
     message.unsent = true;
-    message.content = "[Message unsent]";
+    message.content = "Message unsent";
     await community.save();
     await community.populate(
       "messages.sender",
