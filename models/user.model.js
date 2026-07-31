@@ -122,15 +122,6 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    // Talking Points — wellness points earned by messaging (reset daily)
-    messagePointsDate: {
-      type: Date,
-      default: null,
-    },
-    messagePointsToday: {
-      type: Number,
-      default: 0,
-    },
   },
   { timestamps: true },
 );
