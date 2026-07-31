@@ -748,26 +748,27 @@ export const forgotPassword = async (req, res) => {
 </body>
 </html>`;
 
-    void sendEmail({
-      email: user.email,
-      subject: "Password Reset — Therabridge",
-      message,
-      html: message,
-    }).catch(async (err) => {
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "Password Reset — Therabridge",
+        message,
+        html: message,
+      });
+    } catch (err) {
       console.error("Password reset email failed:", err);
-      try {
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpire = undefined;
-        await user.save({ validateBeforeSave: false });
-      } catch (saveError) {
-        console.error(
-          "Failed to clear reset token after email failure:",
-          saveError,
-        );
-      }
-    });
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+      return res.status(502).json({
+        error:
+          "We couldn't send the password reset email right now. Please try again in a few minutes.",
+      });
+    }
 
-    res.status(200).json({ success: true, data: "Email request accepted" });
+    res
+      .status(200)
+      .json({ success: true, data: "Password reset email sent" });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
