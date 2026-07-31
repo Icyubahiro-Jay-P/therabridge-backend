@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import sharp from "sharp";
 import sendEmail from "../utils/nodemailer.js";
+import getClientOrigin from "../utils/clientOrigin.js";
 import {
   signAccessToken,
   createRefreshToken,
@@ -693,8 +694,9 @@ export const forgotPassword = async (req, res) => {
 
     await user.save();
 
-    // Create reset url
-    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+    // Create reset url — use the origin that actually made the request so the
+    // link points at the right frontend (dev vs production) instead of a fixed URL.
+    const resetUrl = `${getClientOrigin(req)}/reset-password/${resetToken}`;
 
     // HTML email message
     const message = `
@@ -723,7 +725,7 @@ export const forgotPassword = async (req, res) => {
 <body>
     <div class="email-container">
         <div class="header">
-            <h1>🌿 Therabridge</h1>
+            <h1>Therabridge</h1>
             <p>Reset Your Password</p>
         </div>
         <div class="content">
