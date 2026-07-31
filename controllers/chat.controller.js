@@ -1,6 +1,7 @@
 import { Message, Community } from "../models/chat.model.js";
 import User from "../models/user.model.js";
 import crypto from "crypto";
+import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
 import {
   getPaginationParams,
   formatPaginatedResponse,
@@ -41,7 +42,12 @@ export const sendMessage = async (req, res) => {
     await message.populate("sender", "username firstName lastName avatar");
     await message.populate("recipient", "username firstName lastName avatar");
 
-    res.status(201).json(message);
+    const pointsEarned = await awardMessagePoints(
+      req.user.id,
+      MESSAGE_POINTS.direct,
+    );
+
+    res.status(201).json({ ...message.toObject(), pointsEarned });
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
@@ -474,7 +480,12 @@ export const sendCommunityMessage = async (req, res) => {
     const newMessage =
       updatedCommunity.messages[updatedCommunity.messages.length - 1];
 
-    res.status(201).json(newMessage);
+    const pointsEarned = await awardMessagePoints(
+      req.user.id,
+      MESSAGE_POINTS.community,
+    );
+
+    res.status(201).json({ ...newMessage.toObject(), pointsEarned });
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }

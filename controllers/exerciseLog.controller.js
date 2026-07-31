@@ -155,6 +155,7 @@ export const getExerciseStats = async (req, res) => {
       exerciseStreak: user?.exerciseStreak || 0,
       longestLoginStreak: user?.longestLoginStreak || 0,
       longestExerciseStreak: user?.longestExerciseStreak || 0,
+      talkingPointsToday: user?.messagePointsToday || 0,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

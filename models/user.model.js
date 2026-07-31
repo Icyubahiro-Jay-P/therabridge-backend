@@ -117,6 +117,20 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Hashed refresh-token identifiers (jti) for session rotation/revocation
+    refreshTokens: {
+      type: [String],
+      default: [],
+    },
+    // Talking Points — wellness points earned by messaging (reset daily)
+    messagePointsDate: {
+      type: Date,
+      default: null,
+    },
+    messagePointsToday: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true },
 );

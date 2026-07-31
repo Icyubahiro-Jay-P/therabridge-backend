@@ -8,6 +8,13 @@ import { fileURLToPath } from "url";
 import sharp from "sharp";
 import sendEmail from "../utils/nodemailer.js";
 import {
+  signAccessToken,
+  createRefreshToken,
+  hashRefreshToken,
+  setAuthCookies,
+  clearAuthCookies,
+} from "../utils/tokens.js";
+import {
   getPaginationParams,
   formatPaginatedResponse,
   parseSortParams,
@@ -131,24 +138,18 @@ export const register = async (req, res) => {
 
     await user.save();
 
-    // Auto-login after register — assign JWT cookie
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "30d" },
-    );
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    // Auto-login after register — short-lived access token + rotating refresh token
+    const accessToken = signAccessToken(user);
+    const { token: refreshToken, jti } = createRefreshToken(user);
+    user.refreshTokens.push(hashRefreshToken(jti));
+    await user.save();
+    setAuthCookies(res, { accessToken, refreshToken });
 
     await updateLoginStreak(user);
 
     res.status(201).json({
       message: "User registered successfully",
-      token,
+      token: accessToken,
       user: {
         id: user._id,
         username: user.username,
@@ -193,24 +194,18 @@ export const login = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(400).json({ message: "Invalid password" });
     }
-    // assign a token to user using cookie parser
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "30d" },
-    );
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    // Issue a short-lived access token + rotating refresh token
+    const accessToken = signAccessToken(user);
+    const { token: refreshToken, jti } = createRefreshToken(user);
+    user.refreshTokens.push(hashRefreshToken(jti));
+    await user.save();
+    setAuthCookies(res, { accessToken, refreshToken });
 
     await updateLoginStreak(user);
 
     res.status(200).json({
       message: "Login successful",
-      token,
+      token: accessToken,
       user: {
         id: user._id,
         username: user.username,
@@ -233,15 +228,80 @@ export const login = async (req, res) => {
   }
 };
 
-export const logout = (req, res) => {
-  res.clearCookie("token");
+export const logout = async (req, res) => {
+  try {
+    // Best-effort refresh-token revocation so the session can't be resumed
+    const refreshToken = req.cookies?.refreshToken;
+    if (refreshToken) {
+      const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+      if (decoded?.type === "refresh" && decoded?.jti) {
+        await User.updateOne(
+          { _id: decoded.id },
+          { $pull: { refreshTokens: hashRefreshToken(decoded.jti) } },
+        );
+      }
+    }
+  } catch {
+    // Ignore invalid/expired refresh tokens — just clear the cookies
+  }
+  clearAuthCookies(res);
   res.status(200).json({ message: "Logout successful" });
+};
+
+export const refresh = async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) {
+      return res
+        .status(401)
+        .json({ message: "Session expired. Please log in again." });
+    }
+
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    if (decoded?.type !== "refresh" || !decoded?.jti) {
+      return res.status(401).json({ message: "Invalid refresh token." });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res
+        .status(401)
+        .json({ message: "User account no longer exists." });
+    }
+    if (user.isDisabled) {
+      return res
+        .status(403)
+        .json({ message: "Account has been disabled. Contact support." });
+    }
+
+    // Reject unknown/revoked refresh tokens, then rotate to a fresh one
+    const tokenHash = hashRefreshToken(decoded.jti);
+    if (!(user.refreshTokens || []).includes(tokenHash)) {
+      return res.status(401).json({ message: "Invalid refresh token." });
+    }
+
+    user.refreshTokens = user.refreshTokens.filter((t) => t !== tokenHash);
+    const { token: newRefreshToken, jti } = createRefreshToken(user);
+    user.refreshTokens.push(hashRefreshToken(jti));
+    await user.save();
+
+    const accessToken = signAccessToken(user);
+    setAuthCookies(res, {
+      accessToken,
+      refreshToken: newRefreshToken,
+    });
+
+    res.status(200).json({ token: accessToken });
+  } catch (error) {
+    clearAuthCookies(res);
+    res.status(401).json({ message: "Invalid or expired refresh token." });
+  }
 };
 
 export const profile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
-      "-password -oldPasswords",
+      "-password -oldPasswords -refreshTokens",
     );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -256,7 +316,7 @@ export const profile = async (req, res) => {
 export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username }).select(
-      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire",
+      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens",
     );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -301,7 +361,7 @@ export const getUserProfile = async (req, res) => {
 export const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select(
-      "-password -oldPasswords",
+      "-password -oldPasswords -refreshTokens",
     );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -392,7 +452,7 @@ export const updateProfile = async (req, res) => {
       { $set: updates },
       { new: true },
     ).select(
-      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire",
+      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens",
     );
 
     if (!user) {
@@ -492,7 +552,7 @@ export const deleteProfile = async (req, res) => {
       });
     } else {
       await User.findByIdAndDelete(req.user.id);
-      res.clearCookie("token");
+      clearAuthCookies(res);
       res.status(200).json({ message: "User deleted successfully" });
     }
   } catch (error) {
@@ -538,8 +598,9 @@ export const changePassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     // Add the old password to the oldPasswords array
     user.oldPasswords.push(user.password);
-    // Update the password
+    // Update the password and revoke all existing sessions (refresh tokens)
     user.password = hashedPassword;
+    user.refreshTokens = [];
     await user.save();
     res.status(200).json({ message: "Password changed successfully" });
   } catch (error) {
@@ -562,7 +623,7 @@ export const getTherapists = async (req, res) => {
 
     const total = await User.countDocuments(filter);
     const therapists = await User.find(filter)
-      .select("-password -oldPasswords")
+      .select("-password -oldPasswords -refreshTokens")
       .sort(sort)
       .limit(limit)
       .skip(offset);
@@ -598,7 +659,7 @@ export const getAllUsers = async (req, res) => {
     ]);
 
     const users = await User.find(filter)
-      .select("-password -oldPasswords -resetPasswordToken -resetPasswordExpire")
+      .select("-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens")
       .sort(sort)
       .limit(limit)
       .skip(offset);
@@ -731,6 +792,8 @@ export const resetPassword = async (req, res) => {
     user.password = await bcrypt.hash(req.body.password, 10);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
+    // Revoke all existing sessions so other devices must log in again
+    user.refreshTokens = [];
     await user.save();
 
     res.status(200).json({
@@ -778,7 +841,7 @@ export const updatePrivacy = async (req, res) => {
       req.user.id,
       { $set: updates },
       { new: true },
-    ).select("-password -oldPasswords");
+    ).select("-password -oldPasswords -refreshTokens");
 
     res.status(200).json({
       message: "Privacy settings updated",
@@ -876,7 +939,7 @@ export const getFullUserData = async (req, res) => {
       return res.status(403).json({ message: "Access denied." });
     }
     const user = await User.findById(id).select(
-      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire",
+      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens",
     );
     if (!user) {
       return res.status(404).json({ message: "User not found." });

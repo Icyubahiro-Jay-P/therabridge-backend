@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { analyzeAll } from "../services/mlClient.js";
 import { TherryMessage } from "../models/therryMessage.model.js";
+import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -125,10 +126,16 @@ export const chat = async (req, res) => {
 
     await saveMessage(req.user.id, "assistant", reply, category);
 
+    const pointsEarned = await awardMessagePoints(
+      req.user.id,
+      MESSAGE_POINTS.therry,
+    );
+
     res.status(200).json({
       reply,
       category,
       isCrisis,
+      pointsEarned,
       timestamp: new Date().toISOString(),
       _ai: aiResults ? {
         sentiment: aiResults.sentiment?.sentiment,

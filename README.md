@@ -6,7 +6,7 @@ Express 5 + MongoDB API server for Therabridge, a mental wellness platform.
 
 - **Express 5** — HTTP framework
 - **Mongoose 9** — MongoDB ODM
-- **JWT** — Cookie-based auth (httpOnly `token` cookie, 30-day expiry)
+- **JWT** — Cookie-based auth: short-lived access token (`token`, 15 min) + rotating refresh token (`refreshToken`, 7 days, hashed `jti`s stored on the user for revocation)
 - **Bcrypt** — Password hashing (10 rounds) with old-password rotation
 - **Zod** — Request body validation (`utils/validation.js`)
 - **Nodemailer** — Transactional emails (password reset, nodemailer-ethereal in dev)
@@ -45,7 +45,8 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 |--------|------|-------------|
 | POST | `/users/register` | Register new user |
 | POST | `/users/login` | Login (email or username) |
-| POST | `/users/logout` | Clear auth cookie |
+| POST | `/users/logout` | Clear auth cookies + revoke refresh token |
+| POST | `/users/refresh` | Rotate refresh token, issue new access token |
 | POST | `/users/forgot-password` | Request reset email |
 | POST | `/users/reset-password/:token` | Reset password |
 | GET | `/users/profile` | 🔒 Get own profile |
@@ -148,11 +149,11 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 
 ## Auth
 
-Protected routes require the httpOnly JWT cookie (`token`). The cookie is set on login/register and cleared on logout. In production `secure: true` and `sameSite: "none"` are used. Rate limiting is applied globally (500 req/15min, with long-poll `*/updates` endpoints exempt) and on auth endpoints (50 req/15min). Idempotency keys are honored via the `Idempotency-Key` header.
+Protected routes require a valid access token (httpOnly `token` cookie or `Authorization: Bearer` header, 15-min expiry). When the access token expires, the client calls `/users/refresh` with the httpOnly `refreshToken` cookie (7-day expiry); the refresh token is rotated on every use and stored hashed (`sha256` of the `jti`) in `user.refreshTokens` so sessions can be revoked (logout, password change/reset). Both cookies use `secure: true` and `sameSite: "none"` in production. Rate limiting is applied globally (500 req/15min, with long-poll `*/updates` endpoints exempt) and on auth endpoints (50 req/15min). Idempotency keys are honored via the `Idempotency-Key` header.
 
 ## Models
 
-- **User** — firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, exercise score, login/exercise streaks & bests, last login/exercise dates.
+- **User** — firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter.
 - **Message** (DM) — sender, recipient, content (≤2000), read/readAt, `deletedFor`, unsent, edited/editCount/editHistory.
 - **Community** — name, owner, members, unique `inviteKey`, description, embedded messages (sender, content ≤2000, readBy, unsent, edit history).
 - **Mood** — user, mood (`great`/`good`/`okay`/`bad`/`terrible`), emoji, note, factors, intensity (1–10), date.
@@ -161,6 +162,10 @@ Protected routes require the httpOnly JWT cookie (`token`). The cookie is set on
 - **ExerciseLog** — user, exercise, startedAt, completedAt, timeSpent, completed.
 - **Notification** — recipient, sender, type (message, community_invite, exercise_reminder, system, mood_reminder, crisis_alert, community_update, streak_milestone), title, body, data, read/readAt.
 - **TherryMessage** — user, role (`user`/`assistant`), content (≤4000), category (`anxiety`/`sad`/`stress`/`lonely`/`angry`/`general`/`crisis`).
+
+## Talking Points
+
+"Reaching out is cardio for the heart." Sending a DM or community message earns **+2 Wellness points**; messaging Therry earns **+5** (opening up = bonus self-care). Points feed the same wellness score as completing exercises and are capped at **20/day** per user so chat can't outpace real self-care. Awarded points are returned as `pointsEarned` on the send/chat endpoints and surfaced as `talkingPointsToday` in `GET /api/exercises/stats`. (The mechanics are intentionally undisclosed in the UI — discovery is part of the fun.)
 
 ## Therry (AI Companion)
 
