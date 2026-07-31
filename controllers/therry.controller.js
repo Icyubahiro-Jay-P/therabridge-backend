@@ -1,10 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { analyzeAll, checkCrisis } from "../services/mlClient.js";
+import { analyzeAll } from "../services/mlClient.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-const SYSTEM_PROMPT = `At the end of your response, add a separator "||CATEGORY||" followed by one of: anxiety, sad, stress, lonely, angry, general, crisis
-If the user expresses suicidal or self-harm ideation, always use "crisis" as the category.`;
+const SYSTEM_PROMPT = `You are Therry, an empathetic wellness companion in a mental health support app. You listen with warmth, validate the user's feelings, and offer gentle, practical coping suggestions (e.g. grounding exercises, breathing techniques, journaling prompts). Keep responses warm, concise, and under 6 sentences. Never diagnose or claim to be a licensed therapist. If the user shares thoughts of suicide or self-harm, respond with immediate support and strongly encourage them to contact emergency services (911), call/text 988, or text HOME to 741741.`;
 
 function getResponseCategory(message) {
   const lower = message.toLowerCase();
@@ -17,7 +16,12 @@ function getResponseCategory(message) {
   return "general";
 }
 
-const THERAPY_RESPONSES = {
+const CRISIS_RESPONSES = [
+  "I'm concerned about what you're sharing. If you're in immediate danger or thinking about harming yourself, please reach out for help right away:\n\n• Emergency Services: 911\n• National Suicide Prevention Lifeline: 988\n• Crisis Text Line: Text HOME to 741741\n\nYou matter and there are people who care about you.",
+  "Your safety is the most important thing. Please contact emergency services immediately if you're in danger. You deserve support and care.",
+];
+
+const FALLBACK_RESPONSES = {
   anxiety: [
     "It sounds like you're experiencing anxiety. Let's try a grounding exercise together. Name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste.",
     "Anxiety can feel overwhelming, but remember it's your body's natural response to perceived threats. Take a slow breath in for 4 counts, hold for 4, and exhale for 6.",
@@ -49,14 +53,12 @@ const THERAPY_RESPONSES = {
     "One helpful practice is to ask yourself: 'What do I need right now?' It could be rest, connection, movement, or simply a glass of water. Listen to what your mind and body are telling you.",
     "You are not alone in this journey. Every step you take toward healing matters, no matter how small it seems. What would feel like a small step forward today?",
   ],
-  crisis: [
-    "I'm concerned about what you're sharing. If you're in immediate danger or thinking about harming yourself, please reach out for help right away:\n\n• Emergency Services: 911\n• National Suicide Prevention Lifeline: 988\n• Crisis Text Line: Text HOME to 741741\n\nYou matter and there are people who care about you.",
-    "Your safety is the most important thing. Please contact emergency services immediately if you're in danger. You deserve support and care.",
-  ],
 };
 
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash",
+  model: "gemini-3.5-flash",
   systemInstruction: SYSTEM_PROMPT,
 });
 
@@ -97,11 +99,21 @@ export const chat = async (req, res) => {
       }
     }
 
-    const responses = THERAPY_RESPONSES[category] || THERAPY_RESPONSES.general;
-    const response = responses[Math.floor(Math.random() * responses.length)];
+    let reply;
+    if (isCrisis) {
+      reply = pick(CRISIS_RESPONSES);
+    } else {
+      try {
+        const result = await model.generateContent(message);
+        reply = result.response.text().trim();
+      } catch (aiError) {
+        console.error("Gemini generation error:", aiError);
+        reply = pick(FALLBACK_RESPONSES[category] || FALLBACK_RESPONSES.general);
+      }
+    }
 
     res.status(200).json({
-      response,
+      reply,
       category,
       isCrisis,
       timestamp: new Date().toISOString(),
