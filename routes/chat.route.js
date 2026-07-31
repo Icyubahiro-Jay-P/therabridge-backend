@@ -5,6 +5,7 @@ import {
   getConversationUpdates,
   getMyConversations,
   searchUsers,
+  getSuggestedUsers,
   createCommunity,
   joinCommunity,
   getMyCommunities,
@@ -39,6 +40,7 @@ router.get("/conversation/:userId", getConversation);
 router.get("/conversation/:userId/updates", getConversationUpdates);
 router.post("/send", spamFilter, sendMessage);
 router.get("/search", searchUsers);
+router.get("/suggestions", getSuggestedUsers);
 router.get("/settings", getChatSettings);
 router.put("/settings", validate(chatSettingsSchema), updateChatSettings);
 

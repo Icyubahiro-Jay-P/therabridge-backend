@@ -258,6 +258,21 @@ export const searchUsers = async (req, res) => {
   }
 };
 
+export const getSuggestedUsers = async (req, res) => {
+  try {
+    const myId = req.user.id;
+
+    const users = await User.find({ _id: { $ne: myId } })
+      .select("username firstName lastName avatar bio")
+      .sort({ loginStreak: -1, updatedAt: -1 })
+      .limit(8);
+
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+  }
+};
+
 // ====================== COMMUNITY ROOMS ======================
 
 export const createCommunity = async (req, res) => {
