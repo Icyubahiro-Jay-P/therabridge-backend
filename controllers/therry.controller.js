@@ -161,3 +161,60 @@ export const getHistory = async (req, res) => {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
+
+export const editMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { content } = req.body;
+
+    if (!content || content.trim() === "") {
+      return res.status(400).json({ error: { message: "Message content cannot be empty.", code: "BAD_REQUEST" } });
+    }
+
+    const message = await TherryMessage.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
+    }
+
+    if (message.user.toString() !== req.user.id) {
+      return res.status(403).json({ error: { message: "You can only edit your own messages.", code: "FORBIDDEN" } });
+    }
+
+    if (message.role !== "user") {
+      return res.status(400).json({ error: { message: "You can only edit your own messages.", code: "BAD_REQUEST" } });
+    }
+
+    if (message.editCount >= 3) {
+      return res.status(400).json({ error: { message: "Maximum of 3 edits per message.", code: "BAD_REQUEST" } });
+    }
+
+    const tenMinutes = 10 * 60 * 1000;
+    const age = Date.now() - new Date(message.createdAt).getTime();
+    if (age > tenMinutes) {
+      return res.status(400).json({ error: { message: "Can only edit messages within 10 minutes.", code: "BAD_REQUEST" } });
+    }
+
+    message.editHistory.push({
+      content: message.content,
+      editedAt: new Date(),
+    });
+    message.content = content.trim();
+    message.edited = true;
+    message.editCount += 1;
+
+    await message.save();
+
+    res.status(200).json({
+      _id: message._id,
+      role: "user",
+      content: message.content,
+      category: message.category,
+      createdAt: message.createdAt,
+      edited: message.edited,
+      editCount: message.editCount,
+    });
+  } catch (error) {
+    console.error("Therry edit error:", error);
+    res.status(500).json({ message: "Failed to edit message." });
+  }
+};
