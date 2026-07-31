@@ -154,7 +154,7 @@ export const getHistory = async (req, res) => {
     const messages = await TherryMessage.find({ user: req.user.id })
       .sort({ createdAt: 1 })
       .limit(500)
-      .select("role content category createdAt");
+      .select("role content category createdAt edited editCount");
 
     res.status(200).json(messages);
   } catch (error) {
