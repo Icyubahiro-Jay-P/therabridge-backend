@@ -262,7 +262,20 @@ export const getSuggestedUsers = async (req, res) => {
   try {
     const myId = req.user.id;
 
-    const users = await User.find({ _id: { $ne: myId } })
+    const messages = await Message.find({
+      $or: [{ sender: myId }, { recipient: myId }],
+      deletedFor: { $ne: myId },
+    }).select("sender recipient");
+
+    const conversationPartnerIds = new Set();
+    for (const msg of messages) {
+      if (msg.sender?.toString() !== myId) conversationPartnerIds.add(msg.sender?.toString());
+      if (msg.recipient?.toString() !== myId) conversationPartnerIds.add(msg.recipient?.toString());
+    }
+
+    const users = await User.find({
+      _id: { $ne: myId, $nin: [...conversationPartnerIds] },
+    })
       .select("username firstName lastName avatar bio")
       .sort({ loginStreak: -1, updatedAt: -1 })
       .limit(8);
