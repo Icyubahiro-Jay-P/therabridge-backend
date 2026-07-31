@@ -486,21 +486,27 @@ export const uploadProfilePicture = async (req, res) => {
     const optimizedFilename = `${path.parse(req.file.filename).name}.webp`;
     const optimizedPath = path.join(uploadDir, optimizedFilename);
 
-    await sharp(req.file.path)
-      .rotate()
-      .resize({
-        width: 1200,
-        height: 1200,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .webp({ quality: 80, effort: 6 })
-      .toFile(optimizedPath);
+    try {
+      await sharp(req.file.path, { failOn: "none" })
+        .rotate()
+        .resize({
+          width: 1200,
+          height: 1200,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .webp({ quality: 80, effort: 6 })
+        .toFile(optimizedPath);
 
-    // Replace original uploaded file with optimized file
-    fs.unlinkSync(req.file.path);
-    req.file.path = optimizedPath;
-    req.file.filename = optimizedFilename;
+      // Replace original uploaded file with optimized file
+      fs.unlinkSync(req.file.path);
+      req.file.path = optimizedPath;
+      req.file.filename = optimizedFilename;
+    } catch {
+      // Sharp's decoder (libspng) is stricter than browsers and rejects some
+      // images (e.g. slightly malformed PNGs). If it can't optimize the file,
+      // keep the original upload — the browser already validated it renders.
+    }
 
     // Delete previous avatar if it was an uploaded file
     if (user.avatar && user.avatar.startsWith("/uploads/")) {
