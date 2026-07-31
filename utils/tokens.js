@@ -25,23 +25,33 @@ export const createRefreshToken = (user) => {
   return { token, jti };
 };
 
-const cookieOptions = (maxAge) => ({
+const cookieOptions = (maxAge, isSecure) => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  secure: isSecure,
+  sameSite: isSecure ? "none" : "lax",
   maxAge,
 });
 
+const isRequestSecure = (req) => {
+  if (!req) return false;
+  if (req.secure) return true;
+  const proto = req.headers?.["x-forwarded-proto"] ?? "";
+  return proto.split(",")[0].trim() === "https";
+};
+
 export const setAuthCookies = (res, { accessToken, refreshToken }) => {
-  res.cookie("token", accessToken, cookieOptions(REFRESH_TOKEN_MAX_AGE));
+  const isSecure = isRequestSecure(res.req);
+  res.cookie("token", accessToken, cookieOptions(REFRESH_TOKEN_MAX_AGE, isSecure));
   res.cookie(
     "refreshToken",
     refreshToken,
-    cookieOptions(REFRESH_TOKEN_MAX_AGE),
+    cookieOptions(REFRESH_TOKEN_MAX_AGE, isSecure),
   );
 };
 
 export const clearAuthCookies = (res) => {
-  res.clearCookie("token");
-  res.clearCookie("refreshToken");
+  const isSecure = isRequestSecure(res.req);
+  const options = { ...cookieOptions(0, isSecure), maxAge: undefined };
+  res.clearCookie("token", options);
+  res.clearCookie("refreshToken", options);
 };
