@@ -15,13 +15,11 @@ import notificationRoutes from "./routes/notification.route.js";
 import moodRoutes from "./routes/mood.route.js";
 import crisisRoutes from "./routes/crisis.route.js";
 import therryRoutes from "./routes/therry.route.js";
-import { authMiddleware } from "./middleware/auth.middleware.js";
 import {
   errorHandler,
   notFoundHandler,
 } from "./middleware/error.middleware.js";
 import { idempotencyMiddleware } from "./middleware/idempotency.js";
-import { getScoreAndStreak } from "./controllers/user.controller.js";
 import logger from "./utils/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -84,11 +82,16 @@ const authLimiter = rateLimit({
   message: { error: { message: "Too many attempts, try again later", code: "RATE_LIMITED" } },
 });
 
+// Long-poll + layout polling endpoints run frequently (every ~10s), so they
+// are exempt from the general limiter to avoid tripping it during normal use.
+const skipFrequentPolling = (req) => /\/updates$/.test(req.path);
+
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 500,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipFrequentPolling,
   message: { error: { message: "Too many requests, try again later", code: "RATE_LIMITED" } },
 });
 
@@ -105,11 +108,12 @@ app.use(idempotencyMiddleware);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ====================== ROUTES ======================
+// Auth routes get a stricter limiter — registered before the user routes so
+// it actually matches (middleware runs in registration order).
+app.use("/api/users/login", authLimiter);
+app.use("/api/users/register", authLimiter);
+
 app.use("/api/users", userRoutes);
-app.get("/api/users/score-streak", authMiddleware, getScoreAndStreak);
-app.get("/api/users/streak-score", authMiddleware, getScoreAndStreak);
-app.get("/api/users/stats/score-streak", authMiddleware, getScoreAndStreak);
-app.get("/api/users/stats/streak-score", authMiddleware, getScoreAndStreak);
 app.use("/api/exercises", exerciseRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
@@ -139,10 +143,6 @@ app.get("/health", async (req, res) => {
 app.get("/", (req, res) => {
   res.status(200).json({ message: "Therabridge API is running!" });
 });
-
-// Apply rate limiting to auth routes
-app.use("/api/users/login", authLimiter);
-app.use("/api/users/register", authLimiter);
 
 // ====================== ERROR HANDLING ======================
 app.use(notFoundHandler);

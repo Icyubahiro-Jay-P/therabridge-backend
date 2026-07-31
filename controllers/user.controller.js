@@ -7,8 +7,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import sharp from "sharp";
 import sendEmail from "../utils/nodemailer.js";
-import { createNotification } from "./notification.controller.js";
-import { isMilestone, getMilestoneInfo } from "../utils/streakMilestones.js";
 import {
   getPaginationParams,
   formatPaginatedResponse,
@@ -18,6 +16,31 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const updateLoginStreak = async (user) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const lastLogin = user.lastLoginDate ? new Date(user.lastLoginDate) : null;
+
+  if (lastLogin) {
+    lastLogin.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((today - lastLogin) / 86400000);
+    if (diffDays === 0) return;
+    if (diffDays === 1) {
+      user.loginStreak = (user.loginStreak || 0) + 1;
+    } else {
+      user.loginStreak = 1;
+    }
+  } else {
+    user.loginStreak = 1;
+  }
+
+  user.lastLoginDate = today;
+  if (user.loginStreak > (user.longestLoginStreak || 0)) {
+    user.longestLoginStreak = user.loginStreak;
+  }
+  await user.save();
+};
 
 export const register = async (req, res) => {
   try {
@@ -121,6 +144,8 @@ export const register = async (req, res) => {
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
+    await updateLoginStreak(user);
+
     res.status(201).json({
       message: "User registered successfully",
       token,
@@ -180,6 +205,8 @@ export const login = async (req, res) => {
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
+
+    await updateLoginStreak(user);
 
     res.status(200).json({
       message: "Login successful",
@@ -550,7 +577,13 @@ export const getTherapists = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
-    const { page, limit, offset } = getPaginationParams(req.query, 100);
+    if (req.user.role !== "admin") {
+      return res
+        .status(403)
+        .json({ message: "Only admins can list all users." });
+    }
+
+    const { limit, offset } = getPaginationParams(req.query, 500);
     const sort = parseSortParams(req.query, [
       "firstName",
       "lastName",
@@ -564,14 +597,13 @@ export const getAllUsers = async (req, res) => {
       "role",
     ]);
 
-    const total = await User.countDocuments(filter);
     const users = await User.find(filter)
-      .select("-password -oldPasswords")
+      .select("-password -oldPasswords -resetPasswordToken -resetPasswordExpire")
       .sort(sort)
       .limit(limit)
       .skip(offset);
 
-    res.status(200).json(formatPaginatedResponse(users, total, page, limit));
+    res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -857,71 +889,6 @@ export const getFullUserData = async (req, res) => {
       }
     }
     res.status(200).json(user);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export const updateLoginStreak = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const lastLogin = user.lastLoginDate ? new Date(user.lastLoginDate) : null;
-    if (lastLogin) {
-      lastLogin.setHours(0, 0, 0, 0);
-      const diffDays = Math.floor((today - lastLogin) / 86400000);
-      if (diffDays === 1) {
-        user.loginStreak += 1;
-      } else if (diffDays > 1) {
-        user.loginStreak = 1;
-      }
-    } else {
-      user.loginStreak = 1;
-    }
-    if (user.loginStreak > user.longestLoginStreak) {
-      user.longestLoginStreak = user.loginStreak;
-    }
-    user.lastLoginDate = today;
-    await user.save();
-
-    if (isMilestone(user.loginStreak)) {
-      const info = getMilestoneInfo(user.loginStreak);
-      await createNotification(
-        user._id,
-        "streak_milestone",
-        `${info.emoji} ${info.title}!`,
-        `You've hit a ${user.loginStreak}-day login streak! Keep showing up for yourself.`,
-      );
-    }
-
-    res.status(200).json({
-      loginStreak: user.loginStreak,
-      longestLoginStreak: user.longestLoginStreak,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export const getScoreAndStreak = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select(
-      "exerciseScore loginStreak exerciseStreak longestLoginStreak longestExerciseStreak lastLoginDate lastExerciseDate",
-    );
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
-    res.status(200).json({
-      exerciseScore: user.exerciseScore,
-      loginStreak: user.loginStreak,
-      exerciseStreak: user.exerciseStreak,
-      longestLoginStreak: user.longestLoginStreak,
-      longestExerciseStreak: user.longestExerciseStreak,
-    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

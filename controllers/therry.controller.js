@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { analyzeAll } from "../services/mlClient.js";
+import { TherryMessage } from "../models/therryMessage.model.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -62,6 +63,14 @@ const model = genAI.getGenerativeModel({
   systemInstruction: SYSTEM_PROMPT,
 });
 
+const saveMessage = async (userId, role, content, category) => {
+  try {
+    await TherryMessage.create({ user: userId, role, content, category });
+  } catch (error) {
+    console.error("Therry save error:", error.message);
+  }
+};
+
 export const chat = async (req, res) => {
   try {
     const { message } = req.body;
@@ -99,6 +108,8 @@ export const chat = async (req, res) => {
       }
     }
 
+    await saveMessage(req.user.id, "user", message.trim(), category);
+
     let reply;
     if (isCrisis) {
       reply = pick(CRISIS_RESPONSES);
@@ -111,6 +122,8 @@ export const chat = async (req, res) => {
         reply = pick(FALLBACK_RESPONSES[category] || FALLBACK_RESPONSES.general);
       }
     }
+
+    await saveMessage(req.user.id, "assistant", reply, category);
 
     res.status(200).json({
       reply,
@@ -129,8 +142,15 @@ export const chat = async (req, res) => {
   }
 };
 
-export const getCategories = async (req, res) => {
-  res.status(200).json({
-    categories: ["anxiety", "sad", "stress", "lonely", "angry", "general", "crisis"],
-  });
+export const getHistory = async (req, res) => {
+  try {
+    const messages = await TherryMessage.find({ user: req.user.id })
+      .sort({ createdAt: 1 })
+      .limit(500)
+      .select("role content category createdAt");
+
+    res.status(200).json(messages);
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+  }
 };

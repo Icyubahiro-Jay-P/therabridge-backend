@@ -125,3 +125,38 @@ export const getLogs = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const getExerciseStats = async (req, res) => {
+  try {
+    const logs = await ExerciseLog.find({
+      user: req.user.id,
+      completed: true,
+    }).select("timeSpent completedAt");
+    const user = await User.findById(req.user.id);
+
+    const totalCompleted = logs.length;
+    const totalTimeSpent = logs.reduce((sum, l) => sum + (l.timeSpent || 0), 0);
+
+    const startOfWeek = new Date();
+    const day = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const completedThisWeek = logs.filter(
+      (l) => new Date(l.completedAt) >= startOfWeek,
+    ).length;
+
+    res.status(200).json({
+      totalCompleted,
+      totalTimeSpent,
+      completedThisWeek,
+      exerciseScore: user?.exerciseScore || 0,
+      loginStreak: user?.loginStreak || 0,
+      exerciseStreak: user?.exerciseStreak || 0,
+      longestLoginStreak: user?.longestLoginStreak || 0,
+      longestExerciseStreak: user?.longestExerciseStreak || 0,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

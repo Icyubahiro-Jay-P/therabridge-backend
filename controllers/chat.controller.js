@@ -130,6 +130,10 @@ export const getConversation = async (req, res) => {
 
     const nextCursor = hasMore ? messages[messages.length - 1]?._id : null;
 
+    // Return oldest-first for display; nextCursor still points at the oldest
+    // message so subsequent "load older" calls (cursor with _id $lt) work.
+    messages.reverse();
+
     const myUser = await User.findById(myId).select("chatSettings");
     if (myUser?.chatSettings?.readReceipts !== false) {
       await Message.updateMany(
@@ -322,19 +326,13 @@ export const joinCommunity = async (req, res) => {
 
 export const getMyCommunities = async (req, res) => {
   try {
-    const { page, limit, offset } = getPaginationParams(req.query, 50);
-
-    const filter = { members: req.user.id };
-    const total = await Community.countDocuments(filter);
-    const communities = await Community.find(filter)
+    const communities = await Community.find({ members: req.user.id })
       .populate("owner", "username firstName lastName avatar")
       .populate("members", "username firstName lastName avatar")
       .select("-messages")
-      .sort({ updatedAt: -1 })
-      .skip(offset)
-      .limit(limit);
+      .sort({ updatedAt: -1 });
 
-    res.status(200).json(formatPaginatedResponse(communities, total, page, limit));
+    res.status(200).json(communities);
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
