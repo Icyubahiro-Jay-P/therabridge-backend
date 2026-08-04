@@ -1,22 +1,22 @@
-# Therabridge — Backend
+# Therabridge - Backend
 
 Express 5 + MongoDB API server for Therabridge, a mental wellness platform.
 
 ## Tech
 
-- **Express 5** — HTTP framework
-- **Mongoose 9** — MongoDB ODM
-- **JWT** — Cookie-based auth: short-lived access token (`token`, 15 min) + rotating refresh token (`refreshToken`, 7 days, hashed `jti`s stored on the user for revocation)
-- **Bcrypt** — Password hashing (10 rounds) with old-password rotation
-- **Zod** — Request body validation (`utils/validation.js`)
-- **Nodemailer** — Transactional emails (password reset, nodemailer-ethereal in dev)
-- **Multer** + **Sharp** — Profile picture upload + image optimization
-- **Helmet**, **express-rate-limit**, **CORS** — Security
-- **Pino** — Structured logging (`utils/logger.js`)
-- **@google/generative-ai** — Therry chat model (`gemini-3.5-flash`)
-- **Socket.io** — Real-time DMs, community messages, notifications, and possible-screenshot notices (JWT-authed handshake)
-- **Web Push** (`web-push`, VAPID) — Device notifications for messages and activity
-- **Vitest** — Unit tests (`__tests__/`)
+- **Express 5** - HTTP framework
+- **Mongoose 9** - MongoDB ODM
+- **JWT** - Cookie-based auth: short-lived access token (`token`, 15 min) + rotating refresh token (`refreshToken`, 7 days, hashed `jti`s stored on the user for revocation)
+- **Bcrypt** - Password hashing (10 rounds) with old-password rotation
+- **Zod** - Request body validation (`utils/validation.js`)
+- **Nodemailer** - Transactional emails (password reset, nodemailer-ethereal in dev)
+- **Multer** + **Sharp** - Profile picture upload + image optimization
+- **Helmet**, **express-rate-limit**, **CORS** - Security
+- **Pino** - Structured logging (`utils/logger.js`)
+- **@google/generative-ai** - Therry chat model (`gemini-3.5-flash`)
+- **Socket.io** - Real-time DMs, community messages, notifications, and possible-screenshot notices (JWT-authed handshake)
+- **Web Push** (`web-push`, VAPID) - Device notifications for messages and activity
+- **Vitest** - Unit tests (`__tests__/`)
 
 ## Getting Started
 
@@ -50,7 +50,7 @@ Copy `backend/.env.example` to `.env`:
 | `GEMINI_API_KEY` | Google Gemini API key (Therry AI companion) |
 | `AI_SERVICE_URL` | Optional Python ML microservice for spam/crisis/sentiment hints (falls back gracefully when unavailable) |
 | `NODE_ENV` | `development` \| `production` |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push keys (generate with `npm run vapid`) — required for device notifications |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push keys (generate with `npm run vapid`) - required for device notifications |
 | `VAPID_SUBJECT` | Contact for VAPID (e.g. `mailto:no-reply@therabridge.com`) |
 
 **Production:** the API runs at [therabridge-backend.onrender.com](https://therabridge-backend.onrender.com); the Vercel frontend proxies `/api`, `/uploads`, and `/socket.io` to it via the rewrites in `frontend/vercel.json`.
@@ -67,7 +67,7 @@ Copy `backend/.env.example` to `.env`:
 
 All endpoints below are mounted under `/api`. Endpoints marked **🔒** require the JWT cookie.
 
-### Users — `/api/users`
+### Users - `/api/users`
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -92,7 +92,7 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | GET | `/users/therapist/user/:id` | 🔒 Full user data (therapist) |
 | GET | `/users/:username` | Public profile |
 
-### Chat — `/api/chat`
+### Chat - `/api/chat`
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -123,7 +123,7 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | DELETE | `/chat/communities/:id` | 🔒 Delete community |
 | DELETE | `/chat/community-messages` | 🔒 Delete all my community messages |
 
-### Exercises — `/api/exercises`
+### Exercises - `/api/exercises`
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -135,7 +135,7 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | POST | `/exercises/:id/start` | 🔒 Start exercise |
 | POST | `/exercises/:id/complete` | 🔒 Complete exercise (awards points/streaks) |
 
-### Mood — `/api/mood`
+### Mood - `/api/mood`
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -144,7 +144,7 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | GET | `/mood/stats` | 🔒 30-day mood stats (incl. streak) |
 | DELETE | `/mood/:id` | 🔒 Delete a mood entry |
 
-### Notifications — `/api/notifications`
+### Notifications - `/api/notifications`
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -155,7 +155,7 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | DELETE | `/notifications/:id` | 🔒 Delete one |
 | DELETE | `/notifications` | 🔒 Delete all |
 
-### Crisis — `/api/crisis`
+### Crisis - `/api/crisis`
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -165,14 +165,14 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | PUT | `/crisis/:id/acknowledge` | 🔒 Acknowledge alert |
 | PUT | `/crisis/:id/resolve` | 🔒 Resolve alert |
 
-### Therry — `/api/therry`
+### Therry - `/api/therry`
 
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/therry/chat` | 🔒 Send a message, get Therry's reply |
 | GET | `/therry/messages` | 🔒 Get my Therry history (asc, max 500) |
 
-### Push — `/api/push`
+### Push - `/api/push`
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -182,8 +182,8 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 
 ### Misc
 
-- `GET /health` — health check (server + DB status)
-- `GET /` — API banner
+- `GET /health` - health check (server + DB status)
+- `GET /` - API banner
 
 ## Auth
 
@@ -191,19 +191,19 @@ Protected routes require a valid access token (httpOnly `token` cookie or `Autho
 
 ## Models
 
-- **User** — firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter.
-- **Message** (DM) — sender, recipient, `kind` (`message` \| `screenshot-notice`), `noticeType`, content (≤2000), read/readAt, `deletedFor`, unsent, edited/editCount/editHistory.
-- **Community** — name, owner, members, unique `inviteKey`, description, embedded messages (sender, content ≤2000, readBy, unsent, edit history).
-- **Mood** — user, mood (`great`/`good`/`okay`/`bad`/`terrible`), emoji, note, factors, intensity (1–10), date.
-- **Crisis** — user, alertType, description, status (`active`/`acknowledged`/`resolved`), acknowledgedBy, resolvedAt, resourcesShared.
-- **Exercise** — title, description, duration (sec), type, steps, difficulty, emoji, color.
-- **ExerciseLog** — user, exercise, startedAt, completedAt, timeSpent, completed.
-- **Notification** — recipient, sender, type (message, community_invite, exercise_reminder, system, mood_reminder, crisis_alert, community_update, streak_milestone), title, body, data, read/readAt.
-- **TherryMessage** — user, role (`user`/`assistant`), content (≤4000), category (`anxiety`/`sad`/`stress`/`lonely`/`angry`/`general`/`crisis`).
+- **User** - firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter.
+- **Message** (DM) - sender, recipient, `kind` (`message` \| `screenshot-notice`), `noticeType`, content (≤2000), read/readAt, `deletedFor`, unsent, edited/editCount/editHistory.
+- **Community** - name, owner, members, unique `inviteKey`, description, embedded messages (sender, content ≤2000, readBy, unsent, edit history).
+- **Mood** - user, mood (`great`/`good`/`okay`/`bad`/`terrible`), emoji, note, factors, intensity (1–10), date.
+- **Crisis** - user, alertType, description, status (`active`/`acknowledged`/`resolved`), acknowledgedBy, resolvedAt, resourcesShared.
+- **Exercise** - title, description, duration (sec), type, steps, difficulty, emoji, color.
+- **ExerciseLog** - user, exercise, startedAt, completedAt, timeSpent, completed.
+- **Notification** - recipient, sender, type (message, community_invite, exercise_reminder, system, mood_reminder, crisis_alert, community_update, streak_milestone), title, body, data, read/readAt.
+- **TherryMessage** - user, role (`user`/`assistant`), content (≤4000), category (`anxiety`/`sad`/`stress`/`lonely`/`angry`/`general`/`crisis`).
 
 ## Talking Points
 
-"Reaching out is cardio for the heart." Sending a DM or community message earns **+2 Wellness points**; messaging Therry earns **+5** (opening up = bonus self-care). Points feed the same wellness score as completing exercises and are capped at **20/day** per user so chat can't outpace real self-care. Awarded points are returned as `pointsEarned` on the send/chat endpoints and surfaced as `talkingPointsToday` in `GET /api/exercises/stats`. (The mechanics are intentionally undisclosed in the UI — discovery is part of the fun.)
+"Reaching out is cardio for the heart." Sending a DM or community message earns **+2 Wellness points**; messaging Therry earns **+5** (opening up = bonus self-care). Points feed the same wellness score as completing exercises and are capped at **20/day** per user so chat can't outpace real self-care. Awarded points are returned as `pointsEarned` on the send/chat endpoints and surfaced as `talkingPointsToday` in `GET /api/exercises/stats`. (The mechanics are intentionally undisclosed in the UI - discovery is part of the fun.)
 
 ## Real-time (Socket.io)
 
@@ -215,11 +215,11 @@ The server exposes a Socket.io endpoint on the same port as the API (`sockets/ch
 
 | Event | Payload | Emitted when |
 |-------|---------|--------------|
-| `dm_message` | populated message | a DM is sent — to the recipient (`chat.controller.js`) |
-| `conversations_updated` | `{ partnerId }` | a DM is sent — to both parties (conversation list + unread refresh) |
+| `dm_message` | populated message | a DM is sent - to the recipient (`chat.controller.js`) |
+| `conversations_updated` | `{ partnerId }` | a DM is sent - to both parties (conversation list + unread refresh) |
 | `dm_message_updated` | message | a DM is edited |
 | `dm_message_unsent` | `{ messageId }` | a DM is unsent |
-| `community_message` | `{ communityId, message }` | a community message is sent — to the community room |
+| `community_message` | `{ communityId, message }` | a community message is sent - to the community room |
 | `community_message_updated` / `community_message_unsent` | `{ communityId, message }` | a community message is edited / unsent |
 | `notification` | notification doc | a notification is created (`services/notification.service.js`) |
 | `possible_screenshot` | `{ conversationId }` | a peer reports a possible screenshot |
@@ -236,13 +236,13 @@ The server exposes a Socket.io endpoint on the same port as the API (`sockets/ch
 The same events that create in-app notifications also trigger device notifications via the Web Push API (`services/push.service.js`).
 
 - **Setup:** generate keys with `npm run vapid` and set `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` in `.env` (and the production environment). Without them, pushes are skipped (logged) and the API returns an empty public key.
-- **Subscriptions:** the client registers the browser via `POST /api/push/subscribe` (`models/pushSubscription.model.js` — one row per user/endpoint). Logout unregisters the device.
+- **Subscriptions:** the client registers the browser via `POST /api/push/subscribe` (`models/pushSubscription.model.js` - one row per user/endpoint). Logout unregisters the device.
 - **Delivery:** `createNotification` (`services/notification.service.js`) sends the same title/body to the device with a type-based deep link (`data.url`) so tapping the notification opens the right page (chat thread, community, crisis, mood, …).
 - **Skip-while-online:** chat notifications (DMs, community messages) are pushed with `skipIfOnline`, so a user actively connected via Socket.io gets the in-app update instead of a duplicate device notification. Stale subscriptions (HTTP 404/410) are pruned automatically.
 
 ## Privacy Shield
 
-A "privacy shield" feature set that raises the bar and creates a paper trail for screenshots — it does **not** and cannot prevent someone from capturing content.
+A "privacy shield" feature set that raises the bar and creates a paper trail for screenshots - it does **not** and cannot prevent someone from capturing content.
 
 - **Socket.io** (`sockets/chatSocket.js`): the client connects with the same JWT used for the API (sent via `auth.token` in the handshake, or the `token` cookie / `Authorization` header). Every authenticated socket joins a `user:<id>` room.
 - **Possible-screenshot notices**: when the client detects a screenshot attempt (PrintScreen / `Cmd+Shift+S/3/4/5` or the tab losing focus) it emits `possible_screenshot` with `{ conversationId }` (or falls back to `POST /api/chat/screenshot-notice`). The server:
@@ -250,7 +250,7 @@ A "privacy shield" feature set that raises the bar and creates a paper trail for
   2. persists a `Message` with `kind: "screenshot-notice"` (in-thread system message both sides see, surviving reloads);
   3. pushes `possible_screenshot` to the peer's `user:<id>` room in real time.
 - **Server-side watermark stamp**: `POST /api/chat/watermark-stamp` renders supplied text to a PNG with a tiled low-opacity `<viewerId> · <timestamp>` watermark using Sharp. Intended as a deterrent for flagged content only; content still reaches the screen in plain form.
-- **Rate limiting** is deliberately aggressive because tab-switching is a noisy signal. Notices are "possible" captures — the server never asserts a screenshot actually happened.
+- **Rate limiting** is deliberately aggressive because tab-switching is a noisy signal. Notices are "possible" captures - the server never asserts a screenshot actually happened.
 
 **Honest limitation:** blur/blackout, notices, and watermarks discourage casual copying and leave an audit trail, but anyone determined to record content (another device, OS-level capture, developer tools) can still do so. Do not design features that assume content cannot be recorded.
 
@@ -261,7 +261,7 @@ A "privacy shield" feature set that raises the bar and creates a paper trail for
 ## Architecture Notes
 
 - **Auth:** short-lived access tokens + rotating refresh tokens stored in httpOnly cookies (see Auth above).
-- **Role-based access control:** three roles — `user`, `therapist`, `admin` — enforced by dedicated middleware (`middleware/auth.middleware.js` + `middleware/role.middleware.js`).
+- **Role-based access control:** three roles - `user`, `therapist`, `admin` - enforced by dedicated middleware (`middleware/auth.middleware.js` + `middleware/role.middleware.js`).
 - **Notification service:** all notifications are created through `services/notification.service.js`, which also pushes the `notification` Socket.io event in real time.
 - **Privacy shield:** client-side blur/blackout on tab switch, screenshot-shortcut detection, and server-side watermark stamping (see Privacy Shield above).
 
