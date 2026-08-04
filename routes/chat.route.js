@@ -29,6 +29,7 @@ import {
   editCommunityMessage,
   unsendCommunityMessage,
   deleteCommunity,
+  toggleDisableCommunity,
   getChatSettings,
   updateChatSettings,
   reportPossibleScreenshot,
@@ -76,6 +77,7 @@ router.post("/communities/:communityId/join-requests/:userId", validate(moderate
 router.post("/communities/:communityId/moderators", validate(inviteMemberSchema), addModerator);
 router.post("/communities/:communityId/moderators/remove", validate(inviteMemberSchema), removeModerator);
 router.delete("/communities/:communityId", deleteCommunity);
+router.put("/communities/:communityId/disable", toggleDisableCommunity);
 
 router.delete("/messages", deleteAllMyMessages);
 router.delete("/community-messages", deleteAllMyCommunityMessages);
