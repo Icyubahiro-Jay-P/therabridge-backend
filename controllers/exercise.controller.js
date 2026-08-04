@@ -121,7 +121,7 @@ export const getAllExercises = async (req, res) => {
 
     res.status(200).json(exercises);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -129,23 +129,21 @@ export const getExerciseById = async (req, res) => {
   try {
     const exercise = await Exercise.findById(req.params.id);
     if (!exercise) {
-      return res.status(404).json({ message: "Exercise not found" });
+      return res.status(404).json({ error: { message: "Exercise not found.", code: "NOT_FOUND" } });
     }
     res.status(200).json(exercise);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
 export const createExercise = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "Only admins can create exercises." });
-    }
-    const exercise = new Exercise(req.body);
+    const { title, description, duration, type, steps, difficulty, emoji, color } = req.body;
+    const exercise = new Exercise({ title, description, duration, type, steps, difficulty, emoji, color });
     await exercise.save();
     res.status(201).json(exercise);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ error: { message: error.message, code: "VALIDATION_ERROR" } });
   }
 };
