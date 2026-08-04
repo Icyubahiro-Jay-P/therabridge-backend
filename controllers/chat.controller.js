@@ -4,6 +4,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import { recordPossibleScreenshot, emitToUser, emitToCommunity } from "../sockets/chatSocket.js";
 import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
+import { createNotification } from "../services/notification.service.js";
 import {
   getPaginationParams,
   formatPaginatedResponse,
@@ -56,6 +57,19 @@ export const sendMessage = async (req, res) => {
     emitToUser(req.user.id, "conversations_updated", {
       partnerId: recipientId,
     });
+
+    // In-app + device notification for the recipient (skipped while they're
+    // actively connected, since the socket event already updates the UI).
+    const sender = messageObj.sender || {};
+    await createNotification(
+      recipientId,
+      "message",
+      sender.firstName || sender.username || "New message",
+      messageObj.content,
+      { url: sender.username ? `/chat/${sender.username}` : "/chat" },
+      req.user.id,
+      { skipIfOnline: true },
+    );
 
     const pointsEarned = await awardMessagePoints(
       req.user.id,
@@ -693,10 +707,37 @@ export const sendCommunityMessage = async (req, res) => {
     const newMessage =
       updatedCommunity.messages[updatedCommunity.messages.length - 1];
 
+    const messageObj = newMessage.toObject();
+
     emitToCommunity(communityId, "community_message", {
       communityId,
-      message: newMessage.toObject(),
+      message: messageObj,
     });
+
+    // In-app + device notification for every other member (skipped while
+    // they're actively connected, since the socket event already updates UI).
+    const sender = messageObj.sender || {};
+    const senderName =
+      sender.firstName || sender.username || "Someone";
+    const memberIds = (community.members || [])
+      .map((m) => m.toString())
+      .filter((id) => id !== req.user.id);
+
+    for (const memberId of memberIds) {
+      await createNotification(
+        memberId,
+        "community_update",
+        `${senderName} · ${community.name}`,
+        messageObj.content,
+        {
+          url: community.inviteKey
+            ? `/community/${community.inviteKey}`
+            : "/community",
+        },
+        req.user.id,
+        { skipIfOnline: true },
+      );
+    }
 
     const pointsEarned = await awardMessagePoints(
       req.user.id,
