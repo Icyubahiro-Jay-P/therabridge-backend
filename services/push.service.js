@@ -55,7 +55,7 @@ export const deleteAllPushSubscriptions = async (userId) => {
 
 // Sends a device push to every subscription the user has. If `skipIfOnline`
 // is true (used for chat messages), no push is sent while the user has a live
-// socket — they already get the in-app notification in real time.
+// socket - they already get the in-app notification in real time.
 export const sendPushToUser = async (userId, { title, body, data = {} }, { skipIfOnline = false } = {}) => {
   try {
     if (skipIfOnline && hasActiveConnection(userId)) return 0;
@@ -88,7 +88,7 @@ export const sendPushToUser = async (userId, { title, body, data = {} }, { skipI
         sent++;
       } catch (err) {
         if (err.statusCode === 404 || err.statusCode === 410) {
-          // Subscription is gone/stale — clean it up.
+          // Subscription is gone/stale - clean it up.
           await sub.deleteOne();
           logger.info("Removed stale push subscription");
         } else {
