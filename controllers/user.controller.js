@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 import sharp from "sharp";
 import sendEmail from "../utils/nodemailer.js";
 import getClientOrigin from "../utils/clientOrigin.js";
+import logger from "../utils/logger.js";
 import {
   signAccessToken,
   createRefreshToken,
@@ -768,11 +769,18 @@ export const forgotPassword = async (req, res) => {
         html: message,
       });
     } catch (err) {
+      logger.error({ err }, "Failed to send password reset email");
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
       await user.save({ validateBeforeSave: false });
       return res.status(502).json({
-        error: { message: "We couldn't send the password reset email right now. Please try again in a few minutes.", code: "EMAIL_FAILED" },
+        error: {
+          message:
+            process.env.NODE_ENV === "production"
+              ? "We couldn't send the password reset email right now. Please try again in a few minutes."
+              : `We couldn't send the password reset email: ${err.message}`,
+          code: "EMAIL_FAILED",
+        },
       });
     }
 
