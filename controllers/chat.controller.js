@@ -157,7 +157,7 @@ export const getConversation = async (req, res) => {
       for (const msg of recent) byId.set(msg._id.toString(), msg);
       for (const msg of unread) byId.set(msg._id.toString(), msg);
       messages = [...byId.values()].sort((a, b) =>
-        a._id < b._id ? -1 : 1,
+        a._id.toString() < b._id.toString() ? -1 : 1,
       );
 
       if (messages.length > 0) {
