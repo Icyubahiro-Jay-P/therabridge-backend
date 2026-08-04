@@ -1,6 +1,6 @@
 import Crisis from "../models/crisis.model.js";
 import User from "../models/user.model.js";
-import { createNotification } from "./notification.controller.js";
+import { createNotification } from "../services/notification.service.js";
 
 export const createCrisisAlert = async (req, res) => {
   try {
@@ -106,9 +106,6 @@ export const resolveCrisis = async (req, res) => {
 
 export const getAllActiveCrisisAlerts = async (req, res) => {
   try {
-    if (req.user.role !== "therapist" && req.user.role !== "admin") {
-      return res.status(403).json({ message: "Access denied." });
-    }
     const alerts = await Crisis.find({ status: "active" })
       .populate("user", "username firstName lastName avatar")
       .sort("-createdAt");
