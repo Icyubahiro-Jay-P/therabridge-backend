@@ -345,6 +345,12 @@ export const createCommunity = async (req, res) => {
   try {
     const { name, description, category, isPrivate, rules } = req.body;
 
+    if (req.user.role !== "therapist" && req.user.role !== "admin") {
+      return res
+        .status(403)
+        .json({ error: { message: "Only therapists and admins can create communities.", code: "FORBIDDEN" } });
+    }
+
     if (!name || name.length < 2) {
       return res
         .status(400)
