@@ -15,6 +15,7 @@ Express 5 + MongoDB API server for Therabridge, a mental wellness platform.
 - **Pino** — Structured logging (`utils/logger.js`)
 - **@google/generative-ai** — Therry chat model (`gemini-3.5-flash`)
 - **Socket.io** — Real-time DMs, community messages, notifications, and possible-screenshot notices (JWT-authed handshake)
+- **Web Push** (`web-push`, VAPID) — Device notifications for messages and activity
 - **Vitest** — Unit tests (`__tests__/`)
 
 ## Getting Started
@@ -49,6 +50,8 @@ Copy `backend/.env.example` to `.env`:
 | `GEMINI_API_KEY` | Google Gemini API key (Therry AI companion) |
 | `AI_SERVICE_URL` | Optional Python ML microservice for spam/crisis/sentiment hints (falls back gracefully when unavailable) |
 | `NODE_ENV` | `development` \| `production` |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push keys (generate with `npm run vapid`) — required for device notifications |
+| `VAPID_SUBJECT` | Contact for VAPID (e.g. `mailto:no-reply@therabridge.com`) |
 
 **Production:** the API runs at [therabridge-backend.onrender.com](https://therabridge-backend.onrender.com); the Vercel frontend proxies `/api`, `/uploads`, and `/socket.io` to it via the rewrites in `frontend/vercel.json`.
 
@@ -169,6 +172,14 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | POST | `/therry/chat` | 🔒 Send a message, get Therry's reply |
 | GET | `/therry/messages` | 🔒 Get my Therry history (asc, max 500) |
 
+### Push — `/api/push`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/push/vapid-public-key` | 🔒 Public VAPID key for creating a push subscription |
+| POST | `/push/subscribe` | 🔒 Register/refresh a device push subscription |
+| POST | `/push/unsubscribe` | 🔒 Remove a device push subscription (logout/unsubscribe) |
+
 ### Misc
 
 - `GET /health` — health check (server + DB status)
@@ -219,6 +230,15 @@ The server exposes a Socket.io endpoint on the same port as the API (`sockets/ch
 |-------|---------|---------|
 | `join_community` / `leave_community` | `{ communityId }` | subscribe/unsubscribe a socket to a community room |
 | `possible_screenshot` | `{ conversationId }` | possible-screenshot notice (REST fallback: `POST /api/chat/screenshot-notice`) |
+
+## Device Notifications (Web Push)
+
+The same events that create in-app notifications also trigger device notifications via the Web Push API (`services/push.service.js`).
+
+- **Setup:** generate keys with `npm run vapid` and set `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` in `.env` (and the production environment). Without them, pushes are skipped (logged) and the API returns an empty public key.
+- **Subscriptions:** the client registers the browser via `POST /api/push/subscribe` (`models/pushSubscription.model.js` — one row per user/endpoint). Logout unregisters the device.
+- **Delivery:** `createNotification` (`services/notification.service.js`) sends the same title/body to the device with a type-based deep link (`data.url`) so tapping the notification opens the right page (chat thread, community, crisis, mood, …).
+- **Skip-while-online:** chat notifications (DMs, community messages) are pushed with `skipIfOnline`, so a user actively connected via Socket.io gets the in-app update instead of a duplicate device notification. Stale subscriptions (HTTP 404/410) are pruned automatically.
 
 ## Privacy Shield
 
