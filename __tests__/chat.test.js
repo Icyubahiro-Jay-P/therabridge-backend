@@ -29,6 +29,9 @@ import {
   unsendMessage,
   createCommunity,
   joinCommunity,
+  leaveCommunity,
+  inviteMember,
+  respondToJoinRequest,
   deleteCommunity,
   editCommunityMessage,
   unsendCommunityMessage,
@@ -184,6 +187,178 @@ describe("Chat Controller", () => {
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("already") }) })
       )
+    })
+
+    it("should queue a request for private communities", async () => {
+      const push = vi.fn()
+      Community.findOne.mockResolvedValue({
+        members: ["ownerid"],
+        pendingMembers: [],
+        isPrivate: true,
+        name: "Test",
+        description: "",
+        owner: "ownerid",
+        inviteKey: "ABCD1234",
+        save: vi.fn().mockResolvedValue(true),
+      })
+      const { req, res } = mockReqRes({
+        body: { inviteKey: "ABCD1234" },
+      })
+      await joinCommunity(req, res)
+      expect(res.status).toHaveBeenCalledWith(202)
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ pending: true })
+      )
+    })
+  })
+
+  describe("leaveCommunity", () => {
+    function makeCommunity(ownerId = "ownerid", members = ["user123"]) {
+      return {
+        _id: "comm123",
+        owner: { toString: () => ownerId },
+        members: members.map((m) => ({ toString: () => m })),
+        moderators: [],
+        save: vi.fn().mockResolvedValue(true),
+      }
+    }
+
+    it("should reject non-existent community", async () => {
+      Community.findById.mockResolvedValue(null)
+      const { req, res } = mockReqRes({ params: { communityId: "nope" } })
+      await leaveCommunity(req, res)
+      expect(res.status).toHaveBeenCalledWith(404)
+    })
+
+    it("should block the owner from leaving", async () => {
+      Community.findById.mockResolvedValue(makeCommunity("user123"))
+      const { req, res } = mockReqRes({ params: { communityId: "comm123" } })
+      await leaveCommunity(req, res)
+      expect(res.status).toHaveBeenCalledWith(400)
+    })
+
+    it("should remove a regular member", async () => {
+      const community = makeCommunity("ownerid")
+      Community.findById.mockResolvedValue(community)
+      const { req, res } = mockReqRes({ params: { communityId: "comm123" } })
+      await leaveCommunity(req, res)
+      expect(community.save).toHaveBeenCalled()
+      expect(res.status).toHaveBeenCalledWith(200)
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining("left") })
+      )
+    })
+  })
+
+  describe("inviteMember", () => {
+    function makeCommunity() {
+      return {
+        _id: "comm123",
+        owner: "ownerid",
+        moderators: [],
+        members: [],
+        pendingMembers: [],
+        save: vi.fn().mockResolvedValue(true),
+        populate: vi.fn().mockResolvedValue(true),
+      }
+    }
+
+    it("should block non-moderators from inviting", async () => {
+      Community.findById.mockResolvedValue(makeCommunity())
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123" },
+        body: { userId: "user456" },
+      })
+      await inviteMember(req, res)
+      expect(res.status).toHaveBeenCalledWith(403)
+    })
+
+    it("should reject when the target user does not exist", async () => {
+      Community.findById.mockResolvedValue({
+        ...makeCommunity(),
+        moderators: ["user123"],
+      })
+      User.findById.mockResolvedValue(null)
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123" },
+        body: { userId: "user456" },
+      })
+      await inviteMember(req, res)
+      expect(res.status).toHaveBeenCalledWith(404)
+    })
+
+    it("should restrict therapists to the users they manage", async () => {
+      Community.findById.mockResolvedValue({
+        ...makeCommunity(),
+        moderators: ["user123"],
+      })
+      User.findById.mockResolvedValue({ _id: "user456", role: "user", therapist: "othertherapist" })
+      const { req, res } = mockReqRes({
+        user: { id: "user123", role: "therapist" },
+        params: { communityId: "comm123" },
+        body: { userId: "user456" },
+      })
+      await inviteMember(req, res)
+      expect(res.status).toHaveBeenCalledWith(403)
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("manage") }) })
+      )
+    })
+
+    it("should add the invited user to members", async () => {
+      const community = {
+        ...makeCommunity(),
+        moderators: ["user123"],
+      }
+      Community.findById.mockResolvedValue(community)
+      User.findById.mockResolvedValue({ _id: "user456", role: "user", therapist: "user123" })
+      const { req, res } = mockReqRes({
+        user: { id: "user123", role: "therapist" },
+        params: { communityId: "comm123" },
+        body: { userId: "user456" },
+      })
+      await inviteMember(req, res)
+      expect(community.members).toContain("user456")
+      expect(community.save).toHaveBeenCalled()
+      expect(res.status).toHaveBeenCalledWith(200)
+    })
+  })
+
+  describe("respondToJoinRequest", () => {
+    function makeCommunity() {
+      return {
+        _id: "comm123",
+        owner: "ownerid",
+        moderators: ["user123"],
+        members: [],
+        pendingMembers: [{ toString: () => "user456" }],
+        save: vi.fn().mockResolvedValue(true),
+        populate: vi.fn().mockResolvedValue(true),
+      }
+    }
+
+    it("should reject unknown actions", async () => {
+      Community.findById.mockResolvedValue(makeCommunity())
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123", userId: "user456" },
+        body: { action: "maybe" },
+      })
+      await respondToJoinRequest(req, res)
+      expect(res.status).toHaveBeenCalledWith(400)
+    })
+
+    it("should approve a pending request", async () => {
+      const community = makeCommunity()
+      Community.findById.mockResolvedValue(community)
+      const { req, res } = mockReqRes({
+        user: { id: "user123", role: "user" },
+        params: { communityId: "comm123", userId: "user456" },
+        body: { action: "approve" },
+      })
+      await respondToJoinRequest(req, res)
+      expect(community.members).toContain("user456")
+      expect(community.pendingMembers).not.toContain("user456")
+      expect(res.status).toHaveBeenCalledWith(200)
     })
   })
 
