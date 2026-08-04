@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import logger from "./logger.js";
 
-// Credentials that were never configured — copy-pasted from .env.example.
+// Credentials that were never configured - copy-pasted from .env.example.
 // A placeholder Gmail address/password makes SMTP auth fail with a confusing
 // 535 error, so treat them exactly like missing values.
 const PLACEHOLDER_HINTS = [
@@ -39,7 +39,7 @@ const sendEmail = async (options) => {
   const isProduction = process.env.NODE_ENV === "production";
 
   if (!hasSmtpCredentials() && isProduction) {
-    // Never pretend a reset email was delivered in production — a silent
+    // Never pretend a reset email was delivered in production - a silent
     // Ethereal fallback would return success while no email ever arrives.
     const error = new Error(
       "SMTP is not configured: set EMAIL_USER and EMAIL_PASS (e.g. a Gmail App Password) in production.",
