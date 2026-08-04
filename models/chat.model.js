@@ -115,7 +115,21 @@ const communitySchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    // Moderators help the owner run the room (approve requests, remove members)
+    moderators: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     members: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    // Users who requested to join a private room and are awaiting approval
+    pendingMembers: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -126,6 +140,30 @@ const communitySchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+    },
+    // Private rooms require moderator approval before someone can join
+    isPrivate: {
+      type: Boolean,
+      default: false,
+    },
+    category: {
+      type: String,
+      enum: [
+        "general",
+        "anxiety",
+        "depression",
+        "stress",
+        "mindfulness",
+        "support",
+        "therapy",
+        "wellness",
+      ],
+      default: "general",
+    },
+    rules: {
+      type: String,
+      default: "",
+      maxlength: 500,
     },
     messages: [communityMessageSchema],
     description: {
@@ -138,4 +176,7 @@ const communitySchema = new mongoose.Schema(
 );
 
 communitySchema.index({ members: 1 });
+communitySchema.index({ owner: 1 });
+communitySchema.index({ category: 1 });
+communitySchema.index({ isPrivate: 1 });
 export const Community = mongoose.model("Community", communitySchema);
