@@ -8,7 +8,8 @@
     "start": "node server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "vapid": "node ./scripts/generateVapidKeys.js"
+    "vapid": "node ./scripts/generateVapidKeys.js",
+    "migrate:encrypt": "node ./scripts/migrate-encrypt.js"
   },
   "keywords": [],
   "author": "",
