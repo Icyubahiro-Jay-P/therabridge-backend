@@ -1,7 +1,7 @@
 import ExerciseLog from "../models/exerciseLog.model.js";
 import Exercise from "../models/exercise.model.js";
 import User from "../models/user.model.js";
-import { createNotification } from "./notification.controller.js";
+import { createNotification } from "../services/notification.service.js";
 import { isMilestone, getMilestoneInfo } from "../utils/streakMilestones.js";
 
 export const startExercise = async (req, res) => {
