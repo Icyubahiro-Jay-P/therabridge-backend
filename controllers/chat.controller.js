@@ -2,7 +2,7 @@ import { Message, Community } from "../models/chat.model.js";
 import User from "../models/user.model.js";
 import crypto from "crypto";
 import sharp from "sharp";
-import { recordPossibleScreenshot } from "../sockets/chatSocket.js";
+import { recordPossibleScreenshot, emitToUser, emitToCommunity } from "../sockets/chatSocket.js";
 import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
 import {
   getPaginationParams,
@@ -48,12 +48,21 @@ export const sendMessage = async (req, res) => {
     await message.populate("sender", "username firstName lastName avatar");
     await message.populate("recipient", "username firstName lastName avatar");
 
+    const messageObj = message.toObject();
+    emitToUser(recipientId, "dm_message", messageObj);
+    emitToUser(recipientId, "conversations_updated", {
+      partnerId: req.user.id,
+    });
+    emitToUser(req.user.id, "conversations_updated", {
+      partnerId: recipientId,
+    });
+
     const pointsEarned = await awardMessagePoints(
       req.user.id,
       MESSAGE_POINTS.direct,
     );
 
-    res.status(201).json({ ...message.toObject(), pointsEarned });
+    res.status(201).json({ ...messageObj, pointsEarned });
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
@@ -684,6 +693,11 @@ export const sendCommunityMessage = async (req, res) => {
     const newMessage =
       updatedCommunity.messages[updatedCommunity.messages.length - 1];
 
+    emitToCommunity(communityId, "community_message", {
+      communityId,
+      message: newMessage.toObject(),
+    });
+
     const pointsEarned = await awardMessagePoints(
       req.user.id,
       MESSAGE_POINTS.community,
@@ -1073,6 +1087,11 @@ export const unsendMessage = async (req, res) => {
     message.content = "Message unsent";
     await message.save();
 
+    emitToUser(myId, "dm_message_unsent", { messageId });
+    emitToUser(message.recipient.toString(), "dm_message_unsent", {
+      messageId,
+    });
+
     res
       .status(200)
       .json({ message: "Message unsent.", unsentMessage: message });
@@ -1274,7 +1293,11 @@ export const editMessage = async (req, res) => {
     await message.populate("sender", "username firstName lastName avatar");
     await message.populate("recipient", "username firstName lastName avatar");
 
-    res.status(200).json(message);
+    const editedMessage = message.toObject();
+    emitToUser(myId, "dm_message_updated", editedMessage);
+    emitToUser(message.recipient.toString(), "dm_message_updated", editedMessage);
+
+    res.status(200).json(editedMessage);
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
@@ -1348,6 +1371,10 @@ export const editCommunityMessage = async (req, res) => {
     );
 
     const updated = community.messages.id(messageId);
+    emitToCommunity(communityId, "community_message_updated", {
+      communityId,
+      message: updated.toObject(),
+    });
     res.status(200).json(updated);
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
@@ -1389,6 +1416,10 @@ export const unsendCommunityMessage = async (req, res) => {
     );
 
     const updated = community.messages.id(messageId);
+    emitToCommunity(communityId, "community_message_unsent", {
+      communityId,
+      message: updated.toObject(),
+    });
     res
       .status(200)
       .json({ message: "Message unsent.", unsentMessage: updated });
