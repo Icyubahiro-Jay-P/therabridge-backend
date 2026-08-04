@@ -19,7 +19,7 @@ const router = express.Router();
 // Public routes
 router.get("/", getAllExercises);
 
-// Exercise tracking (authenticated) — must be before /:id
+// Exercise tracking (authenticated) - must be before /:id
 router.get("/logs/mine", authMiddleware, getLogs);
 router.get("/stats", authMiddleware, getExerciseStats);
 router.post("/:id/start", authMiddleware, startExercise);
