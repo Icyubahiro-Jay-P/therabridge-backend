@@ -80,10 +80,11 @@ export const recordPossibleScreenshot = async ({
 
   const notice = {
     type: "possible_screenshot",
+    messageId: message._id.toString(),
     initiatorId,
     initiatorName,
     conversationId: peerId,
-    timestamp: new Date().toISOString(),
+    timestamp: message.createdAt.toISOString(),
   };
   ioInstance?.to(`user:${peerId}`).emit("possible_screenshot", notice);
 
