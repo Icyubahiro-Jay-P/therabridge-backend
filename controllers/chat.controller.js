@@ -248,8 +248,8 @@ export const getMyConversations = async (req, res) => {
       deletedFor: { $ne: myId },
     })
       .sort({ createdAt: -1 })
-      .populate("sender", "username firstName lastName avatar")
-      .populate("recipient", "username firstName lastName avatar");
+      .populate("sender", "username firstName lastName avatar isDisabled")
+      .populate("recipient", "username firstName lastName avatar isDisabled");
 
     const seen = new Set();
     const conversations = [];
@@ -306,7 +306,7 @@ export const searchUsers = async (req, res) => {
         { lastName: { $regex: escapedQuery, $options: "i" } },
       ],
     })
-      .select("username firstName lastName avatar bio")
+      .select("username firstName lastName avatar bio isDisabled")
       .limit(10);
 
     res.status(200).json(users);
@@ -333,7 +333,7 @@ export const getSuggestedUsers = async (req, res) => {
     const users = await User.find({
       _id: { $ne: myId, $nin: [...conversationPartnerIds] },
     })
-      .select("username firstName lastName avatar bio")
+      .select("username firstName lastName avatar bio isDisabled")
       .sort({ loginStreak: -1, updatedAt: -1 })
       .limit(8);
 
