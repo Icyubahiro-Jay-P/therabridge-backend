@@ -160,6 +160,33 @@ describe("Chat Controller", () => {
         expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("2") }) })
       )
     })
+
+    it("should reject regular users", async () => {
+      const { req, res } = mockReqRes({
+        user: { id: "user123", role: "user" },
+        body: { name: "My Community" },
+      })
+      await createCommunity(req, res)
+      expect(res.status).toHaveBeenCalledWith(403)
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("Only therapists and admins") }) })
+      )
+    })
+
+    it("should allow therapists to create communities", async () => {
+      const mockCommunity = {
+        save: vi.fn().mockResolvedValue(true),
+        populate: vi.fn().mockResolvedValue(true),
+      }
+      Community.mockImplementation(() => mockCommunity)
+      const { req, res } = mockReqRes({
+        user: { id: "therapist1", role: "therapist" },
+        body: { name: "My Community", description: "Test" },
+      })
+      await createCommunity(req, res)
+      expect(Community).toHaveBeenCalled()
+      expect(res.status).toHaveBeenCalledWith(201)
+    })
   })
 
   describe("joinCommunity", () => {
