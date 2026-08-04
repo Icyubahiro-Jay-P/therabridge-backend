@@ -95,7 +95,7 @@ export const completeExercise = async (req, res) => {
         await createNotification(
           user._id,
           "streak_milestone",
-          `${info.emoji} ${info.title}!`,
+          `${info.title}!`,
           `You've hit a ${user.exerciseStreak}-day exercise streak! Amazing dedication.`,
         );
       }
