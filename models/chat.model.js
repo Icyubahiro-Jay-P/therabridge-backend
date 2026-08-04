@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-// Direct Message model — one message between two users
+// Direct Message model - one message between two users
 const messageSchema = new mongoose.Schema(
   {
     sender: {
@@ -73,7 +73,7 @@ messageSchema.index({ kind: 1, createdAt: -1 });
 
 export const Message = mongoose.model("Message", messageSchema);
 
-// Community Room model — group chat with unique invite key
+// Community Room model - group chat with unique invite key
 const communityMessageSchema = new mongoose.Schema({
   sender: {
     type: mongoose.Schema.Types.ObjectId,
@@ -148,7 +148,7 @@ const communitySchema = new mongoose.Schema(
         ref: "User",
       },
     ],
-    // Unique invite key — every user must have this key to join
+    // Unique invite key - every user must have this key to join
     inviteKey: {
       type: String,
       required: true,
