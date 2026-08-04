@@ -34,6 +34,10 @@ export const sendMessage = async (req, res) => {
       return res.status(404).json({ error: { message: "Recipient not found.", code: "NOT_FOUND" } });
     }
 
+    if (recipient.isDisabled) {
+      return res.status(403).json({ error: { message: "This user has been disabled and cannot receive messages.", code: "USER_DISABLED" } });
+    }
+
     const message = new Message({
       sender: req.user.id,
       recipient: recipientId,
@@ -616,6 +620,12 @@ export const sendCommunityMessage = async (req, res) => {
       return res
         .status(403)
         .json({ error: { message: "You are not a member of this community.", code: "FORBIDDEN" } });
+    }
+
+    if (community.isDisabled) {
+      return res
+        .status(403)
+        .json({ error: { message: "This community has been disabled. Messaging is disabled.", code: "COMMUNITY_DISABLED" } });
     }
 
     community.messages.push({
@@ -1363,6 +1373,24 @@ export const deleteCommunity = async (req, res) => {
     }
     await Community.findByIdAndDelete(communityId);
     res.status(200).json({ message: "Community deleted successfully." });
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+  }
+};
+
+export const toggleDisableCommunity = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: { message: "Only admins can disable communities.", code: "FORBIDDEN" } });
+    }
+    const { communityId } = req.params;
+    const community = await Community.findById(communityId);
+    if (!community) {
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
+    }
+    community.isDisabled = !community.isDisabled;
+    await community.save();
+    res.status(200).json({ isDisabled: community.isDisabled, message: community.isDisabled ? "Community disabled." : "Community enabled." });
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
