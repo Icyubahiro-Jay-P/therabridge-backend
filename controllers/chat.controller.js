@@ -341,7 +341,7 @@ export const getSuggestedUsers = async (req, res) => {
 
 export const createCommunity = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, category, isPrivate, rules } = req.body;
 
     if (!name || name.length < 2) {
       return res
@@ -355,6 +355,9 @@ export const createCommunity = async (req, res) => {
       community = new Community({
         name: name.trim(),
         description: description?.trim() || "",
+        category: category || "general",
+        isPrivate: Boolean(isPrivate),
+        rules: rules?.trim() || "",
         owner: req.user.id,
         members: [req.user.id],
         inviteKey,
@@ -369,12 +372,19 @@ export const createCommunity = async (req, res) => {
 
     await community.populate("owner", "username firstName lastName avatar");
     await community.populate("members", "username firstName lastName avatar");
+    await community.populate("moderators", "username firstName lastName avatar");
 
     res.status(201).json(community);
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
+
+// Helper: can this user moderate the room? (owner, moderator, or admin)
+const canModerate = (community, userId, role) =>
+  role === "admin" ||
+  community.owner?.toString() === userId ||
+  (community.moderators ?? []).some((m) => m?.toString() === userId);
 
 export const joinCommunity = async (req, res) => {
   try {
@@ -396,10 +406,27 @@ export const joinCommunity = async (req, res) => {
         .json({ error: { message: "You are already a member of this community.", code: "BAD_REQUEST" } });
     }
 
+    if (community.isPrivate) {
+      const alreadyPending = community.pendingMembers.some(
+        (m) => m.toString() === req.user.id,
+      );
+      if (alreadyPending) {
+        return res
+          .status(400)
+          .json({ error: { message: "Your join request is already pending approval.", code: "BAD_REQUEST" } });
+      }
+      community.pendingMembers.push(req.user.id);
+      await community.save();
+      return res
+        .status(202)
+        .json({ message: "Join request sent. You will be added once a moderator approves.", pending: true });
+    }
+
     community.members.push(req.user.id);
     await community.save();
     await community.populate("owner", "username firstName lastName avatar");
     await community.populate("members", "username firstName lastName avatar");
+    await community.populate("moderators", "username firstName lastName avatar");
 
     res
       .status(200)
@@ -409,11 +436,45 @@ export const joinCommunity = async (req, res) => {
   }
 };
 
+export const leaveCommunity = async (req, res) => {
+  try {
+    const { communityId } = req.params;
+    const community = await Community.findById(communityId);
+    if (!community) {
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
+    }
+
+    const isOwner = community.owner.toString() === req.user.id;
+    if (isOwner) {
+      return res.status(400).json({
+        error: { message: "As the owner, delete the community or transfer ownership instead of leaving.", code: "BAD_REQUEST" },
+      });
+    }
+
+    const wasMember = community.members.some((m) => m.toString() === req.user.id);
+    if (!wasMember) {
+      return res.status(400).json({ error: { message: "You are not a member of this community.", code: "BAD_REQUEST" } });
+    }
+
+    community.members = community.members.filter((m) => m.toString() !== req.user.id);
+    community.moderators = (community.moderators ?? []).filter((m) => m.toString() !== req.user.id);
+    await community.save();
+
+    res.status(200).json({ message: "You left the community." });
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+  }
+};
+
 export const getMyCommunities = async (req, res) => {
   try {
-    const communities = await Community.find({ members: req.user.id })
+    const communities = await Community.find({
+      $or: [{ members: req.user.id }, { pendingMembers: req.user.id }],
+    })
       .populate("owner", "username firstName lastName avatar")
       .populate("members", "username firstName lastName avatar")
+      .populate("moderators", "username firstName lastName avatar")
+      .populate("pendingMembers", "username firstName lastName avatar")
       .select("-messages")
       .sort({ updatedAt: -1 });
 
@@ -427,7 +488,9 @@ const fetchCommunityMessages = async (communityId, userId) => {
   const community = await Community.findById(communityId)
     .populate("messages.sender", "username firstName lastName avatar")
     .populate("owner", "username firstName lastName avatar")
-    .populate("members", "username firstName lastName avatar");
+    .populate("members", "username firstName lastName avatar")
+    .populate("moderators", "username firstName lastName avatar")
+    .populate("pendingMembers", "username firstName lastName avatar");
 
   if (!community) return null;
 
@@ -575,7 +638,7 @@ export const sendCommunityMessage = async (req, res) => {
 export const updateCommunity = async (req, res) => {
   try {
     const { communityId } = req.params;
-    const { name, description } = req.body;
+    const { name, description, category, isPrivate, rules } = req.body;
 
     const community = await Community.findById(communityId);
     if (!community) {
@@ -596,9 +659,30 @@ export const updateCommunity = async (req, res) => {
       community.description = description.trim();
     }
 
+    if (category !== undefined) {
+      const categories = [
+        "general", "anxiety", "depression", "stress",
+        "mindfulness", "support", "therapy", "wellness",
+      ];
+      if (!categories.includes(category)) {
+        return res.status(400).json({ error: { message: "Invalid category.", code: "BAD_REQUEST" } });
+      }
+      community.category = category;
+    }
+
+    if (isPrivate !== undefined) {
+      community.isPrivate = Boolean(isPrivate);
+    }
+
+    if (rules !== undefined) {
+      community.rules = rules.trim();
+    }
+
     await community.save();
     await community.populate("owner", "username firstName lastName avatar");
     await community.populate("members", "username firstName lastName avatar");
+    await community.populate("moderators", "username firstName lastName avatar");
+    await community.populate("pendingMembers", "username firstName lastName avatar");
 
     res.status(200).json(community);
   } catch (error) {
@@ -616,27 +700,212 @@ export const removeMember = async (req, res) => {
       return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
     }
 
-    const isOwner = community.owner.toString() === req.user.id;
-    const isAdmin = req.user.role === "admin";
-    const isTherapist = req.user.role === "therapist";
-
-    if (!isOwner && !isAdmin && !isTherapist) {
+    const canAct = canModerate(community, req.user.id, req.user.role);
+    if (!canAct) {
       return res.status(403).json({
-        error: { message: "Only the owner, therapists, or admins can remove members.", code: "FORBIDDEN" },
+        error: { message: "Only moderators, therapists, or admins can remove members.", code: "FORBIDDEN" },
       });
     }
 
-    if (userId === req.user.id && !isAdmin) {
-      return res.status(400).json({ error: { message: "You cannot remove yourself.", code: "BAD_REQUEST" } });
+    if (userId === req.user.id && req.user.role !== "admin") {
+      return res.status(400).json({ error: { message: "Use 'Leave community' to remove yourself.", code: "BAD_REQUEST" } });
+    }
+
+    if (community.owner.toString() === userId && req.user.role !== "admin") {
+      return res.status(400).json({ error: { message: "You cannot remove the owner.", code: "BAD_REQUEST" } });
     }
 
     community.members = community.members.filter(
+      (m) => m.toString() !== userId,
+    );
+    community.moderators = (community.moderators ?? []).filter(
+      (m) => m.toString() !== userId,
+    );
+    community.pendingMembers = (community.pendingMembers ?? []).filter(
       (m) => m.toString() !== userId,
     );
 
     await community.save();
 
     res.status(200).json({ message: "Member removed successfully." });
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+  }
+};
+
+export const inviteMember = async (req, res) => {
+  try {
+    const { communityId } = req.params;
+    const { userId } = req.body;
+
+    const community = await Community.findById(communityId);
+    if (!community) {
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
+    }
+
+    if (!canModerate(community, req.user.id, req.user.role)) {
+      return res.status(403).json({
+        error: { message: "Only moderators or the owner can invite members.", code: "FORBIDDEN" },
+      });
+    }
+
+    const target = await User.findById(userId);
+    if (!target) {
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND" } });
+    }
+
+    // Therapists may only invite the users they manage
+    if (req.user.role === "therapist") {
+      const managesUser = target.therapist?.toString() === req.user.id;
+      if (!managesUser) {
+        return res.status(403).json({
+          error: { message: "Therapists can only invite users they manage.", code: "FORBIDDEN" },
+        });
+      }
+    }
+
+    if (community.members.some((m) => m.toString() === userId)) {
+      return res.status(400).json({ error: { message: "This user is already a member.", code: "BAD_REQUEST" } });
+    }
+
+    community.pendingMembers = (community.pendingMembers ?? []).filter(
+      (m) => m.toString() !== userId,
+    );
+    community.members.push(userId);
+    await community.save();
+    await community.populate("owner", "username firstName lastName avatar");
+    await community.populate("members", "username firstName lastName avatar");
+    await community.populate("moderators", "username firstName lastName avatar");
+    await community.populate("pendingMembers", "username firstName lastName avatar");
+
+    res.status(200).json({ message: "Member invited successfully!", community });
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+  }
+};
+
+export const getJoinRequests = async (req, res) => {
+  try {
+    const { communityId } = req.params;
+    const community = await Community.findById(communityId)
+      .populate("pendingMembers", "username firstName lastName avatar bio");
+    if (!community) {
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
+    }
+    if (!canModerate(community, req.user.id, req.user.role)) {
+      return res.status(403).json({
+        error: { message: "Only moderators can view join requests.", code: "FORBIDDEN" },
+      });
+    }
+    res.status(200).json(community.pendingMembers);
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+  }
+};
+
+export const respondToJoinRequest = async (req, res) => {
+  try {
+    const { communityId, userId } = req.params;
+    const { action } = req.body;
+
+    const community = await Community.findById(communityId);
+    if (!community) {
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
+    }
+    if (!canModerate(community, req.user.id, req.user.role)) {
+      return res.status(403).json({
+        error: { message: "Only moderators can approve or reject join requests.", code: "FORBIDDEN" },
+      });
+    }
+
+    const isPending = (community.pendingMembers ?? []).some(
+      (m) => m.toString() === userId,
+    );
+    if (!isPending) {
+      return res.status(400).json({ error: { message: "No pending request from this user.", code: "BAD_REQUEST" } });
+    }
+
+    community.pendingMembers = community.pendingMembers.filter(
+      (m) => m.toString() !== userId,
+    );
+
+    let message;
+    if (action === "approve") {
+      if (!community.members.some((m) => m.toString() === userId)) {
+        community.members.push(userId);
+      }
+      message = "Join request approved. User added to the community.";
+    } else if (action === "reject") {
+      message = "Join request rejected.";
+    } else {
+      return res.status(400).json({ error: { message: "Action must be 'approve' or 'reject'.", code: "BAD_REQUEST" } });
+    }
+
+    await community.save();
+    await community.populate("owner", "username firstName lastName avatar");
+    await community.populate("members", "username firstName lastName avatar");
+    await community.populate("moderators", "username firstName lastName avatar");
+    await community.populate("pendingMembers", "username firstName lastName avatar");
+
+    res.status(200).json({ message, community });
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+  }
+};
+
+export const addModerator = async (req, res) => {
+  try {
+    const { communityId } = req.params;
+    const { userId } = req.body;
+
+    const community = await Community.findById(communityId);
+    if (!community) {
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
+    }
+    if (community.owner.toString() !== req.user.id) {
+      return res.status(403).json({
+        error: { message: "Only the owner can appoint moderators.", code: "FORBIDDEN" },
+      });
+    }
+    if (!community.members.some((m) => m.toString() === userId)) {
+      return res.status(400).json({ error: { message: "User must be a member first.", code: "BAD_REQUEST" } });
+    }
+    if ((community.moderators ?? []).some((m) => m.toString() === userId)) {
+      return res.status(400).json({ error: { message: "This user is already a moderator.", code: "BAD_REQUEST" } });
+    }
+
+    community.moderators.push(userId);
+    await community.save();
+    await community.populate("moderators", "username firstName lastName avatar");
+
+    res.status(200).json({ message: "Moderator added.", moderators: community.moderators });
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+  }
+};
+
+export const removeModerator = async (req, res) => {
+  try {
+    const { communityId } = req.params;
+    const { userId } = req.body;
+
+    const community = await Community.findById(communityId);
+    if (!community) {
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
+    }
+    if (community.owner.toString() !== req.user.id) {
+      return res.status(403).json({
+        error: { message: "Only the owner can remove moderators.", code: "FORBIDDEN" },
+      });
+    }
+
+    community.moderators = (community.moderators ?? []).filter(
+      (m) => m.toString() !== userId,
+    );
+    await community.save();
+    await community.populate("moderators", "username firstName lastName avatar");
+
+    res.status(200).json({ message: "Moderator removed.", moderators: community.moderators });
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
@@ -651,7 +920,9 @@ export const getCommunityByKey = async (req, res) => {
     })
       .populate("messages.sender", "username firstName lastName avatar")
       .populate("owner", "username firstName lastName avatar")
-      .populate("members", "username firstName lastName avatar");
+      .populate("members", "username firstName lastName avatar")
+      .populate("moderators", "username firstName lastName avatar")
+      .populate("pendingMembers", "username firstName lastName avatar");
 
     if (!community) {
       return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
@@ -948,14 +1219,16 @@ export const unsendCommunityMessage = async (req, res) => {
       return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
     }
 
-    if (message.sender.toString() !== myId) {
+    const isSender = message.sender.toString() === myId;
+    const isModerator = canModerate(community, myId, req.user.role);
+    if (!isSender && !isModerator) {
       return res
         .status(403)
         .json({ error: { message: "You can only unsend your own messages.", code: "FORBIDDEN" } });
     }
 
     message.unsent = true;
-    message.content = "Message unsent";
+    message.content = "Message removed";
     await community.save();
     await community.populate(
       "messages.sender",
