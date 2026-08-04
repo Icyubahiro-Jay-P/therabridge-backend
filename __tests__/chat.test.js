@@ -23,6 +23,10 @@ vi.mock("../models/user.model.js", () => ({
   },
 }))
 
+vi.mock("../sockets/chatSocket.js", () => ({
+  recordPossibleScreenshot: vi.fn(),
+}))
+
 import {
   sendMessage,
   editMessage,
@@ -35,9 +39,11 @@ import {
   deleteCommunity,
   editCommunityMessage,
   unsendCommunityMessage,
+  reportPossibleScreenshot,
 } from "../controllers/chat.controller.js"
 import { Message, Community } from "../models/chat.model.js"
 import User from "../models/user.model.js"
+import { recordPossibleScreenshot as mockRecordPossibleScreenshot } from "../sockets/chatSocket.js"
 
 function mockReqRes(overrides = {}) {
   const req = {
@@ -499,6 +505,53 @@ describe("Chat Controller", () => {
       expect(res.status).toHaveBeenCalledWith(200)
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ message: "Message unsent." })
+      )
+    })
+  })
+
+  describe("reportPossibleScreenshot", () => {
+    it("should reject a missing recipientId", async () => {
+      const { req, res } = mockReqRes({ body: {} })
+      await reportPossibleScreenshot(req, res)
+      expect(res.status).toHaveBeenCalledWith(400)
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("recipientId") }) })
+      )
+    })
+
+    it("should surface the rate limit as 429", async () => {
+      mockRecordPossibleScreenshot.mockResolvedValue({ limited: true })
+      const { req, res } = mockReqRes({
+        body: { recipientId: "user456" },
+      })
+      await reportPossibleScreenshot(req, res)
+      expect(res.status).toHaveBeenCalledWith(429)
+    })
+
+    it("should reject an invalid recipient", async () => {
+      mockRecordPossibleScreenshot.mockResolvedValue({ invalid: true })
+      const { req, res } = mockReqRes({
+        body: { recipientId: "user456" },
+      })
+      await reportPossibleScreenshot(req, res)
+      expect(res.status).toHaveBeenCalledWith(400)
+    })
+
+    it("should return the persisted notice on success", async () => {
+      User.findById.mockResolvedValue({ firstName: "Alex", username: "alex" })
+      mockRecordPossibleScreenshot.mockResolvedValue({
+        notice: { type: "possible_screenshot", conversationId: "user456" },
+      })
+      const { req, res } = mockReqRes({
+        body: { recipientId: "user456" },
+      })
+      await reportPossibleScreenshot(req, res)
+      expect(res.status).toHaveBeenCalledWith(201)
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "possible_screenshot" })
+      )
+      expect(mockRecordPossibleScreenshot).toHaveBeenCalledWith(
+        expect.objectContaining({ initiatorId: "user123", peerId: "user456" })
       )
     })
   })
