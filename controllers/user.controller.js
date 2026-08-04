@@ -181,7 +181,7 @@ export const login = async (req, res) => {
     if (!identifier || !password) {
       return res
         .status(400)
-        .json({ message: "Email/username and password are required." });
+        .json({ error: { message: "Email/username and password are required.", code: "VALIDATION_ERROR" } });
     }
 
     // Find user by email or username
@@ -189,18 +189,18 @@ export const login = async (req, res) => {
       $or: [{ email: identifier }, { username: identifier }],
     });
     if (!user) {
-      return res.status(400).json({ message: "User not found" });
+      return res.status(401).json({ error: { message: "Invalid credentials.", code: "AUTH_ERROR" } });
     }
     // verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({ message: "Invalid password" });
+      return res.status(401).json({ error: { message: "Invalid credentials.", code: "AUTH_ERROR" } });
     }
 
     if (user.isDisabled) {
       return res
         .status(403)
-        .json({ message: "Your account has been disabled. Please contact support.", code: "ACCOUNT_DISABLED" });
+        .json({ error: { message: "Your account has been disabled. Please contact support.", code: "ACCOUNT_DISABLED" } });
     }
 
     // Issue a short-lived access token + rotating refresh token
@@ -684,9 +684,10 @@ export const forgotPassword = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
     if (!user) {
+      // Always return success to prevent email enumeration
       return res
-        .status(404)
-        .json({ error: "There is no user with that email" });
+        .status(200)
+        .json({ success: true, data: "Password reset email sent" });
     }
 
     // Get reset token
@@ -767,13 +768,11 @@ export const forgotPassword = async (req, res) => {
         html: message,
       });
     } catch (err) {
-      console.error("Password reset email failed:", err);
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
       await user.save({ validateBeforeSave: false });
       return res.status(502).json({
-        error:
-          "We couldn't send the password reset email right now. Please try again in a few minutes.",
+        error: { message: "We couldn't send the password reset email right now. Please try again in a few minutes.", code: "EMAIL_FAILED" },
       });
     }
 
@@ -781,7 +780,7 @@ export const forgotPassword = async (req, res) => {
       .status(200)
       .json({ success: true, data: "Password reset email sent" });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: { message: error.message, code: "BAD_REQUEST" } });
   }
 };
 
@@ -798,7 +797,7 @@ export const resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ error: "Invalid or expired token" });
+      return res.status(400).json({ error: { message: "Invalid or expired token.", code: "BAD_REQUEST" } });
     }
 
     user.password = await bcrypt.hash(req.body.password, 10);
@@ -813,7 +812,7 @@ export const resetPassword = async (req, res) => {
       message: "Password updated successfully",
     });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ error: { message: error.message, code: "BAD_REQUEST" } });
   }
 };
 
@@ -836,7 +835,7 @@ export const updatePrivacy = async (req, res) => {
         if (!["public", "private"].includes(privacySettings[field])) {
           return res
             .status(400)
-            .json({ message: `Invalid value for ${field}` });
+            .json({ error: { message: `Invalid value for ${field}.`, code: "VALIDATION_ERROR" } });
         }
         updates[`privacySettings.${field}`] = privacySettings[field];
         if (privacySettings[field] === "private") privateCount++;
@@ -846,7 +845,7 @@ export const updatePrivacy = async (req, res) => {
     if (privateCount > 3) {
       return res
         .status(400)
-        .json({ message: "You can hide at most 3 profile fields." });
+        .json({ error: { message: "You can hide at most 3 profile fields.", code: "VALIDATION_ERROR" } });
     }
 
     const user = await User.findByIdAndUpdate(
