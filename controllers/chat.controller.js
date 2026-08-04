@@ -1186,7 +1186,7 @@ const escapeSvgText = (text) =>
 
 // Optional server-side per-viewer stamp. Renders the given text on a canvas
 // with a tiled, low-opacity "<viewerId> · <timestamp>" watermark and returns a
-// PNG. This is a deterrence/paper-trail aid — it does NOT prevent screenshots.
+// PNG. This is a deterrence/paper-trail aid - it does NOT prevent screenshots.
 export const generateWatermarkStamp = async (req, res) => {
   try {
     const { text, viewerId } = req.body;
