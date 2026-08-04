@@ -184,6 +184,10 @@ const communitySchema = new mongoose.Schema(
       default: "",
       maxlength: 200,
     },
+    isDisabled: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
