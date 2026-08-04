@@ -468,9 +468,12 @@ export const leaveCommunity = async (req, res) => {
 
 export const getMyCommunities = async (req, res) => {
   try {
-    const communities = await Community.find({
-      $or: [{ members: req.user.id }, { pendingMembers: req.user.id }],
-    })
+    const isAdmin = req.user.role === "admin";
+    const filter = isAdmin
+      ? {}
+      : { $or: [{ members: req.user.id }, { pendingMembers: req.user.id }] };
+
+    const communities = await Community.find(filter)
       .populate("owner", "username firstName lastName avatar")
       .populate("members", "username firstName lastName avatar")
       .populate("moderators", "username firstName lastName avatar")
