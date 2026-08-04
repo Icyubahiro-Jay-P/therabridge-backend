@@ -13,6 +13,18 @@ const messageSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    // "message" = normal DM, "screenshot-notice" = possible-screenshot system
+    // notice (paper trail + in-thread display, mirrors Snapchat behavior)
+    kind: {
+      type: String,
+      enum: ["message", "screenshot-notice"],
+      default: "message",
+    },
+    noticeType: {
+      type: String,
+      enum: [null, "possible_screenshot"],
+      default: null,
+    },
     content: {
       type: String,
       required: true,
@@ -57,6 +69,7 @@ const messageSchema = new mongoose.Schema(
 messageSchema.index({ sender: 1, recipient: 1, updatedAt: -1 });
 messageSchema.index({ recipient: 1, sender: 1, updatedAt: -1 });
 messageSchema.index({ deletedFor: 1 });
+messageSchema.index({ kind: 1, createdAt: -1 });
 
 export const Message = mongoose.model("Message", messageSchema);
 
