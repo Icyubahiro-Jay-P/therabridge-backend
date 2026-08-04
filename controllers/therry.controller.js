@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { analyzeAll } from "../services/mlClient.js";
 import { TherryMessage } from "../models/therryMessage.model.js";
 import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
+import logger from "../utils/logger.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -68,7 +69,7 @@ const saveMessage = async (userId, role, content, category) => {
   try {
     await TherryMessage.create({ user: userId, role, content, category });
   } catch (error) {
-    console.error("Therry save error:", error.message);
+    logger.error({ err: error }, "Therry save error");
   }
 };
 
@@ -119,7 +120,7 @@ export const chat = async (req, res) => {
         const result = await model.generateContent(message);
         reply = result.response.text().trim();
       } catch (aiError) {
-        console.error("Gemini generation error:", aiError);
+        logger.error({ err: aiError }, "Gemini generation error");
         reply = pick(FALLBACK_RESPONSES[category] || FALLBACK_RESPONSES.general);
       }
     }
@@ -144,7 +145,7 @@ export const chat = async (req, res) => {
       } : undefined,
     });
   } catch (error) {
-    console.error("Therry error:", error);
+    logger.error({ err: error }, "Therry error");
     res.status(500).json({ message: "Failed to get response from Therry." });
   }
 };
@@ -214,7 +215,7 @@ export const editMessage = async (req, res) => {
       editCount: message.editCount,
     });
   } catch (error) {
-    console.error("Therry edit error:", error);
+    logger.error({ err: error }, "Therry edit error");
     res.status(500).json({ message: "Failed to edit message." });
   }
 };
