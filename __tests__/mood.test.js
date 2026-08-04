@@ -33,7 +33,7 @@ describe("Mood Controller", () => {
       await logMood(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "Mood is required." })
+        expect.objectContaining({ error: expect.objectContaining({ message: "Mood is required." }) })
       )
     })
 
@@ -42,7 +42,7 @@ describe("Mood Controller", () => {
       await logMood(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "Invalid mood value." })
+        expect.objectContaining({ error: expect.objectContaining({ message: "Invalid mood value." }) })
       )
     })
   })
