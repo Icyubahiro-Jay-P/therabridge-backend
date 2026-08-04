@@ -11,6 +11,7 @@ import {
   getExerciseStats,
 } from "../controllers/exerciseLog.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
+import { requireAdmin } from "../middleware/role.middleware.js";
 import { validate, createExerciseSchema } from "../utils/validation.js";
 
 const router = express.Router();
@@ -28,6 +29,6 @@ router.post("/:id/complete", authMiddleware, completeExercise);
 router.get("/:id", getExerciseById);
 
 // Admin only
-router.post("/", authMiddleware, validate(createExerciseSchema), createExercise);
+router.post("/", authMiddleware, requireAdmin, validate(createExerciseSchema), createExercise);
 
 export default router;
