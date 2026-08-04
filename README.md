@@ -14,10 +14,17 @@ Express 5 + MongoDB API server for Therabridge, a mental wellness platform.
 - **Helmet**, **express-rate-limit**, **CORS** — Security
 - **Pino** — Structured logging (`utils/logger.js`)
 - **@google/generative-ai** — Therry chat model (`gemini-3.5-flash`)
-- **Socket.io** — Real-time possible-screenshot notices (JWT-authed handshake)
+- **Socket.io** — Real-time DMs, community messages, notifications, and possible-screenshot notices (JWT-authed handshake)
 - **Vitest** — Unit tests (`__tests__/`)
 
-## Setup
+## Getting Started
+
+### Prerequisites
+- Node.js 18+
+- MongoDB (local or Atlas)
+- Google Gemini API key (for the Therry AI companion)
+
+### Setup
 
 ```bash
 npm install
@@ -26,7 +33,24 @@ npm run dev            # nodemon server.js
 npm test               # vitest run
 ```
 
-Required env vars (see `.env.example`): `PORT`, `MONGO_URI`, `JWT_SECRET`, `GEMINI_API_KEY` (for Therry), email SMTP vars. `AI_SERVICE_URL` points to an optional Python ML microservice used for spam/crisis/sentiment hints (falls back gracefully when unavailable).
+### Environment Variables
+
+Copy `backend/.env.example` to `.env`:
+
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Server port (default: 5000) |
+| `CLIENT_URL` | Allowed CORS origin (default: `http://localhost:5173`; production: `https://therabridge.vercel.app`) |
+| `MONGO_URI` | MongoDB connection string |
+| `JWT_SECRET` | Secret for JWT signing |
+| `EMAIL_HOST` / `EMAIL_PORT` | SMTP host and port (Gmail SMTP) |
+| `EMAIL_USER` / `EMAIL_PASS` | SMTP credentials (Gmail app password) |
+| `FROM_NAME` / `FROM_EMAIL` | Outbound email sender identity |
+| `GEMINI_API_KEY` | Google Gemini API key (Therry AI companion) |
+| `AI_SERVICE_URL` | Optional Python ML microservice for spam/crisis/sentiment hints (falls back gracefully when unavailable) |
+| `NODE_ENV` | `development` \| `production` |
+
+**Production:** the API runs at [therabridge-backend.onrender.com](https://therabridge-backend.onrender.com); the Vercel frontend proxies `/api`, `/uploads`, and `/socket.io` to it via the rewrites in `frontend/vercel.json`.
 
 ## Scripts
 
@@ -170,6 +194,32 @@ Protected routes require a valid access token (httpOnly `token` cookie or `Autho
 
 "Reaching out is cardio for the heart." Sending a DM or community message earns **+2 Wellness points**; messaging Therry earns **+5** (opening up = bonus self-care). Points feed the same wellness score as completing exercises and are capped at **20/day** per user so chat can't outpace real self-care. Awarded points are returned as `pointsEarned` on the send/chat endpoints and surfaced as `talkingPointsToday` in `GET /api/exercises/stats`. (The mechanics are intentionally undisclosed in the UI — discovery is part of the fun.)
 
+## Real-time (Socket.io)
+
+The server exposes a Socket.io endpoint on the same port as the API (`sockets/chatSocket.js`). The client connects with the same JWT used for the API (via `auth.token` in the handshake, or the `token` cookie / `Authorization` header); unauthorized and disabled users are rejected. The REST long-poll endpoints are kept for backwards compatibility but the client no longer uses them.
+
+**Rooms:** every authenticated socket joins `user:<id>`. Clients subscribe to `community:<id>` while viewing a community via the `join_community` / `leave_community` events (re-joined automatically on reconnect).
+
+**Server → client events** (delivered to the `user:<id>` / `community:<id>` rooms):
+
+| Event | Payload | Emitted when |
+|-------|---------|--------------|
+| `dm_message` | populated message | a DM is sent — to the recipient (`chat.controller.js`) |
+| `conversations_updated` | `{ partnerId }` | a DM is sent — to both parties (conversation list + unread refresh) |
+| `dm_message_updated` | message | a DM is edited |
+| `dm_message_unsent` | `{ messageId }` | a DM is unsent |
+| `community_message` | `{ communityId, message }` | a community message is sent — to the community room |
+| `community_message_updated` / `community_message_unsent` | `{ communityId, message }` | a community message is edited / unsent |
+| `notification` | notification doc | a notification is created (`services/notification.service.js`) |
+| `possible_screenshot` | `{ conversationId }` | a peer reports a possible screenshot |
+
+**Client → server events:**
+
+| Event | Payload | Purpose |
+|-------|---------|---------|
+| `join_community` / `leave_community` | `{ communityId }` | subscribe/unsubscribe a socket to a community room |
+| `possible_screenshot` | `{ conversationId }` | possible-screenshot notice (REST fallback: `POST /api/chat/screenshot-notice`) |
+
 ## Privacy Shield
 
 A "privacy shield" feature set that raises the bar and creates a paper trail for screenshots — it does **not** and cannot prevent someone from capturing content.
@@ -188,6 +238,13 @@ A "privacy shield" feature set that raises the bar and creates a paper trail for
 
 `POST /api/therry/chat` generates replies with Google Gemini (`gemini-3.5-flash`, system prompt enforces a supportive, non-diagnostic tone). Keyword heuristics classify the message into a category; if an ML microservice is reachable, its crisis/sentiment/spam hints refine the category and spam can be rejected. Crisis messages always return a helpline response. Both user and assistant turns are persisted to `TherryMessage` and replayed through `GET /api/therry/messages`.
 
+## Architecture Notes
+
+- **Auth:** short-lived access tokens + rotating refresh tokens stored in httpOnly cookies (see Auth above).
+- **Role-based access control:** three roles — `user`, `therapist`, `admin` — enforced by dedicated middleware (`middleware/auth.middleware.js` + `middleware/role.middleware.js`).
+- **Notification service:** all notifications are created through `services/notification.service.js`, which also pushes the `notification` Socket.io event in real time.
+- **Privacy shield:** client-side blur/blackout on tab switch, screenshot-shortcut detection, and server-side watermark stamping (see Privacy Shield above).
+
 ## Project Layout
 
 ```
@@ -201,3 +258,7 @@ A "privacy shield" feature set that raises the bar and creates a paper trail for
 ├── db/connectDB.js        # Mongo connection
 └── __tests__/             # Vitest tests (auth, mood, chat)
 ```
+
+## License
+
+MIT License. See `LICENSE.txt`.
