@@ -6,11 +6,11 @@ export const createCrisisAlert = async (req, res) => {
   try {
     const { alertType, description } = req.body;
     if (!alertType) {
-      return res.status(400).json({ message: "Alert type is required." });
+      return res.status(400).json({ error: { message: "Alert type is required.", code: "VALIDATION_ERROR" } });
     }
     const validTypes = ["immediate_danger", "severe_distress", "panic_attack", "self_harm_thoughts", "emergency"];
     if (!validTypes.includes(alertType)) {
-      return res.status(400).json({ message: "Invalid alert type." });
+      return res.status(400).json({ error: { message: "Invalid alert type.", code: "VALIDATION_ERROR" } });
     }
     const crisis = new Crisis({
       user: req.user.id,
@@ -19,16 +19,19 @@ export const createCrisisAlert = async (req, res) => {
     });
     await crisis.save();
 
-    // Notify all therapists and admins
-    const responders = await User.find({ role: { $in: ["therapist", "admin"] } });
-    for (const responder of responders) {
-      await createNotification(
-        responder._id,
-        "crisis_alert",
-        "Crisis Alert",
-        `A user has reported a crisis: ${alertType.replace(/_/g, " ")}`,
-        { crisisId: crisis._id, userId: req.user.id },
-        req.user.id
+    const responders = await User.find({ role: { $in: ["therapist", "admin"] } }).select("_id");
+    if (responders.length > 0) {
+      await Promise.all(
+        responders.map((responder) =>
+          createNotification(
+            responder._id,
+            "crisis_alert",
+            "Crisis Alert",
+            `A user has reported a crisis: ${alertType.replace(/_/g, " ")}`,
+            { crisisId: crisis._id, userId: req.user.id },
+            req.user.id
+          )
+        )
       );
     }
 
@@ -49,7 +52,7 @@ export const createCrisisAlert = async (req, res) => {
       resources: crisis.resourcesShared,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -58,7 +61,7 @@ export const getMyCrisisAlerts = async (req, res) => {
     const alerts = await Crisis.find({ user: req.user.id }).sort("-createdAt");
     res.status(200).json(alerts);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -67,10 +70,10 @@ export const acknowledgeCrisis = async (req, res) => {
     const { id } = req.params;
     const crisis = await Crisis.findById(id);
     if (!crisis) {
-      return res.status(404).json({ message: "Crisis alert not found." });
+      return res.status(404).json({ error: { message: "Crisis alert not found.", code: "NOT_FOUND" } });
     }
     if (crisis.status !== "active") {
-      return res.status(400).json({ message: "Crisis alert already acknowledged or resolved." });
+      return res.status(400).json({ error: { message: "Crisis alert already acknowledged or resolved.", code: "BAD_REQUEST" } });
     }
     crisis.status = "acknowledged";
     crisis.acknowledgedBy = req.user.id;
@@ -84,7 +87,7 @@ export const acknowledgeCrisis = async (req, res) => {
     );
     res.status(200).json({ message: "Crisis acknowledged.", crisis });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -93,14 +96,14 @@ export const resolveCrisis = async (req, res) => {
     const { id } = req.params;
     const crisis = await Crisis.findById(id);
     if (!crisis) {
-      return res.status(404).json({ message: "Crisis alert not found." });
+      return res.status(404).json({ error: { message: "Crisis alert not found.", code: "NOT_FOUND" } });
     }
     crisis.status = "resolved";
     crisis.resolvedAt = new Date();
     await crisis.save();
     res.status(200).json({ message: "Crisis resolved.", crisis });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -111,6 +114,6 @@ export const getAllActiveCrisisAlerts = async (req, res) => {
       .sort("-createdAt");
     res.status(200).json(alerts);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
