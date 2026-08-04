@@ -49,6 +49,14 @@ let ioInstance = null;
 
 export const getSocketIO = () => ioInstance;
 
+export const emitToUser = (userId, event, payload) => {
+  ioInstance?.to(`user:${userId}`).emit(event, payload);
+};
+
+export const emitToCommunity = (communityId, event, payload) => {
+  ioInstance?.to(`community:${communityId}`).emit(event, payload);
+};
+
 // Shared by the socket handler and the REST fallback so both paths persist a
 // notice message (paper trail + in-thread system message) and push it to the
 // peer's open sockets in real time.
@@ -136,6 +144,16 @@ export const initChatSocket = (server) => {
         }
       },
     );
+
+    // Community rooms: the client joins rooms for the communities it's
+    // currently viewing so real-time message pushes can target them.
+    socket.on("join_community", ({ communityId } = {}) => {
+      if (communityId) socket.join(`community:${communityId}`);
+    });
+
+    socket.on("leave_community", ({ communityId } = {}) => {
+      if (communityId) socket.leave(`community:${communityId}`);
+    });
 
     socket.on("disconnect", () => {
       logger.info({ userId: id }, "socket disconnected");
