@@ -55,19 +55,20 @@ export const sendMessage = async (req, res) => {
 
 const LONG_POLL_INTERVAL_MS = 1000;
 const LONG_POLL_TIMEOUT_MS = 30000;
+const INITIAL_CATCHUP_WINDOW_MS = 30000;
 
-const fetchConversationMessages = async (myId, userId) => {
-  return Message.find({
-    $or: [
-      { sender: myId, recipient: userId },
-      { sender: userId, recipient: myId },
-    ],
-    deletedFor: { $ne: myId },
-  })
-    .sort({ createdAt: 1 })
+const populateConversationMessages = (query) =>
+  query
     .populate("sender", "username firstName lastName avatar")
     .populate("recipient", "username firstName lastName avatar");
-};
+
+const conversationFilter = (myId, userId) => ({
+  $or: [
+    { sender: myId, recipient: userId },
+    { sender: userId, recipient: myId },
+  ],
+  deletedFor: { $ne: myId },
+});
 
 const getLatestConversationTimestamp = async (myId, userId) => {
   const latestMessage = await Message.findOne({
@@ -113,32 +114,61 @@ export const getConversation = async (req, res) => {
 
     const { cursor, limit } = getCursorPaginationParams(req.query, 100);
 
-    let query = {
-      $or: [
-        { sender: myId, recipient: userId },
-        { sender: userId, recipient: myId },
-      ],
-      deletedFor: { $ne: myId },
-    };
+    let messages;
+    let nextCursor = null;
 
     if (cursor) {
-      query._id = { $lt: cursor };
+      const fetched = await populateConversationMessages(
+        Message.find({
+          ...conversationFilter(myId, userId),
+          _id: { $lt: cursor },
+        })
+          .sort({ _id: -1 })
+          .limit(limit + 1),
+      );
+
+      const hasMore = fetched.length > limit;
+      if (hasMore) fetched.pop();
+
+      // Return oldest-first for display; nextCursor still points at the oldest
+      // message so subsequent "load older" calls (cursor with _id $lt) work.
+      nextCursor = hasMore ? fetched[fetched.length - 1]?._id : null;
+      messages = fetched.reverse();
+    } else {
+      // Initial load: all unread messages plus a limited number of recent
+      // read messages, so the UI never dumps the full history at once.
+      const [recent, unread] = await Promise.all([
+        populateConversationMessages(
+          Message.find(conversationFilter(myId, userId))
+            .sort({ _id: -1 })
+            .limit(limit),
+        ),
+        populateConversationMessages(
+          Message.find({
+            ...conversationFilter(myId, userId),
+            sender: userId,
+            recipient: myId,
+            read: false,
+          }).sort({ _id: 1 }),
+        ),
+      ]);
+
+      const byId = new Map();
+      for (const msg of recent) byId.set(msg._id.toString(), msg);
+      for (const msg of unread) byId.set(msg._id.toString(), msg);
+      messages = [...byId.values()].sort((a, b) =>
+        a._id < b._id ? -1 : 1,
+      );
+
+      if (messages.length > 0) {
+        const oldestId = messages[0]._id;
+        const hasOlder = await Message.exists({
+          ...conversationFilter(myId, userId),
+          _id: { $lt: oldestId },
+        });
+        nextCursor = hasOlder ? oldestId : null;
+      }
     }
-
-    const messages = await Message.find(query)
-      .sort({ _id: -1 })
-      .limit(limit + 1)
-      .populate("sender", "username firstName lastName avatar")
-      .populate("recipient", "username firstName lastName avatar");
-
-    const hasMore = messages.length > limit;
-    if (hasMore) messages.pop();
-
-    const nextCursor = hasMore ? messages[messages.length - 1]?._id : null;
-
-    // Return oldest-first for display; nextCursor still points at the oldest
-    // message so subsequent "load older" calls (cursor with _id $lt) work.
-    messages.reverse();
 
     const myUser = await User.findById(myId).select("chatSettings");
     if (myUser?.chatSettings?.readReceipts !== false) {
@@ -160,12 +190,22 @@ export const getConversationUpdates = async (req, res) => {
     const myId = req.user.id;
     const { since } = req.query;
 
+    const lastUpdated = await getLatestConversationTimestamp(myId, userId);
+    if (lastUpdated) {
+      res.set("X-Last-Updated", lastUpdated.toISOString());
+    }
+
     if (!since) {
-      const messages = await fetchConversationMessages(myId, userId);
-      const lastUpdated = await getLatestConversationTimestamp(myId, userId);
-      if (lastUpdated) {
-        res.set("X-Last-Updated", lastUpdated.toISOString());
-      }
+      // Fresh listener: only return messages from a short catch-up window so
+      // the client merges anything missed between the initial load and the
+      // first poll without dumping the full history into the UI.
+      const sinceDate = new Date(Date.now() - INITIAL_CATCHUP_WINDOW_MS);
+      const messages = await populateConversationMessages(
+        Message.find({
+          ...conversationFilter(myId, userId),
+          updatedAt: { $gt: sinceDate },
+        }).sort({ createdAt: 1 }),
+      );
       return res.status(200).json(messages);
     }
 
@@ -174,7 +214,18 @@ export const getConversationUpdates = async (req, res) => {
       return res.status(204).end();
     }
 
-    const messages = await fetchConversationMessages(myId, userId);
+    const sinceDate = new Date(since);
+    if (Number.isNaN(sinceDate.getTime())) {
+      return res.status(200).json([]);
+    }
+
+    const messages = await populateConversationMessages(
+      Message.find({
+        ...conversationFilter(myId, userId),
+        updatedAt: { $gt: sinceDate },
+      }).sort({ createdAt: 1 }),
+    );
+
     res.status(200).json(messages);
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
