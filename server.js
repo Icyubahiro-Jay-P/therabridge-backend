@@ -75,8 +75,6 @@ app.use(
       ].filter(Boolean);
       if (!origin) return callback(null, true);
       if (allowed.includes(origin)) return callback(null, true);
-      if (/^https:\/\/[a-zA-Z0-9_-]+\.vercel\.app$/.test(origin))
-        return callback(null, true);
       return callback(new Error("CORS policy: Origin not allowed"));
     },
   }),
@@ -88,6 +86,14 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: { message: "Too many attempts, try again later", code: "RATE_LIMITED" } },
+});
+
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { message: "Too many password reset attempts, try again later", code: "RATE_LIMITED" } },
 });
 
 // Long-poll + layout polling endpoints run frequently (every ~10s), so they
@@ -120,6 +126,8 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // it actually matches (middleware runs in registration order).
 app.use("/api/users/login", authLimiter);
 app.use("/api/users/register", authLimiter);
+app.use("/api/users/forgot-password", passwordResetLimiter);
+app.use("/api/users/reset-password", passwordResetLimiter);
 
 app.use("/api/users", userRoutes);
 app.use("/api/exercises", exerciseRoutes);
