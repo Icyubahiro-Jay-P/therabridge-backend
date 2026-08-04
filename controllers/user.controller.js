@@ -653,12 +653,6 @@ export const getTherapists = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json({ message: "Only admins can list all users." });
-    }
-
     const { limit, offset } = getPaginationParams(req.query, 500);
     const sort = parseSortParams(req.query, [
       "firstName",
@@ -874,11 +868,6 @@ export const updatePrivacy = async (req, res) => {
 
 export const disableUser = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json({ message: "Only admins can disable users." });
-    }
     const { id } = req.params;
     const user = await User.findById(id);
     if (!user) {
@@ -904,11 +893,6 @@ export const disableUser = async (req, res) => {
 
 export const changeUserRole = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json({ message: "Only admins can change user roles." });
-    }
     const { id } = req.params;
     const { role } = req.body;
     if (!["user", "therapist", "admin"].includes(role)) {
@@ -931,9 +915,6 @@ export const changeUserRole = async (req, res) => {
 
 export const deleteUserByAdmin = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "Only admins can delete users." });
-    }
     const { id } = req.params;
     const user = await User.findById(id);
     if (!user) {
@@ -966,9 +947,6 @@ export const getFullUserData = async (req, res) => {
   try {
     const { id } = req.params;
     const currentUser = req.user;
-    if (currentUser.role !== "therapist" && currentUser.role !== "admin") {
-      return res.status(403).json({ message: "Access denied." });
-    }
     const user = await User.findById(id).select(
       "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens",
     );
@@ -991,10 +969,6 @@ export const getFullUserData = async (req, res) => {
 // Therapists see the users assigned to them (their client roster)
 export const getTherapistClients = async (req, res) => {
   try {
-    if (req.user.role !== "therapist") {
-      return res.status(403).json({ message: "Only therapists can list clients." });
-    }
-
     const clients = await User.find({ therapist: req.user.id })
       .select("_id username firstName lastName avatar bio email createdAt role")
       .sort({ createdAt: -1 });
@@ -1008,9 +982,6 @@ export const getTherapistClients = async (req, res) => {
 // Therapist adds a regular user to their roster (establishes the management link)
 export const addTherapistClient = async (req, res) => {
   try {
-    if (req.user.role !== "therapist") {
-      return res.status(403).json({ message: "Only therapists can manage clients." });
-    }
     const { userId } = req.body;
     const user = await User.findById(userId);
     if (!user) {
@@ -1038,9 +1009,6 @@ export const addTherapistClient = async (req, res) => {
 // Admin assigns (or removes) a therapist for a user
 export const assignTherapist = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "Only admins can assign therapists." });
-    }
     const { userId, therapistId } = req.body;
 
     const user = await User.findById(userId);
