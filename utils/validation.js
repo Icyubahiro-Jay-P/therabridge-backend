@@ -63,6 +63,33 @@ export const sendMessageSchema = z.object({
 export const createCommunitySchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(60),
   description: z.string().max(200).optional(),
+  category: z
+    .enum([
+      "general",
+      "anxiety",
+      "depression",
+      "stress",
+      "mindfulness",
+      "support",
+      "therapy",
+      "wellness",
+    ])
+    .optional(),
+  isPrivate: z.boolean().optional(),
+  rules: z.string().max(500).optional(),
+})
+
+export const inviteMemberSchema = z.object({
+  userId: z.string().min(1, "User is required"),
+})
+
+export const moderateRequestSchema = z.object({
+  action: z.enum(["approve", "reject"]),
+})
+
+export const assignTherapistSchema = z.object({
+  userId: z.string().min(1, "User is required"),
+  therapistId: z.string().nullable().optional(),
 })
 
 export const logMoodSchema = z.object({
