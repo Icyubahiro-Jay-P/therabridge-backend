@@ -33,7 +33,7 @@ const FALLBACK_RESPONSES = {
   sad: [
     "I'm sorry you're feeling this way. Sadness is a valid emotion and it's okay to feel it. Would you like to talk about what's making you feel sad?",
     "When we feel sad, it can help to practice self-compassion. Try placing a hand on your heart and saying to yourself: 'This is a moment of suffering. Suffering is part of life. May I be kind to myself.'",
-    "It takes courage to acknowledge sadness. Remember that emotions are temporary — this feeling will pass. In the meantime, be gentle with yourself.",
+    "It takes courage to acknowledge sadness. Remember that emotions are temporary - this feeling will pass. In the meantime, be gentle with yourself.",
   ],
   stress: [
     "Stress often comes from feeling overwhelmed. Let's break things down. What's one small thing you can do right now to lighten your load?",
@@ -46,7 +46,7 @@ const FALLBACK_RESPONSES = {
     "It's brave of you to share your feelings of loneliness. Sometimes writing in a journal can help. What would you say to a friend who felt this way?",
   ],
   angry: [
-    "Anger is a natural emotion. Let's take a moment to breathe. Count to 10 slowly, and let's explore what's beneath the anger — often it's hurt, fear, or frustration.",
+    "Anger is a natural emotion. Let's take a moment to breathe. Count to 10 slowly, and let's explore what's beneath the anger - often it's hurt, fear, or frustration.",
     "It's okay to feel angry. What matters is how we express it. Try describing how you feel without judgment: 'I notice anger in my body. I notice tension.'",
   ],
   general: [
