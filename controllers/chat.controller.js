@@ -1,6 +1,8 @@
 import { Message, Community } from "../models/chat.model.js";
 import User from "../models/user.model.js";
 import crypto from "crypto";
+import sharp from "sharp";
+import { recordPossibleScreenshot } from "../sockets/chatSocket.js";
 import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
 import {
   getPaginationParams,
@@ -1017,6 +1019,97 @@ export const unsendMessage = async (req, res) => {
     res
       .status(200)
       .json({ message: "Message unsent.", unsentMessage: message });
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+  }
+};
+
+// ====================== PRIVACY SHIELD ======================
+
+// REST fallback for possible-screenshot notices when the client's socket is
+// not connected. Same rate limit + persistence + socket push as the
+// "possible_screenshot" socket event.
+export const reportPossibleScreenshot = async (req, res) => {
+  try {
+    const { recipientId } = req.body;
+    if (!recipientId || typeof recipientId !== "string") {
+      return res
+        .status(400)
+        .json({ error: { message: "recipientId is required.", code: "BAD_REQUEST" } });
+    }
+
+    const me = await User.findById(req.user.id);
+    const result = await recordPossibleScreenshot({
+      initiatorId: req.user.id,
+      initiatorName: me?.firstName || me?.username || "Someone",
+      peerId: recipientId,
+    });
+
+    if (result.limited) {
+      return res.status(429).json({ message: "Rate limited. Please wait a moment." });
+    }
+    if (result.invalid) {
+      return res
+        .status(400)
+        .json({ error: { message: "Invalid recipient.", code: "BAD_REQUEST" } });
+    }
+
+    res.status(201).json(result.notice);
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+  }
+};
+
+const escapeSvgText = (text) =>
+  text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+// Optional server-side per-viewer stamp. Renders the given text on a canvas
+// with a tiled, low-opacity "<viewerId> · <timestamp>" watermark and returns a
+// PNG. This is a deterrence/paper-trail aid — it does NOT prevent screenshots.
+export const generateWatermarkStamp = async (req, res) => {
+  try {
+    const { text, viewerId } = req.body;
+    if (!text || typeof text !== "string" || text.trim() === "") {
+      return res
+        .status(400)
+        .json({ error: { message: "text is required.", code: "BAD_REQUEST" } });
+    }
+    if (!viewerId || typeof viewerId !== "string") {
+      return res
+        .status(400)
+        .json({ error: { message: "viewerId is required.", code: "BAD_REQUEST" } });
+    }
+
+    const safeText = escapeSvgText(text.slice(0, 2000));
+    const stamp = `${escapeSvgText(viewerId)} · ${new Date().toISOString()}`;
+    const width = 640;
+    const height = Math.min(480, 120 + Math.ceil(safeText.length / 80) * 24);
+
+    const tiles = [];
+    for (let x = -80; x < width; x += 220) {
+      for (let y = -80; y < height; y += 160) {
+        tiles.push(
+          `<text x="${x}" y="${y}" fill="rgba(120,120,120,0.18)" font-size="14" transform="rotate(-30 ${x} ${y})">${stamp}</text>`,
+        );
+      }
+    }
+
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+        <rect width="100%" height="100%" fill="#ffffff"/>
+        <text x="24" y="40" font-family="sans-serif" font-size="16" fill="#111111">${safeText}</text>
+        ${tiles.join("")}
+      </svg>`;
+
+    const png = await sharp(Buffer.from(svg)).png().toBuffer();
+    res.set("Content-Type", "image/png");
+    res.set("X-Watermark-Stamp", stamp);
+    res.set("Cache-Control", "no-store");
+    res.status(200).send(png);
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
