@@ -501,6 +501,7 @@ describe("Chat Controller", () => {
             content: "original",
             createdAt: new Date(),
             unsent: false,
+            toObject: vi.fn().mockReturnValue({ _id: "msg123" }),
             ...opts.msgOverrides,
           }),
         },
