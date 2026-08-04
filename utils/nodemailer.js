@@ -1,12 +1,60 @@
 import nodemailer from "nodemailer";
+import logger from "./logger.js";
+
+// Credentials that were never configured — copy-pasted from .env.example.
+// A placeholder Gmail address/password makes SMTP auth fail with a confusing
+// 535 error, so treat them exactly like missing values.
+const PLACEHOLDER_HINTS = [
+  /your[_ ]?gmail/i,
+  /your[_ ]?email/i,
+  /your[_ ]?app[_ ]?password/i,
+  /your[_ ]?password/i,
+  /example/i,
+  /placeholder/i,
+  /^change[_-]?me$/i,
+  /here$/i,
+];
+
+const isPlaceholder = (value) => {
+  if (!value) return true;
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  return PLACEHOLDER_HINTS.some((re) => re.test(trimmed));
+};
+
+const hasSmtpCredentials = () => {
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+  return !!user && !!pass && !isPlaceholder(user) && !isPlaceholder(pass);
+};
+
+if (!hasSmtpCredentials()) {
+  logger.warn(
+    "SMTP is not configured (EMAIL_USER / EMAIL_PASS missing or placeholder). " +
+      "Password reset emails will use a throwaway Ethereal account in dev and will fail with a 502 in production.",
+  );
+}
 
 const sendEmail = async (options) => {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (!hasSmtpCredentials() && isProduction) {
+    // Never pretend a reset email was delivered in production — a silent
+    // Ethereal fallback would return success while no email ever arrives.
+    const error = new Error(
+      "SMTP is not configured: set EMAIL_USER and EMAIL_PASS (e.g. a Gmail App Password) in production.",
+    );
+    error.code = "SMTP_NOT_CONFIGURED";
+    throw error;
+  }
+
   let transporter;
 
-  // Fallback to ethereal if no credentials are provided
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.log(
-      "No email credentials found in .env, generating a test ethereal account...",
+  if (!hasSmtpCredentials()) {
+    // Dev/test fallback: generate a throwaway Ethereal account and log the
+    // preview URL so reset emails can still be inspected.
+    logger.warn(
+      "No real SMTP credentials configured, generating a test Ethereal account...",
     );
     const testAccount = await nodemailer.createTestAccount();
 
@@ -47,12 +95,12 @@ const sendEmail = async (options) => {
 
   const info = await transporter.sendMail(message);
 
-  console.log("Message sent: %s", info.messageId);
+  logger.info({ messageId: info.messageId, to: options.email }, "Message sent");
 
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.log(
-      "Preview URL (Open this right now to see the reset link!): %s",
-      nodemailer.getTestMessageUrl(info),
+  if (!hasSmtpCredentials()) {
+    logger.info(
+      { previewUrl: nodemailer.getTestMessageUrl(info) },
+      "Preview URL (open it to see the reset link)",
     );
   }
 };
