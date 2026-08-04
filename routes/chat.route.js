@@ -8,12 +8,18 @@ import {
   getSuggestedUsers,
   createCommunity,
   joinCommunity,
+  leaveCommunity,
   getMyCommunities,
   getCommunityMessages,
   getCommunityUpdates,
   sendCommunityMessage,
   updateCommunity,
   removeMember,
+  inviteMember,
+  getJoinRequests,
+  respondToJoinRequest,
+  addModerator,
+  removeModerator,
   getCommunityByKey,
   markCommunityMessagesRead,
   deleteAllMyMessages,
@@ -28,7 +34,7 @@ import {
 } from "../controllers/chat.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { spamFilter } from "../middleware/spamFilter.js";
-import { validate, chatSettingsSchema, createCommunitySchema, editMessageSchema } from "../utils/validation.js";
+import { validate, chatSettingsSchema, createCommunitySchema, editMessageSchema, inviteMemberSchema, moderateRequestSchema } from "../utils/validation.js";
 
 const router = express.Router();
 
@@ -56,7 +62,13 @@ router.post("/communities/:communityId/messages", spamFilter, sendCommunityMessa
 router.put("/communities/:communityId/messages/:messageId", editCommunityMessage);
 router.delete("/communities/:communityId/messages/:messageId", unsendCommunityMessage);
 router.post("/communities/:communityId/read", markCommunityMessagesRead);
+router.post("/communities/:communityId/leave", leaveCommunity);
 router.post("/communities/:communityId/members/remove", removeMember);
+router.post("/communities/:communityId/invite", validate(inviteMemberSchema), inviteMember);
+router.get("/communities/:communityId/join-requests", getJoinRequests);
+router.post("/communities/:communityId/join-requests/:userId", validate(moderateRequestSchema), respondToJoinRequest);
+router.post("/communities/:communityId/moderators", validate(inviteMemberSchema), addModerator);
+router.post("/communities/:communityId/moderators/remove", validate(inviteMemberSchema), removeModerator);
 router.delete("/communities/:communityId", deleteCommunity);
 
 router.delete("/messages", deleteAllMyMessages);
