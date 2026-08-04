@@ -17,6 +17,7 @@ import notificationRoutes from "./routes/notification.route.js";
 import moodRoutes from "./routes/mood.route.js";
 import crisisRoutes from "./routes/crisis.route.js";
 import therryRoutes from "./routes/therry.route.js";
+import pushRoutes from "./routes/push.route.js";
 import {
   errorHandler,
   notFoundHandler,
@@ -136,6 +137,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/mood", moodRoutes);
 app.use("/api/crisis", crisisRoutes);
 app.use("/api/therry", therryRoutes);
+app.use("/api/push", pushRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
