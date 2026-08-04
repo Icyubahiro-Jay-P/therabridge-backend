@@ -242,45 +242,86 @@ export const getMyConversations = async (req, res) => {
   try {
     const { page, limit, offset } = getPaginationParams(req.query, 50);
     const myId = req.user.id;
+    const myObjectId = new (await import("mongoose")).default.Types.ObjectId(myId);
 
-    const messages = await Message.find({
-      $or: [{ sender: myId }, { recipient: myId }],
-      deletedFor: { $ne: myId },
-    })
-      .sort({ createdAt: -1 })
-      .populate("sender", "username firstName lastName avatar isDisabled")
-      .populate("recipient", "username firstName lastName avatar isDisabled");
+    // Use aggregation to find latest message per conversation partner + unread count
+    // in a single pipeline instead of N+1 queries
+    const conversations = await Message.aggregate([
+      // Match messages involving the current user that haven't been deleted for them
+      {
+        $match: {
+          $or: [{ sender: myObjectId }, { recipient: myObjectId }],
+          deletedFor: { $ne: myObjectId },
+        },
+      },
+      // Sort by createdAt descending so the first message per partner is the latest
+      { $sort: { createdAt: -1 } },
+      // Group by conversation partner, keeping the latest message and counting unread
+      {
+        $group: {
+          _id: {
+            $cond: [{ $eq: ["$sender", myObjectId] }, "$recipient", "$sender"],
+          },
+          lastMessage: { $first: "$$ROOT" },
+          unreadCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$recipient", myObjectId] },
+                    { $eq: ["$read", false] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+      // Sort conversations by latest message
+      { $sort: { "lastMessage.createdAt": -1 } },
+      // Skip and limit for pagination
+      { $skip: offset },
+      { $limit: limit },
+    ]);
 
-    const seen = new Set();
-    const conversations = [];
+    // Get total count of conversations
+    const totalCount = await Message.aggregate([
+      {
+        $match: {
+          $or: [{ sender: myObjectId }, { recipient: myObjectId }],
+          deletedFor: { $ne: myObjectId },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $cond: [{ $eq: ["$sender", myObjectId] }, "$recipient", "$sender"],
+          },
+        },
+      },
+      { $count: "count" },
+    ]);
 
-    for (const msg of messages) {
-      const partner =
-        msg.sender._id.toString() === myId ? msg.recipient : msg.sender;
-      const partnerId = partner._id.toString();
+    const total = totalCount[0]?.count || 0;
 
-      if (!seen.has(partnerId)) {
-        seen.add(partnerId);
-        const unread = await Message.countDocuments({
-          sender: partnerId,
-          recipient: myId,
-          read: false,
-        });
-        conversations.push({
-          partner,
-          lastMessage: msg,
-          unread,
-        });
-      }
-    }
+    // Populate user details for partners
+    const partnerIds = conversations.map((c) => c._id);
+    const partners = await User.find({ _id: { $in: partnerIds } })
+      .select("username firstName lastName avatar isDisabled");
+    const partnerMap = new Map(partners.map((p) => [p._id.toString(), p]));
 
-    const total = conversations.length;
-    const paginatedConversations = conversations.slice(offset, offset + limit);
+    const result = conversations.map((c) => ({
+      partner: partnerMap.get(c._id.toString()),
+      lastMessage: c.lastMessage,
+      unread: c.unreadCount,
+    }));
 
     res
       .status(200)
       .json(
-        formatPaginatedResponse(paginatedConversations, total, page, limit),
+        formatPaginatedResponse(result, total, page, limit),
       );
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
