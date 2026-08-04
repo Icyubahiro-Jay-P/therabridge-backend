@@ -1,6 +1,6 @@
 import User from "../models/user.model.js";
 
-// Talking Points — "reaching out is cardio for the heart."
+// Talking Points - "reaching out is cardio for the heart."
 // Every message is a small wellness exercise, so it feeds the same score
 // that guided exercises do.
 export const MESSAGE_POINTS = {
