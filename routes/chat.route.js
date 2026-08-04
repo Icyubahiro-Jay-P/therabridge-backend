@@ -31,6 +31,8 @@ import {
   deleteCommunity,
   getChatSettings,
   updateChatSettings,
+  reportPossibleScreenshot,
+  generateWatermarkStamp,
 } from "../controllers/chat.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { spamFilter } from "../middleware/spamFilter.js";
@@ -49,6 +51,10 @@ router.get("/search", searchUsers);
 router.get("/suggestions", getSuggestedUsers);
 router.get("/settings", getChatSettings);
 router.put("/settings", validate(chatSettingsSchema), updateChatSettings);
+
+// ====================== PRIVACY SHIELD ======================
+router.post("/screenshot-notice", reportPossibleScreenshot);
+router.post("/watermark-stamp", generateWatermarkStamp);
 
 // ====================== COMMUNITY ROOMS ======================
 router.get("/communities", getMyCommunities);
