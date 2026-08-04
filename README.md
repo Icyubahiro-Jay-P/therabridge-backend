@@ -14,6 +14,7 @@ Express 5 + MongoDB API server for Therabridge, a mental wellness platform.
 - **Helmet**, **express-rate-limit**, **CORS** — Security
 - **Pino** — Structured logging (`utils/logger.js`)
 - **@google/generative-ai** — Therry chat model (`gemini-3.5-flash`)
+- **Socket.io** — Real-time possible-screenshot notices (JWT-authed handshake)
 - **Vitest** — Unit tests (`__tests__/`)
 
 ## Setup
@@ -78,6 +79,8 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | PUT | `/chat/edit/:messageId` | 🔒 Edit message (tracks history) |
 | DELETE | `/chat/unsend/:messageId` | 🔒 Unsend message |
 | DELETE | `/chat/messages` | 🔒 Delete all my DMs |
+| POST | `/chat/screenshot-notice` | 🔒 REST fallback for possible-screenshot notices (rate-limited) |
+| POST | `/chat/watermark-stamp` | 🔒 Render text to a PNG with a tiled per-viewer watermark (Sharp) |
 | GET | `/chat/communities` | 🔒 List my communities |
 | POST | `/chat/communities` | 🔒 Create community |
 | POST | `/chat/communities/join` | 🔒 Join by invite key |
@@ -154,7 +157,7 @@ Protected routes require a valid access token (httpOnly `token` cookie or `Autho
 ## Models
 
 - **User** — firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter.
-- **Message** (DM) — sender, recipient, content (≤2000), read/readAt, `deletedFor`, unsent, edited/editCount/editHistory.
+- **Message** (DM) — sender, recipient, `kind` (`message` \| `screenshot-notice`), `noticeType`, content (≤2000), read/readAt, `deletedFor`, unsent, edited/editCount/editHistory.
 - **Community** — name, owner, members, unique `inviteKey`, description, embedded messages (sender, content ≤2000, readBy, unsent, edit history).
 - **Mood** — user, mood (`great`/`good`/`okay`/`bad`/`terrible`), emoji, note, factors, intensity (1–10), date.
 - **Crisis** — user, alertType, description, status (`active`/`acknowledged`/`resolved`), acknowledgedBy, resolvedAt, resourcesShared.
@@ -166,6 +169,20 @@ Protected routes require a valid access token (httpOnly `token` cookie or `Autho
 ## Talking Points
 
 "Reaching out is cardio for the heart." Sending a DM or community message earns **+2 Wellness points**; messaging Therry earns **+5** (opening up = bonus self-care). Points feed the same wellness score as completing exercises and are capped at **20/day** per user so chat can't outpace real self-care. Awarded points are returned as `pointsEarned` on the send/chat endpoints and surfaced as `talkingPointsToday` in `GET /api/exercises/stats`. (The mechanics are intentionally undisclosed in the UI — discovery is part of the fun.)
+
+## Privacy Shield
+
+A "privacy shield" feature set that raises the bar and creates a paper trail for screenshots — it does **not** and cannot prevent someone from capturing content.
+
+- **Socket.io** (`sockets/chatSocket.js`): the client connects with the same JWT used for the API (sent via `auth.token` in the handshake, or the `token` cookie / `Authorization` header). Every authenticated socket joins a `user:<id>` room.
+- **Possible-screenshot notices**: when the client detects a screenshot attempt (PrintScreen / `Cmd+Shift+S/3/4/5` or the tab losing focus) it emits `possible_screenshot` with `{ conversationId }` (or falls back to `POST /api/chat/screenshot-notice`). The server:
+  1. rate-limits per user to **1 notice / 10 s** (in-memory cooldown);
+  2. persists a `Message` with `kind: "screenshot-notice"` (in-thread system message both sides see, surviving reloads);
+  3. pushes `possible_screenshot` to the peer's `user:<id>` room in real time.
+- **Server-side watermark stamp**: `POST /api/chat/watermark-stamp` renders supplied text to a PNG with a tiled low-opacity `<viewerId> · <timestamp>` watermark using Sharp. Intended as a deterrent for flagged content only; content still reaches the screen in plain form.
+- **Rate limiting** is deliberately aggressive because tab-switching is a noisy signal. Notices are "possible" captures — the server never asserts a screenshot actually happened.
+
+**Honest limitation:** blur/blackout, notices, and watermarks discourage casual copying and leave an audit trail, but anyone determined to record content (another device, OS-level capture, developer tools) can still do so. Do not design features that assume content cannot be recorded.
 
 ## Therry (AI Companion)
 
