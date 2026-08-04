@@ -26,6 +26,7 @@ import {
 } from "../controllers/user.controller.js";
 
 import { authMiddleware } from "../middleware/auth.middleware.js";
+import { requireAdmin, requireTherapist, requireAdminOrTherapist } from "../middleware/role.middleware.js";
 import { uploadProfilePic } from "../middleware/upload.js";
 import { validate } from "../utils/validation.js";
 import {
@@ -52,7 +53,7 @@ router.post("/reset-password/:token", validate(resetPasswordSchema), resetPasswo
 
 // ====================== PROTECTED ROUTES ======================
 router.get("/profile", authMiddleware, profile);
-router.get("/users", authMiddleware, getAllUsers);
+router.get("/users", authMiddleware, requireAdmin, getAllUsers);
 router.get("/therapists", authMiddleware, getTherapists);
 router.get("/users/:id", authMiddleware, getUserById);
 
@@ -69,15 +70,15 @@ router.post(
 router.put("/privacy", authMiddleware, validate(privacySettingsSchema), updatePrivacy);
 
 // Admin routes
-router.put("/admin/disable/:id", authMiddleware, disableUser);
-router.put("/admin/role/:id", authMiddleware, changeUserRole);
-router.delete("/admin/user/:id", authMiddleware, deleteUserByAdmin);
-router.put("/admin/therapist", authMiddleware, validate(assignTherapistSchema), assignTherapist);
+router.put("/admin/disable/:id", authMiddleware, requireAdmin, disableUser);
+router.put("/admin/role/:id", authMiddleware, requireAdmin, changeUserRole);
+router.delete("/admin/user/:id", authMiddleware, requireAdmin, deleteUserByAdmin);
+router.put("/admin/therapist", authMiddleware, requireAdmin, validate(assignTherapistSchema), assignTherapist);
 
 // Therapist routes
-router.get("/therapist/user/:id", authMiddleware, getFullUserData);
-router.get("/therapist/clients", authMiddleware, getTherapistClients);
-router.post("/therapist/clients", authMiddleware, validate(inviteMemberSchema), addTherapistClient);
+router.get("/therapist/user/:id", authMiddleware, requireAdminOrTherapist, getFullUserData);
+router.get("/therapist/clients", authMiddleware, requireTherapist, getTherapistClients);
+router.post("/therapist/clients", authMiddleware, requireTherapist, validate(inviteMemberSchema), addTherapistClient);
 
 router.get("/:username", getUserProfile);
 
