@@ -9,11 +9,11 @@ export const logMood = async (req, res) => {
   try {
     const { mood, note, factors, intensity } = req.body;
     if (!mood) {
-      return res.status(400).json({ message: "Mood is required." });
+      return res.status(400).json({ error: { message: "Mood is required.", code: "VALIDATION_ERROR" } });
     }
     const validMoods = ["great", "good", "okay", "bad", "terrible"];
     if (!validMoods.includes(mood)) {
-      return res.status(400).json({ message: "Invalid mood value." });
+      return res.status(400).json({ error: { message: "Invalid mood value.", code: "VALIDATION_ERROR" } });
     }
     const moodEmojis = {
       great: "😄",
@@ -33,7 +33,7 @@ export const logMood = async (req, res) => {
     await entry.save();
     res.status(201).json(entry);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -75,7 +75,7 @@ export const getMyMoods = async (req, res) => {
 
     res.status(200).json(formatPaginatedResponse(moods, total, page, limit));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -132,7 +132,7 @@ export const getMoodStats = async (req, res) => {
     stats.streak = streakCount;
     res.status(200).json(stats);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -141,10 +141,10 @@ export const deleteMood = async (req, res) => {
     const { id } = req.params;
     const mood = await Mood.findOneAndDelete({ _id: id, user: req.user.id });
     if (!mood) {
-      return res.status(404).json({ message: "Mood entry not found." });
+      return res.status(404).json({ error: { message: "Mood entry not found.", code: "NOT_FOUND" } });
     }
     res.status(200).json({ message: "Mood entry deleted." });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
