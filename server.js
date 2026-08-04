@@ -1,4 +1,5 @@
 import express from "express";
+import http from "http";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
@@ -8,6 +9,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 import { connectDB } from "./db/connectDB.js";
+import { initChatSocket } from "./sockets/chatSocket.js";
 import userRoutes from "./routes/user.route.js";
 import exerciseRoutes from "./routes/exercise.route.js";
 import chatRoutes from "./routes/chat.route.js";
@@ -26,8 +28,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === "production";
+
+// ====================== SOCKET.IO (real-time notices) ======================
+// Wired up before routes so the shared socket reference is ready for any
+// controller that needs to push a real-time event.
+initChatSocket(server);
 
 // ====================== REQUEST ID + LOGGING ======================
 app.use((req, res, next) => {
@@ -151,7 +159,7 @@ app.use(errorHandler);
 // ====================== START SERVER ======================
 connectDB()
   .then(() => {
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       logger.info({ port: PORT }, "Therabridge server started");
     });
   })
