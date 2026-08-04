@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-// Exercise model — welcome exercises like 1 min breathing, body scan, gratitude, etc.
+// Exercise model - welcome exercises like 1 min breathing, body scan, gratitude, etc.
 const exerciseSchema = new mongoose.Schema(
   {
     title: {
