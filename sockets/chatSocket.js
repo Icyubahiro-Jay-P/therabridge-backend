@@ -89,7 +89,7 @@ export const recordPossibleScreenshot = async ({
     recipient: peerId,
     kind: "screenshot-notice",
     noticeType: "possible_screenshot",
-    content: `${initiatorName} may have taken a screenshot`,
+    content: `${initiatorName} took a screenshot`,
   });
   await message.save();
 
