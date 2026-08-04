@@ -143,6 +143,7 @@ describe("Chat Controller", () => {
       Message.findById.mockResolvedValue({
         _id: "msg123",
         sender: { toString: () => "user123" },
+        recipient: { toString: () => "user456" },
         unsent: false,
         content: "original",
         save: saveMock,
@@ -424,6 +425,7 @@ describe("Chat Controller", () => {
             editCount: opts.editCount ?? 0,
             editHistory: [],
             edited: false,
+            toObject: vi.fn().mockReturnValue({ _id: "msg123" }),
             ...opts.msgOverrides,
           }),
         },
