@@ -195,6 +195,13 @@ export const login = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(400).json({ message: "Invalid password" });
     }
+
+    if (user.isDisabled) {
+      return res
+        .status(403)
+        .json({ message: "Your account has been disabled. Please contact support.", code: "ACCOUNT_DISABLED" });
+    }
+
     // Issue a short-lived access token + rotating refresh token
     const accessToken = signAccessToken(user);
     const { token: refreshToken, jti } = createRefreshToken(user);
