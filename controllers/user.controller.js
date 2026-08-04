@@ -1,4 +1,5 @@
 import User from "../models/user.model.js";
+import { Message, Community } from "../models/chat.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -941,6 +942,19 @@ export const deleteUserByAdmin = async (req, res) => {
     if (user.role === "admin") {
       return res.status(400).json({ message: "Cannot delete another admin." });
     }
+
+    // Remove user from all communities (members, moderators, pendingMembers)
+    await Community.updateMany(
+      { members: id },
+      { $pull: { members: id, moderators: id, pendingMembers: id } }
+    );
+
+    // Soft-delete DMs: mark messages sent by this user as unsent
+    await Message.updateMany(
+      { sender: id },
+      { $set: { content: "Message unavailable", unsent: true } }
+    );
+
     await User.findByIdAndDelete(id);
     res.status(200).json({ message: "User deleted by admin." });
   } catch (error) {
