@@ -28,8 +28,6 @@ const getSocketCors = () => {
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       if (allowed.includes(origin)) return callback(null, true);
-      if (/^https:\/\/[a-zA-Z0-9_-]+\.vercel\.app$/.test(origin))
-        return callback(null, true);
       return callback(new Error("CORS policy: Origin not allowed"));
     },
     credentials: true,
