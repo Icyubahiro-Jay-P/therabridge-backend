@@ -57,6 +57,15 @@ export const emitToCommunity = (communityId, event, payload) => {
   ioInstance?.to(`community:${communityId}`).emit(event, payload);
 };
 
+// True when the user has at least one live socket (i.e. the site is open).
+// Used to avoid pushing device notifications to users who will already get the
+// in-app event in real time.
+export const hasActiveConnection = (userId) => {
+  if (!ioInstance) return false;
+  const room = ioInstance.sockets.adapter.rooms.get(`user:${userId}`);
+  return !!room && room.size > 0;
+};
+
 // Shared by the socket handler and the REST fallback so both paths persist a
 // notice message (paper trail + in-thread system message) and push it to the
 // peer's open sockets in real time.
