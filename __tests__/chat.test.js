@@ -36,6 +36,10 @@ vi.mock("../sockets/chatSocket.js", () => ({
   emitToCommunity: vi.fn(),
 }))
 
+vi.mock("../services/notification.service.js", () => ({
+  createNotification: vi.fn(),
+}))
+
 import {
   sendMessage,
   editMessage,
