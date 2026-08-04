@@ -1,20 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
-vi.mock("../models/chat.model.js", () => ({
-  Message: {
-    find: vi.fn(),
-    findById: vi.fn(),
-    findOne: vi.fn(),
-    updateMany: vi.fn(),
-    countDocuments: vi.fn(),
-  },
-  Community: {
-    find: vi.fn(),
-    findById: vi.fn(),
-    findOne: vi.fn(),
-    findByIdAndDelete: vi.fn(),
-  },
-}))
+vi.mock("../models/chat.model.js", () => {
+  class Community {
+    constructor() {
+      this.save = vi.fn().mockResolvedValue(true)
+      this.populate = vi.fn().mockResolvedValue(true)
+    }
+  }
+  Community.find = vi.fn()
+  Community.findById = vi.fn()
+  Community.findOne = vi.fn()
+  Community.findByIdAndDelete = vi.fn()
+  return {
+    Message: {
+      find: vi.fn(),
+      findById: vi.fn(),
+      findOne: vi.fn(),
+      updateMany: vi.fn(),
+      countDocuments: vi.fn(),
+    },
+    Community,
+  }
+})
 
 vi.mock("../models/user.model.js", () => ({
   default: {
