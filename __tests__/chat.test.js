@@ -32,6 +32,8 @@ vi.mock("../models/user.model.js", () => ({
 
 vi.mock("../sockets/chatSocket.js", () => ({
   recordPossibleScreenshot: vi.fn(),
+  emitToUser: vi.fn(),
+  emitToCommunity: vi.fn(),
 }))
 
 import {
