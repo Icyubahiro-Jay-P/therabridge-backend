@@ -54,6 +54,12 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "admin", "therapist"],
       default: "user",
     },
+    // Therapist who manages this user (admin or the therapist itself can set it)
+    therapist: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     avatar: {
       type: String,
       default: null,
@@ -129,5 +135,6 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ role: 1, createdAt: -1 });
 userSchema.index({ firstName: 1 });
 userSchema.index({ lastName: 1 });
+userSchema.index({ therapist: 1 });
 
 export default mongoose.model("User", userSchema);
