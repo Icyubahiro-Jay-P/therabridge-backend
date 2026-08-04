@@ -199,7 +199,7 @@ describe("Auth Controller", () => {
       await login(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: expect.stringContaining("required") })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("required") }) })
       )
     })
 
@@ -211,9 +211,9 @@ describe("Auth Controller", () => {
         body: { identifier: "test@test.com", password: "wrongpass" },
       })
       await login(req, res)
-      expect(res.status).toHaveBeenCalledWith(400)
+      expect(res.status).toHaveBeenCalledWith(401)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "Invalid password" })
+        expect.objectContaining({ error: expect.objectContaining({ message: "Invalid credentials." }) })
       )
     })
   })
