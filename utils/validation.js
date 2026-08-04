@@ -154,6 +154,25 @@ export const editMessageSchema = z.object({
   content: z.string().min(1, "Message cannot be empty").max(2000),
 })
 
+export const joinCommunitySchema = z.object({
+  inviteKey: z.string().min(1, "Invite key is required"),
+})
+
+export const sendCommunityMessageSchema = z.object({
+  content: z.string().min(1, "Message cannot be empty").max(2000),
+})
+
+export const updateCommunitySchema = z.object({
+  name: z.string().min(2).max(60).optional(),
+  description: z.string().max(200).optional(),
+  category: z.enum([
+    "general", "anxiety", "depression", "stress",
+    "mindfulness", "support", "therapy", "wellness",
+  ]).optional(),
+  rules: z.string().max(500).optional(),
+  isPrivate: z.boolean().optional(),
+})
+
 export const validate = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body)
   if (!result.success) {
