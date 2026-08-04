@@ -20,6 +20,9 @@ import {
   changeUserRole,
   deleteUserByAdmin,
   getFullUserData,
+  getTherapistClients,
+  addTherapistClient,
+  assignTherapist,
 } from "../controllers/user.controller.js";
 
 import { authMiddleware } from "../middleware/auth.middleware.js";
@@ -33,6 +36,8 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   privacySettingsSchema,
+  inviteMemberSchema,
+  assignTherapistSchema,
 } from "../utils/validation.js";
 
 const router = express.Router();
@@ -67,9 +72,12 @@ router.put("/privacy", authMiddleware, validate(privacySettingsSchema), updatePr
 router.put("/admin/disable/:id", authMiddleware, disableUser);
 router.put("/admin/role/:id", authMiddleware, changeUserRole);
 router.delete("/admin/user/:id", authMiddleware, deleteUserByAdmin);
+router.put("/admin/therapist", authMiddleware, validate(assignTherapistSchema), assignTherapist);
 
 // Therapist routes
 router.get("/therapist/user/:id", authMiddleware, getFullUserData);
+router.get("/therapist/clients", authMiddleware, getTherapistClients);
+router.post("/therapist/clients", authMiddleware, validate(inviteMemberSchema), addTherapistClient);
 
 router.get("/:username", getUserProfile);
 
