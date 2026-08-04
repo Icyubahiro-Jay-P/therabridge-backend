@@ -141,7 +141,7 @@ export const register = async (req, res) => {
 
     await user.save();
 
-    // Auto-login after register — short-lived access token + rotating refresh token
+    // Auto-login after register - short-lived access token + rotating refresh token
     const accessToken = signAccessToken(user);
     const { token: refreshToken, jti } = createRefreshToken(user);
     user.refreshTokens.push(hashRefreshToken(jti));
@@ -252,7 +252,7 @@ export const logout = async (req, res) => {
       }
     }
   } catch {
-    // Ignore invalid/expired refresh tokens — just clear the cookies
+    // Ignore invalid/expired refresh tokens - just clear the cookies
   }
   clearAuthCookies(res);
   res.status(200).json({ message: "Logout successful" });
@@ -514,7 +514,7 @@ export const uploadProfilePicture = async (req, res) => {
     } catch {
       // Sharp's decoder (libspng) is stricter than browsers and rejects some
       // images (e.g. slightly malformed PNGs). If it can't optimize the file,
-      // keep the original upload — the browser already validated it renders.
+      // keep the original upload - the browser already validated it renders.
     }
 
     // Delete previous avatar if it was an uploaded file
@@ -700,12 +700,12 @@ export const forgotPassword = async (req, res) => {
       .update(resetToken)
       .digest("hex");
 
-    // Set expire — 10 minutes
+    // Set expire - 10 minutes
     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
 
     await user.save();
 
-    // Create reset url — use the origin that actually made the request so the
+    // Create reset url - use the origin that actually made the request so the
     // link points at the right frontend (dev vs production) instead of a fixed URL.
     const resetUrl = `${getClientOrigin(req)}/reset-password/${resetToken}`;
 
@@ -764,7 +764,7 @@ export const forgotPassword = async (req, res) => {
     try {
       await sendEmail({
         email: user.email,
-        subject: "Password Reset — Therabridge",
+        subject: "Password Reset - Therabridge",
         message,
         html: message,
       });
