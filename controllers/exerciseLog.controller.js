@@ -8,7 +8,7 @@ export const startExercise = async (req, res) => {
   try {
     const exercise = await Exercise.findById(req.params.id);
     if (!exercise) {
-      return res.status(404).json({ message: "Exercise not found" });
+      return res.status(404).json({ error: { message: "Exercise not found.", code: "NOT_FOUND" } });
     }
 
     const log = new ExerciseLog({
@@ -20,7 +20,7 @@ export const startExercise = async (req, res) => {
     await log.save();
     res.status(201).json({ logId: log._id, startedAt: log.startedAt });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -30,22 +30,22 @@ export const completeExercise = async (req, res) => {
 
     const log = await ExerciseLog.findOne({ _id: logId, user: req.user.id });
     if (!log) {
-      return res.status(404).json({ message: "Exercise session not found" });
+      return res.status(404).json({ error: { message: "Exercise session not found.", code: "NOT_FOUND" } });
     }
 
     if (log.completed) {
-      return res.status(400).json({ message: "Exercise already completed" });
+      return res.status(400).json({ error: { message: "Exercise already completed.", code: "BAD_REQUEST" } });
     }
 
     const exercise = await Exercise.findById(log.exercise);
     if (!exercise) {
-      return res.status(404).json({ message: "Exercise not found" });
+      return res.status(404).json({ error: { message: "Exercise not found.", code: "NOT_FOUND" } });
     }
 
     const minRequired = exercise.duration * 0.7;
     if (timeSpent < minRequired) {
       return res.status(400).json({
-        message: `Please spend at least ${Math.ceil(minRequired / 60)} minutes on this exercise.`,
+        error: { message: `Please spend at least ${Math.ceil(minRequired / 60)} minutes on this exercise.`, code: "VALIDATION_ERROR" },
       });
     }
 
@@ -109,7 +109,7 @@ export const completeExercise = async (req, res) => {
       exerciseStreak: user?.exerciseStreak || 0,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -122,7 +122,7 @@ export const getLogs = async (req, res) => {
 
     res.status(200).json(logs);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
 
@@ -157,6 +157,6 @@ export const getExerciseStats = async (req, res) => {
       longestExerciseStreak: user?.longestExerciseStreak || 0,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
 };
