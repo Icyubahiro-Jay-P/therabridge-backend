@@ -1,5 +1,14 @@
 import User from "../models/user.model.js";
 import { Message, Community } from "../models/chat.model.js";
+import Mood from "../models/mood.model.js";
+import Crisis from "../models/crisis.model.js";
+import { TherryMessage } from "../models/therryMessage.model.js";
+import Notification from "../models/notification.model.js";
+import ExerciseLog from "../models/exerciseLog.model.js";
+import PushSubscription from "../models/pushSubscription.model.js";
+import { deleteUserAndData } from "../services/deletion.service.js";
+import { decryptField } from "../utils/crypto.js";
+import { logAccess, ipFromReq, uaFromReq } from "../services/audit.service.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -405,6 +414,24 @@ export const getUserById = async (req, res) => {
     filtered.createdAt = user.createdAt;
     filtered.privacySettings = undefined;
 
+    // Only privileged roles viewing another user are audited (normal public
+    // profile browsing is not a privacy-sensitive event).
+    if (
+      req.user.role !== "user" &&
+      user._id.toString() !== req.user.id
+    ) {
+      await logAccess({
+        actor: req.user.id,
+        actorRole: req.user.role,
+        action: "user_profile_view",
+        targetType: "user",
+        target: user._id,
+        detail: { scope: "filtered" },
+        ip: ipFromReq(req),
+        userAgent: uaFromReq(req),
+      });
+    }
+
     res.status(200).json(filtered);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -567,7 +594,17 @@ export const deleteProfile = async (req, res) => {
         message: "Username does not match. Please confirm deletion.",
       });
     } else {
-      await User.findByIdAndDelete(req.user.id);
+      await deleteUserAndData(req.user.id);
+      await logAccess({
+        actor: req.user.id,
+        actorRole: req.user.role,
+        action: "account_deletion",
+        targetType: "user",
+        target: req.user.id,
+        detail: { selfService: true },
+        ip: ipFromReq(req),
+        userAgent: uaFromReq(req),
+      });
       clearAuthCookies(res);
       res.status(200).json({ message: "User deleted successfully" });
     }
@@ -931,19 +968,17 @@ export const deleteUserByAdmin = async (req, res) => {
       return res.status(400).json({ message: "Cannot delete another admin." });
     }
 
-    // Remove user from all communities (members, moderators, pendingMembers)
-    await Community.updateMany(
-      { members: id },
-      { $pull: { members: id, moderators: id, pendingMembers: id } }
-    );
-
-    // Soft-delete DMs: mark messages sent by this user as unsent
-    await Message.updateMany(
-      { sender: id },
-      { $set: { content: "Message unavailable", unsent: true } }
-    );
-
-    await User.findByIdAndDelete(id);
+    await deleteUserAndData(id);
+    await logAccess({
+      actor: req.user.id,
+      actorRole: req.user.role,
+      action: "account_deletion",
+      targetType: "user",
+      target: id,
+      detail: { selfService: false },
+      ip: ipFromReq(req),
+      userAgent: uaFromReq(req),
+    });
     res.status(200).json({ message: "User deleted by admin." });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -967,7 +1002,144 @@ export const getFullUserData = async (req, res) => {
           .json({ message: "Therapists can only view user profiles." });
       }
     }
+    await logAccess({
+      actor: currentUser.id,
+      actorRole: currentUser.role,
+      action: "user_profile_view",
+      targetType: "user",
+      target: id,
+      detail: { scope: "full" },
+      ip: ipFromReq(req),
+      userAgent: uaFromReq(req),
+    });
     res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ====================== DATA PRIVACY ======================
+
+// Records the user's acknowledgement that Therry is an AI companion, not a
+// licensed therapist. Persistent (unlike the per-session banner).
+export const acknowledgeAiDisclosure = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: { aiDisclosureAcknowledgedAt: new Date() } },
+      { new: true },
+    ).select("aiDisclosureAcknowledgedAt");
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    await logAccess({
+      actor: req.user.id,
+      actorRole: req.user.role,
+      action: "ai_disclosure_ack",
+      targetType: "user",
+      target: req.user.id,
+      detail: { acknowledgedAt: user.aiDisclosureAcknowledgedAt },
+      ip: ipFromReq(req),
+      userAgent: uaFromReq(req),
+    });
+    res.status(200).json({ acknowledgedAt: user.aiDisclosureAcknowledgedAt });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Returns a JSON bundle of every piece of data the platform holds about the
+// requesting user (GDPR-style data portability). Encrypted fields are
+// decrypted so the export is human-readable.
+export const exportMyData = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const [
+      user,
+      moods,
+      crises,
+      therryMessages,
+      notifications,
+      messages,
+      communities,
+      exerciseLogs,
+      pushSubscriptions,
+    ] = await Promise.all([
+      User.findById(userId).select(
+        "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens",
+      ),
+      Mood.find({ user: userId }).sort({ createdAt: 1 }).lean(),
+      Crisis.find({ user: userId }).sort({ createdAt: 1 }).lean(),
+      TherryMessage.find({ user: userId }).sort({ createdAt: 1 }).lean(),
+      Notification.find({ recipient: userId }).sort({ createdAt: 1 }).lean(),
+      Message.find({
+        $or: [{ sender: userId }, { recipient: userId }],
+      }).sort({ createdAt: 1 }).lean(),
+      Community.find({
+        $or: [{ owner: userId }, { members: userId }],
+      }).sort({ createdAt: 1 }).lean(),
+      ExerciseLog.find({ user: userId }).sort({ createdAt: 1 }).lean(),
+      PushSubscription.find({ user: userId }).sort({ createdAt: 1 }).lean(),
+    ]);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const exportedAt = new Date().toISOString();
+    const data = {
+      exportedAt,
+      platform: "Therabridge",
+      user: user.toObject(),
+      messages: messages.map((m) => ({ ...m, content: decryptField(m.content) })),
+      communities: communities.map((c) => ({
+        ...c,
+        messages: (c.messages || []).map((msg) => ({
+          ...msg,
+          content: decryptField(msg.content),
+        })),
+      })),
+      moods: moods.map((m) => ({ ...m, note: decryptField(m.note) })),
+      crises: crises.map((c) => ({ ...c, description: decryptField(c.description) })),
+      therryMessages: therryMessages.map((t) => ({
+        ...t,
+        content: decryptField(t.content),
+      })),
+      notifications: notifications.map((n) => ({
+        ...n,
+        body: decryptField(n.body),
+      })),
+      exerciseLogs,
+      pushSubscriptions,
+      recordCounts: {
+        messages: messages.length,
+        communities: communities.length,
+        moods: moods.length,
+        crises: crises.length,
+        therryMessages: therryMessages.length,
+        notifications: notifications.length,
+        exerciseLogs: exerciseLogs.length,
+        pushSubscriptions: pushSubscriptions.length,
+      },
+    };
+
+    await logAccess({
+      actor: userId,
+      actorRole: req.user.role,
+      action: "data_export",
+      targetType: "user",
+      target: userId,
+      detail: { exportedAt, recordCounts: data.recordCounts },
+      ip: ipFromReq(req),
+      userAgent: uaFromReq(req),
+    });
+
+    res.set(
+      "Content-Disposition",
+      `attachment; filename="therabridge-data-${userId}.json"`,
+    );
+    res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -979,6 +1151,16 @@ export const getTherapistClients = async (req, res) => {
     const clients = await User.find({ therapist: req.user.id })
       .select("_id username firstName lastName avatar bio email createdAt role")
       .sort({ createdAt: -1 });
+
+    await logAccess({
+      actor: req.user.id,
+      actorRole: req.user.role,
+      action: "client_roster_view",
+      targetType: "user",
+      detail: { count: clients.length },
+      ip: ipFromReq(req),
+      userAgent: uaFromReq(req),
+    });
 
     res.status(200).json(clients);
   } catch (error) {
