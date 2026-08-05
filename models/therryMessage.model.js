@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { decryptFieldLength } from "../utils/crypto.js";
 
 const therryMessageSchema = new mongoose.Schema(
   {
@@ -16,6 +17,11 @@ const therryMessageSchema = new mongoose.Schema(
     content: {
       type: String,
       required: true,
+      // Encrypted at rest; enforce the plaintext cap against the decrypted value.
+      validate: {
+        validator: (v) => typeof v === "string" && decryptFieldLength(v) <= 4000,
+        message: "Message must be at most 4000 characters",
+      },
     },
     category: {
       type: String,
