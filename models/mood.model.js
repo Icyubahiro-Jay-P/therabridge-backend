@@ -18,7 +18,6 @@ const moodSchema = new mongoose.Schema(
     },
     note: {
       type: String,
-      maxlength: 500,
       default: "",
     },
     factors: {
