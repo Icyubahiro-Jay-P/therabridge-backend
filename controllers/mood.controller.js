@@ -1,4 +1,5 @@
 import Mood from "../models/mood.model.js";
+import { encryptField, decryptField } from "../utils/crypto.js";
 import {
   getPaginationParams,
   formatPaginatedResponse,
@@ -26,12 +27,14 @@ export const logMood = async (req, res) => {
       user: req.user.id,
       mood,
       emoji: moodEmojis[mood] || "",
-      note: note || "",
+      note: encryptField(note || ""),
       factors: factors || [],
       intensity: intensity || 5,
     });
     await entry.save();
-    res.status(201).json(entry);
+    const entryObj = entry.toObject();
+    entryObj.note = decryptField(entryObj.note);
+    res.status(201).json(entryObj);
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
@@ -73,7 +76,13 @@ export const getMyMoods = async (req, res) => {
     const total = await Mood.countDocuments(filter);
     const moods = await Mood.find(filter).sort(sort).limit(limit).skip(offset);
 
-    res.status(200).json(formatPaginatedResponse(moods, total, page, limit));
+    const payload = moods.map((m) => {
+      const obj = m.toObject();
+      obj.note = decryptField(obj.note);
+      return obj;
+    });
+
+    res.status(200).json(formatPaginatedResponse(payload, total, page, limit));
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
