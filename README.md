@@ -16,6 +16,7 @@ Express 5 + MongoDB API server for Therabridge, a mental wellness platform.
 - **@google/generative-ai** - Therry chat model (`gemini-3.5-flash`)
 - **Socket.io** - Real-time DMs, community messages, notifications, and possible-screenshot notices (JWT-authed handshake)
 - **Web Push** (`web-push`, VAPID) - Device notifications for messages and activity
+- **Node crypto** - AES-256-GCM field-level encryption for sensitive data at rest (`utils/crypto.js`)
 - **Vitest** - Unit tests (`__tests__/`)
 
 ## Getting Started
@@ -32,6 +33,7 @@ npm install
 cp .env.example .env   # fill in values
 npm run dev            # nodemon server.js
 npm test               # vitest run
+npm run migrate:encrypt # backfill-encrypt existing plaintext fields (once, before shipping)
 ```
 
 ### Environment Variables
@@ -48,6 +50,7 @@ Copy `backend/.env.example` to `.env`:
 | `EMAIL_USER` / `EMAIL_PASS` | SMTP credentials (Gmail app password) |
 | `FROM_NAME` / `FROM_EMAIL` | Outbound email sender identity |
 | `GEMINI_API_KEY` | Google Gemini API key (Therry AI companion) |
+| `FIELD_ENCRYPTION_KEY` | 32-byte hex (or raw 32-byte string) key for AES-256-GCM field encryption. **Required in production** - without it `encryptField` throws. Non-production falls back to plaintext with a warning. |
 | `AI_SERVICE_URL` | Optional Python ML microservice for spam/crisis/sentiment hints (falls back gracefully when unavailable) |
 | `NODE_ENV` | `development` \| `production` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push keys (generate with `npm run vapid`) - required for device notifications |
@@ -62,6 +65,7 @@ Copy `backend/.env.example` to `.env`:
 | `npm run dev` | Nodemon on `server.js` |
 | `npm start` | Run `server.js` |
 | `npm test` | Run Vitest suite |
+| `npm run migrate:encrypt` | Encrypt existing plaintext records in place (idempotent) |
 
 ## API Routes
 
@@ -79,7 +83,9 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | POST | `/users/reset-password/:token` | Reset password |
 | GET | `/users/profile` | 🔒 Get own profile |
 | PUT | `/users/profile` | 🔒 Update profile fields |
-| DELETE | `/users/profile` | 🔒 Delete account |
+| DELETE | `/users/profile` | 🔒 Delete account (cascades to all owned data) |
+| GET | `/users/export` | 🔒 Download all personal data as JSON (decrypted) |
+| POST | `/users/ai-disclosure` | 🔒 Acknowledge the AI companion disclosure (persists `aiDisclosureAcknowledgedAt`) |
 | POST | `/users/change-password` | 🔒 Change password |
 | POST | `/users/upload-avatar` | 🔒 Upload profile picture (multipart) |
 | PUT | `/users/privacy` | 🔒 Update per-field privacy settings |
@@ -89,7 +95,10 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | PUT | `/users/admin/disable/:id` | 🔒 Disable user (admin) |
 | PUT | `/users/admin/role/:id` | 🔒 Change role (admin) |
 | DELETE | `/users/admin/user/:id` | 🔒 Delete user (admin) |
+| PUT | `/users/admin/therapist` | 🔒 Assign a therapist to a user (admin) |
 | GET | `/users/therapist/user/:id` | 🔒 Full user data (therapist) |
+| GET | `/users/therapist/clients` | 🔒 List my clients (therapist) |
+| POST | `/users/therapist/clients` | 🔒 Add a client to my roster (therapist) |
 | GET | `/users/:username` | Public profile |
 
 ### Chat - `/api/chat`
@@ -162,6 +171,10 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | POST | `/crisis` | 🔒 Create crisis alert (triggers notifications) |
 | GET | `/crisis/mine` | 🔒 Get my alerts |
 | GET | `/crisis/active` | 🔒 All active alerts (therapist/admin) |
+| GET | `/crisis/hotlines` | 🔒 Region-appropriate crisis hotlines (by `User.countryCode`) |
+| GET | `/crisis/logs` | 🔒 Crisis escalation log (therapist/admin) |
+| POST | `/crisis/logs/:logId/action` | 🔒 Record follow-up action on a crisis log (therapist/admin) |
+| POST | `/crisis/message-therapist` | 🔒 User asks their assigned therapist to be notified (falls back to admins) |
 | PUT | `/crisis/:id/acknowledge` | 🔒 Acknowledge alert |
 | PUT | `/crisis/:id/resolve` | 🔒 Resolve alert |
 
@@ -169,8 +182,15 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/therry/chat` | 🔒 Send a message, get Therry's reply |
+| POST | `/therry/chat` | 🔒 Send a message, get Therry's reply (auto-escalates crisis) |
 | GET | `/therry/messages` | 🔒 Get my Therry history (asc, max 500) |
+| PUT | `/therry/messages/:messageId` | 🔒 Edit a Therry message |
+
+### Audit - `/api/audit`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/audit` | 🔒 Paginated privacy audit log (admin) - filter by `action`, `actorId`, `targetId`, `from`/`to` |
 
 ### Push - `/api/push`
 
@@ -191,11 +211,13 @@ Protected routes require a valid access token (httpOnly `token` cookie or `Autho
 
 ## Models
 
-- **User** - firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter.
-- **Message** (DM) - sender, recipient, `kind` (`message` \| `screenshot-notice`), `noticeType`, content (≤2000), read/readAt, `deletedFor`, unsent, edited/editCount/editHistory.
-- **Community** - name, owner, members, unique `inviteKey`, description, embedded messages (sender, content ≤2000, readBy, unsent, edit history).
-- **Mood** - user, mood (`great`/`good`/`okay`/`bad`/`terrible`), emoji, note, factors, intensity (1–10), date.
-- **Crisis** - user, alertType, description, status (`active`/`acknowledged`/`resolved`), acknowledgedBy, resolvedAt, resourcesShared.
+- **User** - firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter, `aiDisclosureAcknowledgedAt`, `countryCode` (ISO-3166 alpha-2, default `US` - routes crisis hotlines).
+- **Message** (DM) - sender, recipient, `kind` (`message` \| `screenshot-notice`), `noticeType`, content (≤2000, encrypted at rest), read/readAt, `deletedFor`, unsent, edited/editCount/editHistory.
+- **Community** - name, owner, members, unique `inviteKey`, description, embedded messages (sender, content ≤2000 - encrypted at rest, readBy, unsent, edit history).
+- **Mood** - user, mood (`great`/`good`/`okay`/`bad`/`terrible`), emoji, note (encrypted at rest), factors, intensity (1–10), date.
+- **Crisis** - user, alertType, description (encrypted at rest), source (`manual` \| `therry`), `therryMessageId`, status (`active`/`acknowledged`/`resolved`), acknowledgedBy, resolvedAt, resourcesShared.
+- **CrisisLog** - chronicles every crisis event (manual alert or Therry detection): user, source, category, therryMessageId, notified therapist/admins, hotlines shared, and follow-up actions recorded by therapists/admins.
+- **AuditLog** - actor, actorRole, action (`user_profile_view`, `client_roster_view`, `crisis_view`, `data_export`, `account_deletion`, `ai_disclosure_ack`), target, detail, ip, userAgent.
 - **Exercise** - title, description, duration (sec), type, steps, difficulty, emoji, color.
 - **ExerciseLog** - user, exercise, startedAt, completedAt, timeSpent, completed.
 - **Notification** - recipient, sender, type (message, community_invite, exercise_reminder, system, mood_reminder, crisis_alert, community_update, streak_milestone), title, body, data, read/readAt.
@@ -254,29 +276,57 @@ A "privacy shield" feature set that raises the bar and creates a paper trail for
 
 **Honest limitation:** blur/blackout, notices, and watermarks discourage casual copying and leave an audit trail, but anyone determined to record content (another device, OS-level capture, developer tools) can still do so. Do not design features that assume content cannot be recorded.
 
+## Field-Level Encryption
+
+Sensitive fields are encrypted at rest with **AES-256-GCM** (`utils/crypto.js`): DM and community message content (including edit history), mood notes, crisis descriptions, Therry messages, and notification bodies. Each value is stored as a base64url envelope `<iv>:<authTag>:<ciphertext>` with a fresh random 12-byte IV and the auth tag, so ciphertexts are tamper-evident. `decryptField` passes through legacy plaintext and leaves tampered envelopes untouched rather than failing reads.
+
+- **Key:** `FIELD_ENCRYPTION_KEY` (32-byte hex or a raw 32-byte string). In production a missing key makes `encryptField` throw (fail-closed); in non-production it warns and stores plaintext so tests/dev keep working.
+- **Backfill:** run `npm run migrate:encrypt` (idempotent) **before** shipping decrypt-on-read code so existing records are encrypted first.
+- **API boundary:** controllers decrypt fields before returning them, so clients are unaffected. See `docs/key-management.md` for key handling, rotation, and migration notes.
+
+## Data Privacy & Retention
+
+- **Data export:** `GET /api/users/export` returns a decrypted JSON dump of everything the platform holds about the user (profile, chats, communities, moods, crisis records, Therry history, notifications, exercise logs).
+- **Account deletion:** `DELETE /api/users/profile` (self) and `DELETE /api/users/admin/user/:id` (admin) run a permanent cascade (`services/deletion.service.js`) covering the user record, avatar file, owned communities, community messages/memberships, DMs on both sides, moods, crises, crisis logs, Therry messages, notifications, exercise logs, and push subscriptions. Audit-log rows are kept but actor/target references are nulled so history is not falsified.
+- **Retention:** crisis and audit logs are retained for **6 months**, after which identity fields are nulled (`docs/retention-policy.md`).
+- **Audit trail:** privacy-sensitive reads (profile views by therapists, client-roster views, crisis views, data exports, account deletions, AI-disclosure acknowledgments) are recorded through `services/audit.service.js` (fire-and-forget, never blocks the request) and surfaced to admins via `GET /api/audit`.
+
+## Crisis Escalation
+
+Crisis handling is automatic, not just manual:
+
+1. **Manual:** `POST /api/crisis` creates an alert + crisis log and notifies therapists/admins.
+2. **Therry-detected:** `POST /api/therry/chat` runs crisis classification. On detection it creates a `Crisis` (source `therry`) + `CrisisLog`, notifies the user's **assigned therapist** (falling back to admins when unassigned) via `services/notification.service.js`, includes region-appropriate hotlines (from `utils/hotlines.js` keyed by `User.countryCode`) and sets `crisis: { detected, alertType, hotlines, therapistNotified }` on the response.
+3. **User-initiated:** `POST /api/crisis/message-therapist` lets a user notify their assigned therapist directly from the Therry crisis card (400 if they have no therapist).
+
 ## Therry (AI Companion)
 
-`POST /api/therry/chat` generates replies with Google Gemini (`gemini-3.5-flash`, system prompt enforces a supportive, non-diagnostic tone). Keyword heuristics classify the message into a category; if an ML microservice is reachable, its crisis/sentiment/spam hints refine the category and spam can be rejected. Crisis messages always return a helpline response. Both user and assistant turns are persisted to `TherryMessage` and replayed through `GET /api/therry/messages`.
+`POST /api/therry/chat` generates replies with Google Gemini (`gemini-3.5-flash`, system prompt enforces a supportive, non-diagnostic tone). Keyword heuristics classify the message into a category; if an ML microservice is reachable, its crisis/sentiment/spam hints refine the category and spam can be rejected. Crisis messages always return a helpline response, are auto-escalated (see Crisis Escalation above), and the response includes `isCrisis: true` plus the `crisis` payload. Both user and assistant turns are persisted to `TherryMessage` (encrypted content, ≤4000 chars) and replayed through `GET /api/therry/messages`.
 
 ## Architecture Notes
 
 - **Auth:** short-lived access tokens + rotating refresh tokens stored in httpOnly cookies (see Auth above).
 - **Role-based access control:** three roles - `user`, `therapist`, `admin` - enforced by dedicated middleware (`middleware/auth.middleware.js` + `middleware/role.middleware.js`).
-- **Notification service:** all notifications are created through `services/notification.service.js`, which also pushes the `notification` Socket.io event in real time.
+- **Notification service:** all notifications are created through `services/notification.service.js`, which also pushes the `notification` Socket.io event in real time (and encrypts notification bodies).
+- **Audit service:** privacy-sensitive access is logged through `services/audit.service.js` (fire-and-forget).
+- **Deletion service:** account deletion cascades through `services/deletion.service.js`.
 - **Privacy shield:** client-side blur/blackout on tab switch, screenshot-shortcut detection, and server-side watermark stamping (see Privacy Shield above).
+- **Encryption:** AES-256-GCM field-level encryption via `utils/crypto.js`, backfilled by `scripts/migrate-encrypt.js` (see Field-Level Encryption above).
 
 ## Project Layout
 
 ```
 ├── server.js              # App setup, middleware, route mounting, health
-├── routes/                # Express routers per resource
+├── routes/                # Express routers per resource (incl. audit)
 ├── controllers/           # Request handlers
-├── models/                # Mongoose schemas
+├── models/                # Mongoose schemas (incl. AuditLog, CrisisLog)
 ├── middleware/            # auth, upload (multer+sharp), spamFilter, idempotency, error handlers
-├── services/mlClient.js   # Optional ML microservice client (spam/crisis/sentiment)
-├── utils/                 # logger (pino), nodemailer, pagination, validation (zod), streakMilestones
+├── services/              # notification, push, audit, deletion, mlClient, email
+├── scripts/               # migrate-encrypt.js, generateVapidKeys.js
+├── docs/                  # key-management.md, retention-policy.md
+├── utils/                 # logger (pino), nodemailer, pagination, validation (zod), crypto, hotlines
 ├── db/connectDB.js        # Mongo connection
-└── __tests__/             # Vitest tests (auth, mood, chat)
+└── __tests__/             # Vitest tests (auth, mood, chat, crypto)
 ```
 
 ## License
