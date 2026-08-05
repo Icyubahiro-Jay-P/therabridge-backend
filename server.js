@@ -17,6 +17,7 @@ import notificationRoutes from "./routes/notification.route.js";
 import moodRoutes from "./routes/mood.route.js";
 import crisisRoutes from "./routes/crisis.route.js";
 import therryRoutes from "./routes/therry.route.js";
+import safetyPlanRoutes from "./routes/safetyPlan.route.js";
 import pushRoutes from "./routes/push.route.js";
 import auditRoutes from "./routes/audit.route.js";
 import {
