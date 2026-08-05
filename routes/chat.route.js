@@ -37,10 +37,14 @@ import {
 } from "../controllers/chat.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { spamFilter } from "../middleware/spamFilter.js";
-import { validate, chatSettingsSchema, createCommunitySchema, editMessageSchema, inviteMemberSchema, moderateRequestSchema, sendMessageSchema, joinCommunitySchema, sendCommunityMessageSchema, updateCommunitySchema } from "../utils/validation.js";
+import { jsonBody } from "../middleware/jsonBody.js";
+import { validate, chatSettingsSchema, createCommunitySchema, editMessageSchema, editCommunityMessageSchema, inviteMemberSchema, moderateRequestSchema, sendMessageSchema, screenshotNoticeSchema, watermarkStampSchema, joinCommunitySchema, sendCommunityMessageSchema, updateCommunitySchema } from "../utils/validation.js";
 
 const router = express.Router();
 
+// DM + community message content can be up to 2000 chars; JSON escaping can
+// expand that to ~12kb, so the body limit is sized for the worst case.
+router.use(jsonBody("16kb"));
 router.use(authMiddleware);
 
 // ====================== DIRECT MESSAGES ======================
@@ -54,8 +58,8 @@ router.get("/settings", getChatSettings);
 router.put("/settings", validate(chatSettingsSchema), updateChatSettings);
 
 // ====================== PRIVACY SHIELD ======================
-router.post("/screenshot-notice", reportPossibleScreenshot);
-router.post("/watermark-stamp", generateWatermarkStamp);
+router.post("/screenshot-notice", validate(screenshotNoticeSchema), reportPossibleScreenshot);
+router.post("/watermark-stamp", validate(watermarkStampSchema), generateWatermarkStamp);
 
 // ====================== COMMUNITY ROOMS ======================
 router.get("/communities", getMyCommunities);
@@ -66,7 +70,7 @@ router.get("/communities/:communityId", getCommunityMessages);
 router.get("/communities/:communityId/updates", getCommunityUpdates);
 router.put("/communities/:communityId", validate(updateCommunitySchema), updateCommunity);
 router.post("/communities/:communityId/messages", spamFilter, validate(sendCommunityMessageSchema), sendCommunityMessage);
-router.put("/communities/:communityId/messages/:messageId", editCommunityMessage);
+router.put("/communities/:communityId/messages/:messageId", validate(editCommunityMessageSchema), editCommunityMessage);
 router.delete("/communities/:communityId/messages/:messageId", unsendCommunityMessage);
 router.post("/communities/:communityId/read", markCommunityMessagesRead);
 router.post("/communities/:communityId/leave", leaveCommunity);
