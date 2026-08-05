@@ -16,7 +16,6 @@ const therryMessageSchema = new mongoose.Schema(
     content: {
       type: String,
       required: true,
-      maxlength: 4000,
     },
     category: {
       type: String,
