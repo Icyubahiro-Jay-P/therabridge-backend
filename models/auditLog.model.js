@@ -27,6 +27,7 @@ const auditLogSchema = new mongoose.Schema(
         "ai_disclosure_ack",
         "safety_plan_update",
         "safety_plan_view",
+        "risk_summary_view",
       ],
       required: true,
     },
