@@ -108,6 +108,7 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 |--------|------|-------------|
 | GET | `/chat/conversations` | 🔒 List DM conversations |
 | GET | `/chat/conversation/:userId` | 🔒 Get DM thread |
+| PUT | `/chat/conversation/:userId/read` | 🔒 Mark DM thread read (honors read-receipts setting; clears the reader's notification bell) |
 | GET | `/chat/conversation/:userId/updates` | 🔒 Long-poll DM updates (since `?since=`) |
 | POST | `/chat/send` | 🔒 Send DM (spam-filtered) |
 | GET | `/chat/search` | 🔒 Search users by query |
@@ -169,7 +170,7 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/crisis` | 🔒 Create crisis alert (triggers notifications) |
+| POST | `/crisis` | 🔒 Create crisis alert (severity escalation: severe → urgent notify, medium → non-urgent, mild → log only unless `requestContact`) |
 | GET | `/crisis/mine` | 🔒 Get my alerts |
 | GET | `/crisis/active` | 🔒 All active alerts (therapist/admin) |
 | GET | `/crisis/hotlines` | 🔒 Region-appropriate crisis hotlines (by `User.countryCode`) |
