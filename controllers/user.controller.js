@@ -1082,6 +1082,7 @@ export const exportMyData = async (req, res) => {
       }).sort({ createdAt: 1 }).lean(),
       ExerciseLog.find({ user: userId }).sort({ createdAt: 1 }).lean(),
       PushSubscription.find({ user: userId }).sort({ createdAt: 1 }).lean(),
+      SafetyPlan.findOne({ user: userId }).lean(),
     ]);
 
     if (!user) {
