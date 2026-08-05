@@ -1,5 +1,6 @@
 import Mood from "../models/mood.model.js";
 import { encryptField, decryptField } from "../utils/crypto.js";
+import { maybeSendMoodCheckin } from "../services/moodCheckin.service.js";
 import {
   getPaginationParams,
   formatPaginatedResponse,
@@ -34,6 +35,11 @@ export const logMood = async (req, res) => {
     await entry.save();
     const entryObj = entry.toObject();
     entryObj.note = decryptField(entryObj.note);
+
+    // Proactive Therry check-in when the recent trend declines (B4). Runs
+    // fire-and-forget so a slow/failed check-in never blocks mood logging.
+    void maybeSendMoodCheckin(req.user.id);
+
     res.status(201).json(entryObj);
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
