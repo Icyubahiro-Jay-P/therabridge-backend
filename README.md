@@ -220,8 +220,8 @@ Protected routes require a valid access token (httpOnly `token` cookie or `Autho
 - **AuditLog** - actor, actorRole, action (`user_profile_view`, `client_roster_view`, `crisis_view`, `data_export`, `account_deletion`, `ai_disclosure_ack`), target, detail, ip, userAgent.
 - **Exercise** - title, description, duration (sec), type, steps, difficulty, emoji, color.
 - **ExerciseLog** - user, exercise, startedAt, completedAt, timeSpent, completed.
-- **Notification** - recipient, sender, type (message, community_invite, exercise_reminder, system, mood_reminder, crisis_alert, community_update, streak_milestone), title, body, data, read/readAt.
-- **TherryMessage** - user, role (`user`/`assistant`), content (≤4000), category (`anxiety`/`sad`/`stress`/`lonely`/`angry`/`general`/`crisis`).
+- **Notification** - recipient, sender, type (message, community_invite, exercise_reminder, system, mood_reminder, crisis_alert, community_update, streak_milestone), title/body (encrypted at rest), data, read/readAt.
+- **TherryMessage** - user, role (`user`/`assistant`), content (≤4000, encrypted at rest), category (`anxiety`/`sad`/`stress`/`lonely`/`angry`/`general`/`crisis`).
 
 ## Talking Points
 
