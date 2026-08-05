@@ -8,8 +8,8 @@ export const registerSchema = z.object({
     .min(3, "Username must be at least 3 characters")
     .max(30)
     .regex(/^[a-zA-Z0-9_]+$/, "Username: letters, numbers, underscores only"),
-  email: z.string().email("Invalid email format"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  email: z.string().email("Invalid email format").max(254, "Email is too long"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password is too long"),
   dateOfBirth: z.string().refine(
     (val) => {
       const date = new Date(val)
@@ -25,13 +25,13 @@ export const registerSchema = z.object({
 })
 
 export const loginSchema = z.object({
-  identifier: z.string().min(1, "Email or username is required"),
+  identifier: z.string().min(1, "Email or username is required").max(254),
   password: z.string().min(1, "Password is required"),
 })
 
 export const updateProfileSchema = z.object({
-  firstName: z.string().min(2).max(50).optional(),
-  lastName: z.string().min(2).max(50).optional(),
+  firstName: z.string().trim().min(2).max(50).optional(),
+  lastName: z.string().trim().min(2).max(50).optional(),
   dateOfBirth: z
     .string()
     .refine(
@@ -47,12 +47,13 @@ export const updateProfileSchema = z.object({
       { message: "Must be between 18 and 120" },
     )
     .optional(),
-  bio: z.string().max(300).optional(),
+  bio: z.string().trim().max(300).optional(),
+  avatar: z.string().max(500).optional(),
 })
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
-  newPassword: z.string().min(8, "New password must be at least 8 characters"),
+  newPassword: z.string().min(8, "New password must be at least 8 characters").max(128),
 })
 
 export const sendMessageSchema = z.object({
@@ -95,7 +96,7 @@ export const assignTherapistSchema = z.object({
 export const logMoodSchema = z.object({
   mood: z.enum(["great", "good", "okay", "bad", "terrible"]),
   note: z.string().max(500).optional(),
-  factors: z.array(z.string()).optional(),
+  factors: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
   intensity: z.number().int().min(1).max(10).optional(),
 })
 
@@ -147,7 +148,7 @@ export const forgotPasswordSchema = z.object({
 })
 
 export const resetPasswordSchema = z.object({
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password is too long"),
 })
 
 export const removeMemberSchema = z.object({
@@ -164,6 +165,31 @@ export const joinCommunitySchema = z.object({
 
 export const sendCommunityMessageSchema = z.object({
   content: z.string().min(1, "Message cannot be empty").max(2000),
+})
+
+export const editCommunityMessageSchema = z.object({
+  content: z.string().min(1, "Message cannot be empty").max(2000),
+})
+
+export const therryChatSchema = z.object({
+  message: z.string().min(1, "Message cannot be empty").max(4000, "Message is too long (maximum 4000 characters)"),
+})
+
+export const therryEditSchema = z.object({
+  content: z.string().min(1, "Message cannot be empty").max(4000, "Message is too long (maximum 4000 characters)"),
+})
+
+export const screenshotNoticeSchema = z.object({
+  recipientId: z.string().min(1, "Recipient is required").max(24),
+})
+
+export const watermarkStampSchema = z.object({
+  text: z.string().min(1, "text is required").max(2000),
+  viewerId: z.string().min(1, "viewerId is required").max(64),
+})
+
+export const deleteProfileSchema = z.object({
+  username: z.string().min(1, "Username is required").max(30),
 })
 
 export const updateCommunitySchema = z.object({
