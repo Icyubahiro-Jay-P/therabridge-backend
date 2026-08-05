@@ -104,6 +104,17 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Talking Points earned today (capped at DAILY_POINTS_CAP in utils/points.js).
+    // talkingPointsDate stores the day the counter applies to, so the counter
+    // can reset at midnight without a cron job.
+    talkingPointsToday: {
+      type: Number,
+      default: 0,
+    },
+    talkingPointsDate: {
+      type: Date,
+      default: null,
+    },
     loginStreak: {
       type: Number,
       default: 0,
