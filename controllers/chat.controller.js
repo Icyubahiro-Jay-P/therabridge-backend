@@ -1,5 +1,6 @@
 import { Message, Community } from "../models/chat.model.js";
 import User from "../models/user.model.js";
+import Notification from "../models/notification.model.js";
 import crypto from "crypto";
 import sharp from "sharp";
 import { recordPossibleScreenshot, emitToUser, emitToCommunity } from "../sockets/chatSocket.js";
@@ -239,6 +240,50 @@ export const getConversation = async (req, res) => {
         nextCursor,
       ),
     );
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+  }
+};
+
+// Explicit mark-read action fired when the reader opens a DM thread (and when
+// new messages arrive while the thread is open). Updates the persisted read
+// state so `GET /api/chat/conversations` unread counts reflect it, clears the
+// in-app notification bell for that sender, and emits `conversations_updated`
+// to the reader's OWN user room so every tab/session stays in sync.
+export const markConversationRead = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const myId = req.user.id;
+
+    const peer = await User.findById(userId);
+    if (!peer) {
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND" } });
+    }
+
+    const myUser = await User.findById(myId).select("chatSettings");
+    let markedRead = 0;
+
+    // Match the existing read-receipts contract in `getConversation`: when the
+    // reader disabled read receipts we don't flip the sender-visible `read`
+    // flag, but we still clear their own notification bell.
+    if (myUser?.chatSettings?.readReceipts !== false) {
+      const result = await Message.updateMany(
+        { sender: userId, recipient: myId, read: false },
+        { $set: { read: true, readAt: new Date() } },
+      );
+      markedRead = result.modifiedCount || 0;
+    }
+
+    // Clear unread in-app notifications from this sender (the bell).
+    await Notification.updateMany(
+      { recipient: myId, sender: userId, read: false, type: "message" },
+      { $set: { read: true, readAt: new Date() } },
+    );
+
+    // Sync the reader's own other sessions/tabs so unread badges settle.
+    emitToUser(myId, "conversations_updated", { partnerId: userId });
+
+    res.status(200).json({ message: "Conversation marked as read.", markedRead });
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
