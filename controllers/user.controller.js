@@ -1066,6 +1066,7 @@ export const exportMyData = async (req, res) => {
       communities,
       exerciseLogs,
       pushSubscriptions,
+      safetyPlan,
     ] = await Promise.all([
       User.findById(userId).select(
         "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens",
@@ -1114,7 +1115,19 @@ export const exportMyData = async (req, res) => {
       })),
       exerciseLogs,
       pushSubscriptions,
-      safetyPlan,
+      safetyPlan: safetyPlan
+        ? {
+            ...safetyPlan,
+            warningSigns: (safetyPlan.warningSigns || []).map(decryptField),
+            internalCoping: (safetyPlan.internalCoping || []).map(decryptField),
+            distractionPeople: (safetyPlan.distractionPeople || []).map(decryptField),
+            distractionSettings: (safetyPlan.distractionSettings || []).map(decryptField),
+            helpPeople: (safetyPlan.helpPeople || []).map(decryptField),
+            professionals: (safetyPlan.professionals || []).map(decryptField),
+            meansRestriction: (safetyPlan.meansRestriction || []).map(decryptField),
+            reasonsForLiving: (safetyPlan.reasonsForLiving || []).map(decryptField),
+          }
+        : null,
       recordCounts: {
         messages: messages.length,
         communities: communities.length,
