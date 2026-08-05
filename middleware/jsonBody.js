@@ -17,6 +17,7 @@ import express from "express";
 //   chat   → 16kb  (content max 2000 chars → 12kb worst case)
 //   therry → 32kb  (content max 4000 chars → 24kb worst case)
 //   crisis → 16kb  (description max 1000 chars → 6kb worst case)
+//   exercise → 16kb (catalog create/update bodies with steps/instructions)
 //   other  → 10kb  (small structured bodies)
 //
 // Validation always runs before encryption, so an oversized plaintext never
