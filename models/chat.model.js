@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { decryptFieldLength } from "../utils/crypto.js";
 
 // Direct Message model - one message between two users
 const messageSchema = new mongoose.Schema(
@@ -28,6 +29,12 @@ const messageSchema = new mongoose.Schema(
     content: {
       type: String,
       required: true,
+      // Content is stored encrypted at rest, so the plaintext cap is enforced
+      // against the decrypted value (the ciphertext envelope is longer).
+      validate: {
+        validator: (v) => typeof v === "string" && decryptFieldLength(v) <= 2000,
+        message: "Message must be at most 2000 characters",
+      },
     },
     read: {
       type: Boolean,
@@ -82,6 +89,11 @@ const communityMessageSchema = new mongoose.Schema({
   content: {
     type: String,
     required: true,
+    // Encrypted at rest; enforce the plaintext cap against the decrypted value.
+    validate: {
+      validator: (v) => typeof v === "string" && decryptFieldLength(v) <= 2000,
+      message: "Message must be at most 2000 characters",
+    },
   },
   createdAt: {
     type: Date,
