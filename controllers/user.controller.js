@@ -6,6 +6,7 @@ import { TherryMessage } from "../models/therryMessage.model.js";
 import Notification from "../models/notification.model.js";
 import ExerciseLog from "../models/exerciseLog.model.js";
 import PushSubscription from "../models/pushSubscription.model.js";
+import SafetyPlan from "../models/safetyPlan.model.js";
 import { deleteUserAndData } from "../services/deletion.service.js";
 import { decryptField } from "../utils/crypto.js";
 import { logAccess, ipFromReq, uaFromReq } from "../services/audit.service.js";
