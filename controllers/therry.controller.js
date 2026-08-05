@@ -281,6 +281,9 @@ export const chat = async (req, res) => {
               severity: crisisInfo.severity,
               hotlines: crisisInfo.hotlines,
               therapistNotified: crisisInfo.therapistNotified,
+              ...(crisisInfo.panicExercise
+                ? { panicExercise: crisisInfo.panicExercise }
+                : {}),
             }
         : undefined,
       pointsEarned,
