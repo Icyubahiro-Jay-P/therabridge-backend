@@ -90,3 +90,11 @@ export const decryptField = (envelope) => {
     return envelope;
   }
 };
+
+// Length of the *plaintext* for an encrypted (or legacy plaintext) value.
+// Used by Mongoose validators so schema length caps are checked against the
+// decrypted content, never the longer ciphertext envelope.
+export const decryptFieldLength = (envelope) => {
+  const plain = decryptField(envelope);
+  return typeof plain === "string" ? plain.length : 0;
+};
