@@ -19,6 +19,21 @@ vi.mock("../models/user.model.js", () => ({
   default: { find: vi.fn() },
 }))
 
+vi.mock("../models/exercise.model.js", () => {
+  const panicExercise = {
+    _id: "ex123",
+    title: "5-4-3-2-1 Grounding",
+    type: "grounding",
+    duration: 180,
+    steps: [{ instruction: "Name 5 things you can SEE.", duration: 30 }],
+  }
+  return {
+    default: {
+      findOne: vi.fn(() => ({ lean: vi.fn().mockResolvedValue(panicExercise) })),
+    },
+  }
+})
+
 vi.mock("../services/notification.service.js", () => ({
   createNotification: vi.fn(),
 }))
@@ -136,5 +151,25 @@ describe("createCrisisAlert severity escalation", () => {
       expect.not.objectContaining({ priority: "urgent" }),
       "user123"
     )
+  })
+
+  it("should include a panic exercise for panic_attack alerts (B2)", async () => {
+    const { req, res } = mockReqRes({
+      body: { alertType: "panic_attack", severity: "medium" },
+    })
+    await createCrisisAlert(req, res)
+    const payload = res.json.mock.calls[0][0]
+    expect(payload.panicExercise).toBeDefined()
+    expect(payload.panicExercise.title).toBe("5-4-3-2-1 Grounding")
+    expect(res.status).toHaveBeenCalledWith(201)
+  })
+
+  it("should not include a panic exercise for other alert types", async () => {
+    const { req, res } = mockReqRes({
+      body: { alertType: "severe_distress" },
+    })
+    await createCrisisAlert(req, res)
+    const payload = res.json.mock.calls[0][0]
+    expect(payload.panicExercise).toBeUndefined()
   })
 })
