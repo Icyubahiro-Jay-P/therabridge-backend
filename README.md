@@ -237,7 +237,7 @@ Protected routes require a valid access token (httpOnly `token` cookie or `Autho
 - **SafetyPlan** - one per user (unique `user`): seven short lists (warningSigns, internalCoping, distractionPeople, distractionSettings, helpPeople, professionals, meansRestriction, reasonsForLiving), each item encrypted at rest, ≤10 items × ≤120 chars.
 - **Exercise** - title, description, duration (sec), type, steps, difficulty, emoji, color.
 - **ExerciseLog** - user, exercise, startedAt, completedAt, timeSpent, completed.
-- **Notification** - recipient, sender, type (message, community_invite, exercise_reminder, system, mood_reminder, crisis_alert, community_update, streak_milestone), title/body (encrypted at rest), data, read/readAt.
+- **Notification** - recipient, sender, type (message, community_invite, exercise_reminder, system, mood_reminder, crisis_alert, community_update, streak_milestone, mood_checkin), title/body (encrypted at rest), data, read/readAt.
 - **TherryMessage** - user, role (`user`/`assistant`), content (≤4000, encrypted at rest), category (`anxiety`/`sad`/`stress`/`lonely`/`angry`/`general`/`crisis`).
 
 ## Input Limits & Validation
