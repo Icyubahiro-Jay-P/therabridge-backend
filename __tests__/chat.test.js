@@ -30,6 +30,12 @@ vi.mock("../models/user.model.js", () => ({
   },
 }))
 
+vi.mock("../models/notification.model.js", () => ({
+  default: {
+    updateMany: vi.fn(),
+  },
+}))
+
 vi.mock("../sockets/chatSocket.js", () => ({
   recordPossibleScreenshot: vi.fn(),
   emitToUser: vi.fn(),
@@ -53,10 +59,12 @@ import {
   editCommunityMessage,
   unsendCommunityMessage,
   reportPossibleScreenshot,
+  markConversationRead,
 } from "../controllers/chat.controller.js"
 import { Message, Community } from "../models/chat.model.js"
 import User from "../models/user.model.js"
-import { recordPossibleScreenshot as mockRecordPossibleScreenshot } from "../sockets/chatSocket.js"
+import Notification from "../models/notification.model.js"
+import { recordPossibleScreenshot as mockRecordPossibleScreenshot, emitToUser as mockEmitToUser } from "../sockets/chatSocket.js"
 
 function mockReqRes(overrides = {}) {
   const req = {
@@ -159,6 +167,72 @@ describe("Chat Controller", () => {
       expect(res.status).toHaveBeenCalledWith(200)
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ message: "Message unsent." })
+      )
+    })
+  })
+
+  describe("markConversationRead", () => {
+    function mockUserLookup({ readReceipts } = {}) {
+      User.findById.mockImplementation((id) => {
+        if (id === "user456") return Promise.resolve({ _id: "user456" })
+        return {
+          select: () =>
+            Promise.resolve({
+              _id: "user123",
+              chatSettings: readReceipts === undefined ? {} : { readReceipts },
+            }),
+        }
+      })
+    }
+
+    beforeEach(() => {
+      Message.updateMany.mockReset()
+      Notification.updateMany.mockReset()
+      mockEmitToUser.mockReset()
+    })
+
+    it("should reject a non-existent peer", async () => {
+      User.findById.mockResolvedValue(null)
+      const { req, res } = mockReqRes({ params: { userId: "nobody" } })
+      await markConversationRead(req, res)
+      expect(res.status).toHaveBeenCalledWith(404)
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.objectContaining({ message: "User not found." }) })
+      )
+    })
+
+    it("should mark inbound messages as read and clear the notification bell", async () => {
+      mockUserLookup()
+      Message.updateMany.mockResolvedValue({ modifiedCount: 2 })
+      Notification.updateMany.mockResolvedValue({ modifiedCount: 2 })
+      const { req, res } = mockReqRes({ params: { userId: "user456" } })
+      await markConversationRead(req, res)
+      expect(Message.updateMany).toHaveBeenCalledWith(
+        { sender: "user456", recipient: "user123", read: false },
+        expect.objectContaining({ $set: expect.objectContaining({ read: true }) })
+      )
+      expect(Notification.updateMany).toHaveBeenCalledWith(
+        { recipient: "user123", sender: "user456", read: false, type: "message" },
+        expect.anything()
+      )
+      expect(mockEmitToUser).toHaveBeenCalledWith("user123", "conversations_updated", { partnerId: "user456" })
+      expect(res.status).toHaveBeenCalledWith(200)
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Conversation marked as read.", markedRead: 2 })
+      )
+    })
+
+    it("should skip flipping message read flags when the reader disabled read receipts", async () => {
+      mockUserLookup({ readReceipts: false })
+      Notification.updateMany.mockResolvedValue({ modifiedCount: 1 })
+      const { req, res } = mockReqRes({ params: { userId: "user456" } })
+      await markConversationRead(req, res)
+      expect(Message.updateMany).not.toHaveBeenCalled()
+      // The reader's own notification bell is still cleared.
+      expect(Notification.updateMany).toHaveBeenCalled()
+      expect(res.status).toHaveBeenCalledWith(200)
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ markedRead: 0 })
       )
     })
   })
