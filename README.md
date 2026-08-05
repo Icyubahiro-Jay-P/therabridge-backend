@@ -170,7 +170,7 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/crisis` | 🔒 Create crisis alert (severity escalation: severe → urgent notify, medium → non-urgent, mild → log only unless `requestContact`) |
+| POST | `/crisis` | 🔒 Create crisis alert (severity escalation: severe → urgent notify, medium → non-urgent, mild → log only unless `requestContact`; `panic_attack` also returns a `panicExercise` for first-response) |
 | GET | `/crisis/mine` | 🔒 Get my alerts |
 | GET | `/crisis/active` | 🔒 All active alerts (therapist/admin) |
 | GET | `/crisis/hotlines` | 🔒 Region-appropriate crisis hotlines (by `User.countryCode`) |
@@ -192,7 +192,7 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/therry/chat` | 🔒 Send a message, get Therry's reply (auto-escalates crisis) |
+| POST | `/therry/chat` | 🔒 Send a message, get Therry's reply (auto-escalates crisis; `panic_attack` responses include `crisis.panicExercise`) |
 | GET | `/therry/messages` | 🔒 Get my Therry history (asc, max 500) |
 | PUT | `/therry/messages/:messageId` | 🔒 Edit a Therry message |
 
