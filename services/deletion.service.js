@@ -10,6 +10,7 @@ import { TherryMessage } from "../models/therryMessage.model.js";
 import Notification from "../models/notification.model.js";
 import ExerciseLog from "../models/exerciseLog.model.js";
 import PushSubscription from "../models/pushSubscription.model.js";
+import SafetyPlan from "../models/safetyPlan.model.js";
 import AuditLog from "../models/auditLog.model.js";
 import logger from "../utils/logger.js";
 
@@ -65,6 +66,7 @@ export const deleteUserAndData = async (userId) => {
   await Notification.deleteMany({ recipient: userId });
   await ExerciseLog.deleteMany({ user: userId });
   await PushSubscription.deleteMany({ user: userId });
+  await SafetyPlan.deleteMany({ user: userId });
 
   // Keep the audit trail, but strip the identity from it.
   await AuditLog.updateMany(
