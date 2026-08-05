@@ -14,7 +14,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["message", "community_invite", "exercise_reminder", "system", "mood_reminder", "crisis_alert", "community_update", "streak_milestone"],
+      enum: ["message", "community_invite", "exercise_reminder", "system", "mood_reminder", "crisis_alert", "community_update", "streak_milestone", "mood_checkin"],
       required: true,
     },
     title: {
