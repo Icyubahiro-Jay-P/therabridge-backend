@@ -34,7 +34,7 @@ const decryptCrisisLog = (doc) => {
 
 export const createCrisisAlert = async (req, res) => {
   try {
-    const { alertType, description } = req.body;
+    const { alertType, description, severity = "medium", requestContact = false } = req.body;
     if (!alertType) {
       return res.status(400).json({ error: { message: "Alert type is required.", code: "VALIDATION_ERROR" } });
     }
@@ -45,30 +45,42 @@ export const createCrisisAlert = async (req, res) => {
     const crisis = new Crisis({
       user: req.user.id,
       alertType,
+      severity,
       description: encryptField(description || ""),
     });
     await crisis.save();
 
+    // Escalation rule: severe alerts notify responders urgently, medium alerts
+    // notify non-urgently, mild alerts are logged only unless the user asked to
+    // be contacted.
+    const logSeverityMap = { severe: "critical", medium: "high", mild: "low" };
     await CrisisLog.create({
       user: req.user.id,
       therryMessageId: null,
       excerpt: encryptField(description ? description.slice(0, 280) : ""),
       source: "manual",
       actionTaken: "crisis_alert_created",
-      severity: alertType === "emergency" || alertType === "immediate_danger" ? "critical" : "high",
+      severity: logSeverityMap[severity] ?? "high",
       detectedAt: new Date(),
     });
 
+    const notifyResponders =
+      severity === "severe" ||
+      severity === "medium" ||
+      (severity === "mild" && requestContact);
     const responders = await User.find({ role: { $in: ["therapist", "admin"] } }).select("_id");
-    if (responders.length > 0) {
+    if (notifyResponders && responders.length > 0) {
+      const urgent = severity === "severe";
       await Promise.all(
         responders.map((responder) =>
           createNotification(
             responder._id,
             "crisis_alert",
-            "Crisis Alert",
-            `A user has reported a crisis: ${alertType.replace(/_/g, " ")}`,
-            { crisisId: crisis._id, userId: req.user.id, source: "manual" },
+            urgent ? "URGENT Crisis Alert" : "Crisis Alert",
+            urgent
+              ? `A user needs immediate help: ${alertType.replace(/_/g, " ")}`
+              : `A user has reported a crisis: ${alertType.replace(/_/g, " ")}`,
+            { crisisId: crisis._id, userId: req.user.id, source: "manual", severity, ...(urgent ? { priority: "urgent" } : {}) },
             req.user.id
           )
         )
