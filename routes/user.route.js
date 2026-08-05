@@ -30,6 +30,7 @@ import {
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { requireAdmin, requireTherapist, requireAdminOrTherapist } from "../middleware/role.middleware.js";
 import { uploadProfilePic } from "../middleware/upload.js";
+import { jsonBody } from "../middleware/jsonBody.js";
 import { validate } from "../utils/validation.js";
 import {
   registerSchema,
@@ -41,9 +42,12 @@ import {
   privacySettingsSchema,
   inviteMemberSchema,
   assignTherapistSchema,
+  deleteProfileSchema,
 } from "../utils/validation.js";
 
 const router = express.Router();
+
+router.use(jsonBody("10kb"));
 
 // ====================== PUBLIC ROUTES ======================
 router.post("/register", validate(registerSchema), register);
@@ -60,7 +64,7 @@ router.get("/therapists", authMiddleware, getTherapists);
 router.get("/users/:id", authMiddleware, getUserById);
 
 router.put("/profile", authMiddleware, validate(updateProfileSchema), updateProfile);
-router.delete("/profile", authMiddleware, deleteProfile);
+router.delete("/profile", authMiddleware, validate(deleteProfileSchema), deleteProfile);
 router.get("/export", authMiddleware, exportMyData);
 router.post("/ai-disclosure", authMiddleware, acknowledgeAiDisclosure);
 
