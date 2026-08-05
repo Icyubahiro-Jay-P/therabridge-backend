@@ -1114,6 +1114,7 @@ export const exportMyData = async (req, res) => {
       })),
       exerciseLogs,
       pushSubscriptions,
+      safetyPlan,
       recordCounts: {
         messages: messages.length,
         communities: communities.length,
@@ -1123,6 +1124,7 @@ export const exportMyData = async (req, res) => {
         notifications: notifications.length,
         exerciseLogs: exerciseLogs.length,
         pushSubscriptions: pushSubscriptions.length,
+        safetyPlan: safetyPlan ? 1 : 0,
       },
     };
 
