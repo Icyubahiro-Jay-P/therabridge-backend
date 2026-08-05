@@ -114,7 +114,9 @@ const generalLimiter = rateLimit({
 app.use(generalLimiter);
 
 // ====================== PARSING ======================
-app.use(express.json({ limit: "10kb" }));
+// JSON body parsing is mounted per-router with route-tuned size limits (see
+// middleware/jsonBody.js). No global parser: a single app-wide limit would
+// either reject legitimate large payloads or under-protect small ones.
 app.use(cookieParser());
 
 // ====================== IDEMPOTENCY ======================
