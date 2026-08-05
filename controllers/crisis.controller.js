@@ -99,10 +99,16 @@ export const createCrisisAlert = async (req, res) => {
     crisis.resourcesShared = crisisResources[alertType] || [];
     await crisis.save();
 
+    // Panic attacks get a grounding/breathing exercise as the first response,
+    // surfaced alongside the crisis card (B2).
+    const panicExercise =
+      alertType === "panic_attack" ? await getPanicExercise() : null;
+
     res.status(201).json({
       message: "Your alert has been sent. Help is on the way.",
       crisis: decryptCrisis(crisis),
       resources: crisis.resourcesShared,
+      ...(panicExercise ? { panicExercise } : {}),
     });
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
