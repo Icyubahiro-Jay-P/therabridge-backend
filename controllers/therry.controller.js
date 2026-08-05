@@ -1,7 +1,13 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { analyzeAll } from "../services/mlClient.js";
 import { TherryMessage } from "../models/therryMessage.model.js";
+import Crisis from "../models/crisis.model.js";
+import CrisisLog from "../models/crisisLog.model.js";
+import User from "../models/user.model.js";
+import { createNotification } from "../services/notification.service.js";
 import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
+import { encryptField, decryptField } from "../utils/crypto.js";
+import { getHotlinesForCountry } from "../utils/hotlines.js";
 import logger from "../utils/logger.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -67,9 +73,96 @@ const model = genAI.getGenerativeModel({
 
 const saveMessage = async (userId, role, content, category) => {
   try {
-    await TherryMessage.create({ user: userId, role, content, category });
+    return await TherryMessage.create({
+      user: userId,
+      role,
+      content: encryptField(content),
+      category,
+    });
   } catch (error) {
     logger.error({ err: error }, "Therry save error");
+    return null;
+  }
+};
+
+const chooseCrisisAlertType = (message) => {
+  const lower = message.toLowerCase();
+  if (/suicid|kill myself|end my life|want to die|self.?harm/i.test(lower)) {
+    return "self_harm_thoughts";
+  }
+  if (/panic|hyperventilat/i.test(lower)) return "panic_attack";
+  return "severe_distress";
+};
+
+// When Therry classifies a message as a crisis, record a CrisisLog, open a
+// Crisis alert, and notify the user's assigned therapist (or an admin if no
+// therapist is assigned). Never throws - Therry chat must keep working even if
+// the escalation machinery fails.
+const handleTherryCrisis = async ({ userId, therryMessage, rawMessage }) => {
+  try {
+    const alertType = chooseCrisisAlertType(rawMessage);
+    const crisis = await Crisis.create({
+      user: userId,
+      alertType,
+      description: encryptField(rawMessage),
+      source: "therry",
+      therryMessageId: therryMessage?._id || null,
+      status: "active",
+      resourcesShared: [],
+    });
+    const log = await CrisisLog.create({
+      user: userId,
+      therryMessageId: therryMessage?._id || null,
+      excerpt: encryptField(String(rawMessage).slice(0, 280)),
+      source: "therry",
+      actionTaken: "crisis_alert_created",
+      severity: alertType === "self_harm_thoughts" ? "critical" : "high",
+      detectedAt: new Date(),
+    });
+
+    const user = await User.findById(userId).select("therapist countryCode");
+    const therapistId = user?.therapist || null;
+    let therapistNotified = false;
+
+    if (therapistId) {
+      const notified = await createNotification(
+        therapistId,
+        "crisis_alert",
+        "Crisis Alert",
+        "A client you support may be in crisis. Please reach out as soon as possible.",
+        { crisisId: crisis._id, userId, source: "therry" },
+        userId,
+      );
+      therapistNotified = !!notified;
+    } else {
+      const admins = await User.find({ role: "admin" }).select("_id");
+      if (admins.length > 0) {
+        await Promise.all(
+          admins.map((admin) =>
+            createNotification(
+              admin._id,
+              "crisis_alert",
+              "Crisis Alert",
+              "A user may be in crisis and has no therapist assigned. Please reach out.",
+              { crisisId: crisis._id, userId, source: "therry" },
+              userId,
+            ),
+          ),
+        );
+        therapistNotified = true;
+      }
+    }
+
+    return {
+      logId: log._id,
+      crisisId: crisis._id,
+      alertType,
+      hotlines: getHotlinesForCountry(user?.countryCode),
+      therapistNotified,
+    };
+  } catch (error) {
+    logger.error({ err: error }, "Therry crisis handling error");
+    return null;
   }
 };
 
@@ -78,6 +171,9 @@ export const chat = async (req, res) => {
     const { message } = req.body;
     if (!message || message.trim() === "") {
       return res.status(400).json({ message: "Message cannot be empty." });
+    }
+    if (message.trim().length > 4000) {
+      return res.status(400).json({ message: "Message is too long (maximum 4000 characters)." });
     }
 
     const aiResults = await analyzeAll(message);
@@ -110,7 +206,21 @@ export const chat = async (req, res) => {
       }
     }
 
-    await saveMessage(req.user.id, "user", message.trim(), category);
+    const userMsg = await saveMessage(
+      req.user.id,
+      "user",
+      message.trim(),
+      category,
+    );
+
+    let crisisInfo = null;
+    if (isCrisis) {
+      crisisInfo = await handleTherryCrisis({
+        userId: req.user.id,
+        therryMessage: userMsg,
+        rawMessage: message.trim(),
+      });
+    }
 
     let reply;
     if (isCrisis) {
@@ -118,7 +228,7 @@ export const chat = async (req, res) => {
     } else {
       try {
         const result = await model.generateContent(message);
-        reply = result.response.text().trim();
+        reply = result.response.text().trim().slice(0, 4000);
       } catch (aiError) {
         logger.error({ err: aiError }, "Gemini generation error");
         reply = pick(FALLBACK_RESPONSES[category] || FALLBACK_RESPONSES.general);
@@ -136,6 +246,14 @@ export const chat = async (req, res) => {
       reply,
       category,
       isCrisis,
+      crisis: crisisInfo
+        ? {
+            detected: true,
+            alertType: crisisInfo.alertType,
+            hotlines: crisisInfo.hotlines,
+            therapistNotified: crisisInfo.therapistNotified,
+          }
+        : undefined,
       pointsEarned,
       timestamp: new Date().toISOString(),
       _ai: aiResults ? {
@@ -157,7 +275,13 @@ export const getHistory = async (req, res) => {
       .limit(500)
       .select("role content category createdAt edited editCount");
 
-    res.status(200).json(messages);
+    const payload = messages.map((m) => {
+      const obj = m.toObject();
+      obj.content = decryptField(obj.content);
+      return obj;
+    });
+
+    res.status(200).json(payload);
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
@@ -170,6 +294,9 @@ export const editMessage = async (req, res) => {
 
     if (!content || content.trim() === "") {
       return res.status(400).json({ error: { message: "Message content cannot be empty.", code: "BAD_REQUEST" } });
+    }
+    if (content.trim().length > 4000) {
+      return res.status(400).json({ error: { message: "Message is too long (maximum 4000 characters).", code: "BAD_REQUEST" } });
     }
 
     const message = await TherryMessage.findById(messageId);
@@ -199,7 +326,7 @@ export const editMessage = async (req, res) => {
       content: message.content,
       editedAt: new Date(),
     });
-    message.content = content.trim();
+    message.content = encryptField(content.trim());
     message.edited = true;
     message.editCount += 1;
 
@@ -208,7 +335,7 @@ export const editMessage = async (req, res) => {
     res.status(200).json({
       _id: message._id,
       role: "user",
-      content: message.content,
+      content: decryptField(message.content),
       category: message.category,
       createdAt: message.createdAt,
       edited: message.edited,
