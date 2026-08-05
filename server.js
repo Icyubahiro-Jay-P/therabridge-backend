@@ -18,6 +18,7 @@ import moodRoutes from "./routes/mood.route.js";
 import crisisRoutes from "./routes/crisis.route.js";
 import therryRoutes from "./routes/therry.route.js";
 import safetyPlanRoutes from "./routes/safetyPlan.route.js";
+import therapistRoutes from "./routes/therapist.route.js";
 import pushRoutes from "./routes/push.route.js";
 import auditRoutes from "./routes/audit.route.js";
 import {
@@ -144,6 +145,7 @@ app.use("/api/therry", therryRoutes);
 app.use("/api/push", pushRoutes);
 app.use("/api/audit", auditRoutes);
 app.use("/api/safety-plan", safetyPlanRoutes);
+app.use("/api/therapist", therapistRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
