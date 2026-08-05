@@ -12,9 +12,12 @@ import {
 } from "../controllers/exerciseLog.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { requireAdmin } from "../middleware/role.middleware.js";
+import { jsonBody } from "../middleware/jsonBody.js";
 import { validate, createExerciseSchema } from "../utils/validation.js";
 
 const router = express.Router();
+
+router.use(jsonBody("16kb"));
 
 // Public routes
 router.get("/", getAllExercises);
