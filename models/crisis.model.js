@@ -14,8 +14,19 @@ const crisisSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      maxlength: 1000,
       default: "",
+    },
+    // Where the alert originated: the in-app crisis button ("manual") or
+    // detected automatically by Therry ("therry")
+    source: {
+      type: String,
+      enum: ["manual", "therry"],
+      default: "manual",
+    },
+    therryMessageId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "TherryMessage",
+      default: null,
     },
     status: {
       type: String,
