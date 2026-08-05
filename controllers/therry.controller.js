@@ -8,6 +8,7 @@ import { createNotification } from "../services/notification.service.js";
 import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
 import { encryptField, decryptField } from "../utils/crypto.js";
 import { getHotlinesForCountry } from "../utils/hotlines.js";
+import { getPanicExercise } from "./exercise.controller.js";
 import logger from "../utils/logger.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
