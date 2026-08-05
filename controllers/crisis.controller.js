@@ -1,6 +1,7 @@
 import Crisis from "../models/crisis.model.js";
 import CrisisLog from "../models/crisisLog.model.js";
 import User from "../models/user.model.js";
+import { getPanicExercise } from "./exercise.controller.js";
 import { createNotification } from "../services/notification.service.js";
 import { encryptField, decryptField } from "../utils/crypto.js";
 import { getHotlinesForCountry } from "../utils/hotlines.js";
