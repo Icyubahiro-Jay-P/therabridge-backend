@@ -224,6 +224,36 @@ Protected routes require a valid access token (httpOnly `token` cookie or `Autho
 - **Notification** - recipient, sender, type (message, community_invite, exercise_reminder, system, mood_reminder, crisis_alert, community_update, streak_milestone), title/body (encrypted at rest), data, read/readAt.
 - **TherryMessage** - user, role (`user`/`assistant`), content (≤4000, encrypted at rest), category (`anxiety`/`sad`/`stress`/`lonely`/`angry`/`general`/`crisis`).
 
+## Input Limits & Validation
+
+All user-entered free-text is capped at both the API and the model layer so the database is never a vector for abuse, and the limits are enforced against **plaintext** (before/independent of encryption).
+
+**Per-route body limits** (`middleware/jsonBody.js`, mounted in each router — there is no global JSON parser in `server.js`):
+
+| Router | Body limit | Reason |
+|--------|-----------|--------|
+| `/api/chat` | `16kb` | DM/community messages ≤2000 chars (worst-case JSON escaping ≈ 12kb) |
+| `/api/therry` | `32kb` | Therry messages ≤4000 chars |
+| `/api/crisis` | `16kb` | crisis descriptions ≤1000 chars |
+| `/api/users`, `/api/mood`, `/api/exercises`, `/api/notifications`, `/api/push`, `/api/audit` | `10kb` | profile/mood/exercise/notification payloads |
+
+Oversized request bodies are rejected by Express before any handler runs and surface as `413 { error: { code: "PAYLOAD_TOO_LARGE" } }` from the error handler.
+
+**Character caps** (Zod `utils/validation.js` + Mongoose validators, must stay in sync with the frontend `frontend/src/lib/limits.ts`):
+
+| Field | Cap |
+|-------|-----|
+| DM / community message content | 2000 |
+| Therry user messages (send + edit) | 4000 |
+| Crisis description | 1000 |
+| Mood note | 500 |
+| Mood factors | ≤20 items, ≤40 chars each |
+| Community name / description / rules | 60 / 200 / 500 |
+| User first/last name, username, email, password | 50 / 50 / 30 / 254 / 128 |
+| Profile bio / avatar URL | 300 / 500 |
+
+Because message/mood/crisis fields are encrypted at rest, the Mongoose validators decrypt the envelope with `decryptFieldLength` (`utils/crypto.js`) before applying the cap — the ciphertext envelope is always longer than the plaintext, so validating the raw stored value would reject legitimate input.
+
 ## Talking Points
 
 "Reaching out is cardio for the heart." Sending a DM or community message earns **+2 Wellness points**; messaging Therry earns **+5** (opening up = bonus self-care). Points feed the same wellness score as completing exercises and are capped at **20/day** per user so chat can't outpace real self-care. Awarded points are returned as `pointsEarned` on the send/chat endpoints and surfaced as `talkingPointsToday` in `GET /api/exercises/stats`. (The mechanics are intentionally undisclosed in the UI - discovery is part of the fun.)
