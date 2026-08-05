@@ -128,6 +128,21 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // Timestamp of when the user acknowledged that Therry is an AI companion
+    // (not a licensed therapist). "null" means the disclosure has not been
+    // acknowledged yet.
+    aiDisclosureAcknowledgedAt: {
+      type: Date,
+      default: null,
+    },
+    // ISO-3166 alpha-2 country code used to route crisis hotline resources
+    countryCode: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "US",
+      maxlength: 2,
+    },
   },
   { timestamps: true },
 );
