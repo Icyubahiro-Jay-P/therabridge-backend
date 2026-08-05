@@ -111,6 +111,22 @@ export const updateCrisisLogSchema = z.object({
   actionTaken: z.enum(["none", "hotlines_shown", "crisis_alert_created", "therapist_messaged"]),
 })
 
+export const safetyPlanListSchema = z
+  .array(z.string().trim().min(1, "Items cannot be empty").max(120, "Items must be at most 120 characters"))
+  .max(10, "At most 10 items per section")
+  .optional()
+
+export const safetyPlanSchema = z.object({
+  warningSigns: safetyPlanListSchema,
+  internalCoping: safetyPlanListSchema,
+  distractionPeople: safetyPlanListSchema,
+  distractionSettings: safetyPlanListSchema,
+  helpPeople: safetyPlanListSchema,
+  professionals: safetyPlanListSchema,
+  meansRestriction: safetyPlanListSchema,
+  reasonsForLiving: safetyPlanListSchema,
+})
+
 export const createExerciseSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
