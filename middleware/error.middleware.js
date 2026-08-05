@@ -3,6 +3,16 @@ import logger from "../utils/logger.js"
 export const errorHandler = (err, req, res, _next) => {
   const requestId = req.requestId
 
+  if (err.type === "entity.too.large") {
+    logger.warn({ requestId, limit: err.limit }, "Payload too large")
+    return res.status(413).json({
+      error: {
+        message: "Request body too large.",
+        code: "PAYLOAD_TOO_LARGE",
+      },
+    })
+  }
+
   if (err.name === "ValidationError") {
     const messages = Object.values(err.errors).map((e) => e.message)
     logger.warn({ requestId, err }, "Validation error")
