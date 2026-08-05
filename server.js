@@ -143,6 +143,7 @@ app.use("/api/crisis", crisisRoutes);
 app.use("/api/therry", therryRoutes);
 app.use("/api/push", pushRoutes);
 app.use("/api/audit", auditRoutes);
+app.use("/api/safety-plan", safetyPlanRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
