@@ -351,13 +351,13 @@ Crisis handling is automatic, not just manual:
 ├── routes/                # Express routers per resource (incl. audit)
 ├── controllers/           # Request handlers
 ├── models/                # Mongoose schemas (incl. AuditLog, CrisisLog)
-├── middleware/            # auth, upload (multer+sharp), spamFilter, idempotency, error handlers
+├── middleware/            # auth, upload (multer+sharp), spamFilter, idempotency, jsonBody, error handlers
 ├── services/              # notification, push, audit, deletion, mlClient, email
 ├── scripts/               # migrate-encrypt.js, generateVapidKeys.js
 ├── docs/                  # key-management.md, retention-policy.md
 ├── utils/                 # logger (pino), nodemailer, pagination, validation (zod), crypto, hotlines
 ├── db/connectDB.js        # Mongo connection
-└── __tests__/             # Vitest tests (auth, mood, chat, crypto)
+└── __tests__/             # Vitest tests (auth, mood, chat, crypto, validation)
 ```
 
 ## License
