@@ -9,6 +9,7 @@ Express 5 + MongoDB API server for Therabridge, a mental wellness platform.
 - **JWT** - Cookie-based auth: short-lived access token (`token`, 15 min) + rotating refresh token (`refreshToken`, 7 days, hashed `jti`s stored on the user for revocation)
 - **Bcrypt** - Password hashing (10 rounds) with old-password rotation
 - **Zod** - Request body validation (`utils/validation.js`)
+- **Per-route JSON body limits** - each router mounts a route-tuned `express.json` limit (`middleware/jsonBody.js`); oversized bodies return `413 PAYLOAD_TOO_LARGE`
 - **Nodemailer** - Transactional emails (password reset, nodemailer-ethereal in dev)
 - **Multer** + **Sharp** - Profile picture upload + image optimization
 - **Helmet**, **express-rate-limit**, **CORS** - Security
