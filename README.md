@@ -180,6 +180,14 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | PUT | `/crisis/:id/acknowledge` | 🔒 Acknowledge alert |
 | PUT | `/crisis/:id/resolve` | 🔒 Resolve alert |
 
+### Safety Plan - `/api/safety-plan`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/safety-plan` | 🔒 Get my safety plan (decrypted; `{}` when none) |
+| PUT | `/safety-plan` | 🔒 Create-or-replace my plan (7 sections, ≤10 items × ≤120 chars, items encrypted at rest) |
+| GET | `/safety-plan/:userId` | 🔒 Read-only client plan for their assigned therapist (or admin); audit-logged |
+
 ### Therry - `/api/therry`
 
 | Method | Path | Description |
@@ -219,7 +227,8 @@ Protected routes require a valid access token (httpOnly `token` cookie or `Autho
 - **Mood** - user, mood (`great`/`good`/`okay`/`bad`/`terrible`), emoji, note (encrypted at rest), factors, intensity (1–10), date.
 - **Crisis** - user, alertType, `severity` (`mild`/`medium`/`severe`), description (encrypted at rest), source (`manual` \| `therry`), `therryMessageId`, status (`active`/`acknowledged`/`resolved`), acknowledgedBy, resolvedAt, resourcesShared.
 - **CrisisLog** - chronicles every crisis event (manual alert or Therry detection): user, source, category, therryMessageId, notified therapist/admins, hotlines shared, and follow-up actions recorded by therapists/admins.
-- **AuditLog** - actor, actorRole, action (`user_profile_view`, `client_roster_view`, `crisis_view`, `data_export`, `account_deletion`, `ai_disclosure_ack`), target, detail, ip, userAgent.
+- **AuditLog** - actor, actorRole, action (`user_profile_view`, `client_roster_view`, `crisis_view`, `safety_plan_view`, `safety_plan_update`, `data_export`, `account_deletion`, `ai_disclosure_ack`), target, detail, ip, userAgent.
+- **SafetyPlan** - one per user (unique `user`): seven short lists (warningSigns, internalCoping, distractionPeople, distractionSettings, helpPeople, professionals, meansRestriction, reasonsForLiving), each item encrypted at rest, ≤10 items × ≤120 chars.
 - **Exercise** - title, description, duration (sec), type, steps, difficulty, emoji, color.
 - **ExerciseLog** - user, exercise, startedAt, completedAt, timeSpent, completed.
 - **Notification** - recipient, sender, type (message, community_invite, exercise_reminder, system, mood_reminder, crisis_alert, community_update, streak_milestone), title/body (encrypted at rest), data, read/readAt.
