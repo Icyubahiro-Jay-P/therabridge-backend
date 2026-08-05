@@ -1,5 +1,6 @@
 import express from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
+import { jsonBody } from "../middleware/jsonBody.js";
 import {
   getVapidPublicKey,
   savePushSubscription,
@@ -7,6 +8,8 @@ import {
 } from "../services/push.service.js";
 
 const router = express.Router();
+
+router.use(jsonBody("10kb"));
 
 // Public VAPID key the client needs to create a push subscription.
 router.get("/vapid-public-key", authMiddleware, (req, res) => {
