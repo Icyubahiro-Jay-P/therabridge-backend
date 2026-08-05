@@ -14,6 +14,7 @@ const DEFAULT_URLS = {
   community_update: "/community",
   streak_milestone: "/",
   system: "/notifications",
+  mood_checkin: "/chat/therry",
 };
 
 export const createNotification = async (
