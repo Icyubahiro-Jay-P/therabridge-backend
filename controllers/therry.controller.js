@@ -173,6 +173,12 @@ const handleTherryCrisis = async ({ userId, therryMessage, rawMessage }) => {
       }
     }
 
+    // Panic attacks get a grounding/breathing exercise recommended as the
+    // first response, so the client can launch the exercise engine alongside
+    // the crisis card (B2).
+    const panicExercise =
+      alertType === "panic_attack" ? await getPanicExercise() : null;
+
     return {
       logId: log._id,
       crisisId: crisis._id,
@@ -180,6 +186,7 @@ const handleTherryCrisis = async ({ userId, therryMessage, rawMessage }) => {
       severity,
       hotlines: getHotlinesForCountry(user?.countryCode),
       therapistNotified,
+      ...(panicExercise ? { panicExercise } : {}),
     };
   } catch (error) {
     logger.error({ err: error }, "Therry crisis handling error");
