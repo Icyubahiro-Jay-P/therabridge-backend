@@ -103,6 +103,8 @@ export const logMoodSchema = z.object({
 export const createCrisisSchema = z.object({
   alertType: z.enum(["immediate_danger", "severe_distress", "panic_attack", "self_harm_thoughts", "emergency"]),
   description: z.string().max(1000).optional(),
+  severity: z.enum(["mild", "medium", "severe"]).optional(),
+  requestContact: z.boolean().optional(),
 })
 
 export const updateCrisisLogSchema = z.object({
