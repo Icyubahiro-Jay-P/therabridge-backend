@@ -11,6 +11,30 @@ import {
   getCursorPaginationParams,
   formatCursorPaginatedResponse,
 } from "../utils/pagination.js";
+import { encryptField, decryptField } from "../utils/crypto.js";
+
+// Encrypted fields are decrypted on read so the API contract stays plaintext.
+const decryptMessageContent = (doc) => {
+  if (!doc) return doc;
+  const obj = typeof doc.toObject === "function" ? doc.toObject() : doc;
+  return {
+    ...obj,
+    content: decryptField(obj.content),
+    editHistory: (obj.editHistory || []).map((h) => ({
+      ...h,
+      content: decryptField(h.content),
+    })),
+  };
+};
+
+const decryptCommunityMessageContent = (doc) => {
+  if (!doc) return doc;
+  const obj = typeof doc.toObject === "function" ? doc.toObject() : doc;
+  return {
+    ...obj,
+    content: decryptField(obj.content),
+  };
+};
 
 // ====================== DIRECT MESSAGES ======================
 
@@ -42,14 +66,14 @@ export const sendMessage = async (req, res) => {
     const message = new Message({
       sender: req.user.id,
       recipient: recipientId,
-      content: content.trim(),
+      content: encryptField(content.trim()),
     });
 
     await message.save();
     await message.populate("sender", "username firstName lastName avatar");
     await message.populate("recipient", "username firstName lastName avatar");
 
-    const messageObj = message.toObject();
+    const messageObj = decryptMessageContent(message.toObject());
     emitToUser(recipientId, "dm_message", messageObj);
     emitToUser(recipientId, "conversations_updated", {
       partnerId: req.user.id,
@@ -61,11 +85,12 @@ export const sendMessage = async (req, res) => {
     // In-app + device notification for the recipient (skipped while they're
     // actively connected, since the socket event already updates the UI).
     const sender = messageObj.sender || {};
+    const plaintext = content.trim();
     await createNotification(
       recipientId,
       "message",
       sender.firstName || sender.username || "New message",
-      messageObj.content,
+      plaintext,
       { url: sender.username ? `/chat/${sender.username}` : "/chat" },
       req.user.id,
       { skipIfOnline: true },
@@ -207,7 +232,13 @@ export const getConversation = async (req, res) => {
       );
     }
 
-    res.status(200).json(formatCursorPaginatedResponse(messages, limit, nextCursor));
+    res.status(200).json(
+      formatCursorPaginatedResponse(
+        messages.map(decryptMessageContent),
+        limit,
+        nextCursor,
+      ),
+    );
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
@@ -235,7 +266,7 @@ export const getConversationUpdates = async (req, res) => {
           updatedAt: { $gt: sinceDate },
         }).sort({ createdAt: 1 }),
       );
-      return res.status(200).json(messages);
+      return res.status(200).json(messages.map(decryptMessageContent));
     }
 
     const hasUpdates = await waitForConversationUpdate(myId, userId, since);
@@ -255,7 +286,7 @@ export const getConversationUpdates = async (req, res) => {
       }).sort({ createdAt: 1 }),
     );
 
-    res.status(200).json(messages);
+    res.status(200).json(messages.map(decryptMessageContent));
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
@@ -337,7 +368,7 @@ export const getMyConversations = async (req, res) => {
 
     const result = conversations.map((c) => ({
       partner: partnerMap.get(c._id.toString()),
-      lastMessage: c.lastMessage,
+      lastMessage: decryptMessageContent(c.lastMessage),
       unread: c.unreadCount,
     }));
 
@@ -576,6 +607,9 @@ const fetchCommunityMessages = async (communityId, userId) => {
   const isMember = community.members.some((m) => m._id.toString() === userId);
   if (!isMember) return null;
 
+  // Decrypt community message content before it leaves the server.
+  community.messages = community.messages.map(decryptCommunityMessageContent);
+
   return community;
 };
 
@@ -694,7 +728,7 @@ export const sendCommunityMessage = async (req, res) => {
 
     community.messages.push({
       sender: req.user.id,
-      content: content.trim(),
+      content: encryptField(content.trim()),
     });
 
     await community.save();
@@ -707,7 +741,9 @@ export const sendCommunityMessage = async (req, res) => {
     const newMessage =
       updatedCommunity.messages[updatedCommunity.messages.length - 1];
 
-    const messageObj = newMessage.toObject();
+    const messageObj = decryptCommunityMessageContent(
+      newMessage.toObject(),
+    );
 
     emitToCommunity(communityId, "community_message", {
       communityId,
@@ -723,12 +759,13 @@ export const sendCommunityMessage = async (req, res) => {
       .map((m) => m.toString())
       .filter((id) => id !== req.user.id);
 
+    const plaintext = content.trim();
     for (const memberId of memberIds) {
       await createNotification(
         memberId,
         "community_update",
         `${senderName} · ${community.name}`,
-        messageObj.content,
+        plaintext,
         {
           url: community.inviteKey
             ? `/community/${community.inviteKey}`
@@ -744,7 +781,7 @@ export const sendCommunityMessage = async (req, res) => {
       MESSAGE_POINTS.community,
     );
 
-    res.status(201).json({ ...newMessage.toObject(), pointsEarned });
+    res.status(201).json({ ...messageObj, pointsEarned });
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
@@ -1125,7 +1162,7 @@ export const unsendMessage = async (req, res) => {
     }
 
     message.unsent = true;
-    message.content = "Message unsent";
+    message.content = encryptField("Message unsent");
     await message.save();
 
     emitToUser(myId, "dm_message_unsent", { messageId });
@@ -1133,9 +1170,10 @@ export const unsendMessage = async (req, res) => {
       messageId,
     });
 
-    res
-      .status(200)
-      .json({ message: "Message unsent.", unsentMessage: message });
+    res.status(200).json({
+      message: "Message unsent.",
+      unsentMessage: decryptMessageContent(message),
+    });
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
@@ -1326,7 +1364,7 @@ export const editMessage = async (req, res) => {
       content: message.content,
       editedAt: new Date(),
     });
-    message.content = content.trim();
+    message.content = encryptField(content.trim());
     message.edited = true;
     message.editCount += 1;
 
@@ -1334,7 +1372,7 @@ export const editMessage = async (req, res) => {
     await message.populate("sender", "username firstName lastName avatar");
     await message.populate("recipient", "username firstName lastName avatar");
 
-    const editedMessage = message.toObject();
+    const editedMessage = decryptMessageContent(message.toObject());
     emitToUser(myId, "dm_message_updated", editedMessage);
     emitToUser(message.recipient.toString(), "dm_message_updated", editedMessage);
 
@@ -1356,6 +1394,11 @@ export const editCommunityMessage = async (req, res) => {
       return res
         .status(400)
         .json({ error: { message: "Message content cannot be empty.", code: "BAD_REQUEST" } });
+    }
+    if (content.trim().length > 2000) {
+      return res
+        .status(400)
+        .json({ error: { message: "Message is too long (maximum 2000 characters).", code: "BAD_REQUEST" } });
     }
 
     const community = await Community.findOne({
@@ -1401,7 +1444,7 @@ export const editCommunityMessage = async (req, res) => {
       content: message.content,
       editedAt: new Date(),
     });
-    message.content = content.trim();
+    message.content = encryptField(content.trim());
     message.edited = true;
     message.editCount += 1;
 
@@ -1412,11 +1455,12 @@ export const editCommunityMessage = async (req, res) => {
     );
 
     const updated = community.messages.id(messageId);
+    const updatedObj = decryptCommunityMessageContent(updated.toObject());
     emitToCommunity(communityId, "community_message_updated", {
       communityId,
-      message: updated.toObject(),
+      message: updatedObj,
     });
-    res.status(200).json(updated);
+    res.status(200).json(updatedObj);
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
@@ -1449,7 +1493,7 @@ export const unsendCommunityMessage = async (req, res) => {
     }
 
     message.unsent = true;
-    message.content = "Message removed";
+    message.content = encryptField("Message removed");
     await community.save();
     await community.populate(
       "messages.sender",
@@ -1457,13 +1501,14 @@ export const unsendCommunityMessage = async (req, res) => {
     );
 
     const updated = community.messages.id(messageId);
+    const updatedObj = decryptCommunityMessageContent(updated.toObject());
     emitToCommunity(communityId, "community_message_unsent", {
       communityId,
-      message: updated.toObject(),
+      message: updatedObj,
     });
     res
       .status(200)
-      .json({ message: "Message unsent.", unsentMessage: updated });
+      .json({ message: "Message unsent.", unsentMessage: updatedObj });
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
