@@ -25,12 +25,14 @@ const auditLogSchema = new mongoose.Schema(
         "data_export",
         "account_deletion",
         "ai_disclosure_ack",
+        "safety_plan_update",
+        "safety_plan_view",
       ],
       required: true,
     },
     targetType: {
       type: String,
-      enum: ["user", "crisis", "therry_message", "audit_log"],
+      enum: ["user", "crisis", "therry_message", "audit_log", "safety_plan"],
       default: "user",
     },
     target: {
