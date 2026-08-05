@@ -110,6 +110,20 @@ const defaultExercises = [
   },
 ];
 
+// Curated exercise to recommend when a user reports a panic attack (B2):
+// prefer the seeded "5-4-3-2-1 Grounding", fall back to any grounding
+// exercise, then any breathing exercise. Returns null when none exist.
+export const getPanicExercise = async () => {
+  const preferred = await Exercise.findOne({
+    type: "grounding",
+    title: "5-4-3-2-1 Grounding",
+  }).lean();
+  if (preferred) return preferred;
+  const anyGrounding = await Exercise.findOne({ type: "grounding" }).lean();
+  if (anyGrounding) return anyGrounding;
+  return Exercise.findOne({ type: "breathing" }).lean();
+};
+
 export const getAllExercises = async (req, res) => {
   try {
     let exercises = await Exercise.find();
