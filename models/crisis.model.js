@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { decryptFieldLength } from "../utils/crypto.js";
 
 const crisisSchema = new mongoose.Schema(
   {
@@ -15,6 +16,11 @@ const crisisSchema = new mongoose.Schema(
     description: {
       type: String,
       default: "",
+      // Encrypted at rest; enforce the plaintext cap against the decrypted value.
+      validate: {
+        validator: (v) => typeof v === "string" && decryptFieldLength(v) <= 1000,
+        message: "Description must be at most 1000 characters",
+      },
     },
     // Where the alert originated: the in-app crisis button ("manual") or
     // detected automatically by Therry ("therry")
