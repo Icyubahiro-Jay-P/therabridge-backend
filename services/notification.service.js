@@ -1,4 +1,5 @@
 import Notification from "../models/notification.model.js";
+import { encryptField, encryptionEnabled, decryptField } from "../utils/crypto.js";
 import { emitToUser } from "../sockets/chatSocket.js";
 import { sendPushToUser } from "./push.service.js";
 import logger from "../utils/logger.js";
@@ -25,16 +26,22 @@ export const createNotification = async (
   { skipIfOnline = false } = {},
 ) => {
   try {
+    // Bodies carry message previews, so they are encrypted at rest but always
+    // delivered to clients/push in plaintext.
+    const storedBody = encryptionEnabled() ? encryptField(body ?? "") : body;
     const notification = new Notification({
       recipient: recipientId,
       sender: senderId,
       type,
       title,
-      body,
+      body: storedBody,
       data,
     });
     await notification.save();
-    emitToUser(recipientId, "notification", notification.toObject());
+    emitToUser(recipientId, "notification", {
+      ...notification.toObject(),
+      body: decryptField(notification.body),
+    });
 
     // Deliver the same notification to the device via Web Push.
     await sendPushToUser(

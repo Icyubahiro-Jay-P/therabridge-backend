@@ -23,6 +23,8 @@ import {
   getTherapistClients,
   addTherapistClient,
   assignTherapist,
+  acknowledgeAiDisclosure,
+  exportMyData,
 } from "../controllers/user.controller.js";
 
 import { authMiddleware } from "../middleware/auth.middleware.js";
@@ -59,6 +61,8 @@ router.get("/users/:id", authMiddleware, getUserById);
 
 router.put("/profile", authMiddleware, validate(updateProfileSchema), updateProfile);
 router.delete("/profile", authMiddleware, deleteProfile);
+router.get("/export", authMiddleware, exportMyData);
+router.post("/ai-disclosure", authMiddleware, acknowledgeAiDisclosure);
 
 router.post("/change-password", authMiddleware, validate(changePasswordSchema), changePassword);
 router.post(

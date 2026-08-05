@@ -104,6 +104,10 @@ export const createCrisisSchema = z.object({
   description: z.string().max(1000).optional(),
 })
 
+export const updateCrisisLogSchema = z.object({
+  actionTaken: z.enum(["none", "hotlines_shown", "crisis_alert_created", "therapist_messaged"]),
+})
+
 export const createExerciseSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),

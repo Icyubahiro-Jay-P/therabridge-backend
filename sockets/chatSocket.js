@@ -2,6 +2,7 @@ import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
 import { Message } from "../models/chat.model.js";
+import { encryptField } from "../utils/crypto.js";
 import logger from "../utils/logger.js";
 
 // ====================== RATE LIMITING ======================
@@ -89,7 +90,7 @@ export const recordPossibleScreenshot = async ({
     recipient: peerId,
     kind: "screenshot-notice",
     noticeType: "possible_screenshot",
-    content: `${initiatorName} took a screenshot`,
+    content: encryptField(`${initiatorName} took a screenshot`),
   });
   await message.save();
 
