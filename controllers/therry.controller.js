@@ -101,9 +101,24 @@ const chooseCrisisAlertType = (message) => {
 const handleTherryCrisis = async ({ userId, therryMessage, rawMessage }) => {
   try {
     const alertType = chooseCrisisAlertType(rawMessage);
+    // Derive the user-facing severity from the alert type so manual alerts and
+    // Therry-detected alerts share one escalation scale.
+    const severityMap = {
+      self_harm_thoughts: "severe",
+      emergency: "severe",
+      immediate_danger: "severe",
+      severe_distress: "medium",
+      panic_attack: "medium",
+    };
+    const severity = severityMap[alertType] ?? "medium";
+    const crisisLogSeverity =
+      severity === "severe" ? "critical" : severity === "medium" ? "high" : "low";
+    const urgent = severity === "severe";
+
     const crisis = await Crisis.create({
       user: userId,
       alertType,
+      severity,
       description: encryptField(rawMessage),
       source: "therry",
       therryMessageId: therryMessage?._id || null,
@@ -116,7 +131,7 @@ const handleTherryCrisis = async ({ userId, therryMessage, rawMessage }) => {
       excerpt: encryptField(String(rawMessage).slice(0, 280)),
       source: "therry",
       actionTaken: "crisis_alert_created",
-      severity: alertType === "self_harm_thoughts" ? "critical" : "high",
+      severity: crisisLogSeverity,
       detectedAt: new Date(),
     });
 
@@ -128,9 +143,11 @@ const handleTherryCrisis = async ({ userId, therryMessage, rawMessage }) => {
       const notified = await createNotification(
         therapistId,
         "crisis_alert",
-        "Crisis Alert",
-        "A client you support may be in crisis. Please reach out as soon as possible.",
-        { crisisId: crisis._id, userId, source: "therry" },
+        urgent ? "URGENT Crisis Alert" : "Crisis Alert",
+        urgent
+          ? "A client you support may be in immediate danger. Please reach out right away."
+          : "A client you support may be in crisis. Please reach out as soon as possible.",
+        { crisisId: crisis._id, userId, source: "therry", severity, ...(urgent ? { priority: "urgent" } : {}) },
         userId,
       );
       therapistNotified = !!notified;
@@ -142,9 +159,11 @@ const handleTherryCrisis = async ({ userId, therryMessage, rawMessage }) => {
             createNotification(
               admin._id,
               "crisis_alert",
-              "Crisis Alert",
-              "A user may be in crisis and has no therapist assigned. Please reach out.",
-              { crisisId: crisis._id, userId, source: "therry" },
+              urgent ? "URGENT Crisis Alert" : "Crisis Alert",
+              urgent
+                ? "A user may be in immediate danger and has no therapist assigned. Please reach out right away."
+                : "A user may be in crisis and has no therapist assigned. Please reach out.",
+              { crisisId: crisis._id, userId, source: "therry", severity, ...(urgent ? { priority: "urgent" } : {}) },
               userId,
             ),
           ),
@@ -157,6 +176,7 @@ const handleTherryCrisis = async ({ userId, therryMessage, rawMessage }) => {
       logId: log._id,
       crisisId: crisis._id,
       alertType,
+      severity,
       hotlines: getHotlinesForCountry(user?.countryCode),
       therapistNotified,
     };
@@ -247,12 +267,13 @@ export const chat = async (req, res) => {
       category,
       isCrisis,
       crisis: crisisInfo
-        ? {
-            detected: true,
-            alertType: crisisInfo.alertType,
-            hotlines: crisisInfo.hotlines,
-            therapistNotified: crisisInfo.therapistNotified,
-          }
+          ? {
+              detected: true,
+              alertType: crisisInfo.alertType,
+              severity: crisisInfo.severity,
+              hotlines: crisisInfo.hotlines,
+              therapistNotified: crisisInfo.therapistNotified,
+            }
         : undefined,
       pointsEarned,
       timestamp: new Date().toISOString(),
