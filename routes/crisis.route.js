@@ -12,10 +12,12 @@ import {
 } from "../controllers/crisis.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { requireAdminOrTherapist } from "../middleware/role.middleware.js";
+import { jsonBody } from "../middleware/jsonBody.js";
 import { validate, createCrisisSchema, updateCrisisLogSchema } from "../utils/validation.js";
 
 const router = express.Router();
 
+router.use(jsonBody("16kb"));
 router.use(authMiddleware);
 
 router.post("/", validate(createCrisisSchema), createCrisisAlert);
