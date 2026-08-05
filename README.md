@@ -166,6 +166,10 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | DELETE | `/notifications/:id` | 🔒 Delete one |
 | DELETE | `/notifications` | 🔒 Delete all |
 
+### Mood check-ins (proactive)
+
+`services/moodCheckin.service.js` fires after `POST /api/mood`: when the 3 most recent mood entries are all strictly below the user's 14-day baseline, it creates a `mood_checkin` notification (max one per 3 days) and a Therry assistant message (category `checkin`). Never blocks or fails the mood log request.
+
 ### Crisis - `/api/crisis`
 
 | Method | Path | Description |
