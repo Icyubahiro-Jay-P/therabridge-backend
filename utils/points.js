@@ -9,12 +9,36 @@ export const MESSAGE_POINTS = {
   therry: 5, // opening up to Therry (bonus self-care)
 };
 
+// Cap per user per day so chat can't outpace real self-care. Mirrors the
+// "Talking Points" design in the README.
+export const DAILY_POINTS_CAP = 20;
+
 export const awardMessagePoints = async (userId, points) => {
   const user = await User.findById(userId);
   if (!user) return 0;
 
-  user.exerciseScore = (user.exerciseScore || 0) + points;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const counterDate = user.talkingPointsDate
+    ? new Date(user.talkingPointsDate)
+    : null;
+  if (counterDate) counterDate.setHours(0, 0, 0, 0);
+
+  if (!counterDate || counterDate.getTime() !== today.getTime()) {
+    user.talkingPointsToday = 0;
+    user.talkingPointsDate = today;
+  }
+
+  if (user.talkingPointsToday >= DAILY_POINTS_CAP) {
+    await user.save();
+    return 0;
+  }
+
+  const awarded = Math.min(points, DAILY_POINTS_CAP - user.talkingPointsToday);
+  user.talkingPointsToday += awarded;
+  user.exerciseScore = (user.exerciseScore || 0) + awarded;
   await user.save();
 
-  return points;
+  return awarded;
 };
