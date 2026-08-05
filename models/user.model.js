@@ -6,17 +6,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       minlength: [2, "First name must be at least 2 characters long"],
+      maxlength: [50, "First name must be at most 50 characters long"],
     },
     lastName: {
       type: String,
       required: true,
       minlength: [2, "Last name must be at least 2 characters long"],
+      maxlength: [50, "Last name must be at most 50 characters long"],
     },
     username: {
       type: String,
       required: true,
       unique: true,
       minlength: [3, "Username must be at least 3 characters long"],
+      maxlength: [30, "Username must be at most 30 characters long"],
     },
     dateOfBirth: {
       type: Date,
@@ -26,11 +29,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      maxlength: [254, "Email must be at most 254 characters long"],
     },
     password: {
       type: String,
       required: true,
       minlength: [8, "Password must be at least 8 characters long"],
+      maxlength: [128, "Password must be at most 128 characters long"],
     },
     oldPasswords: {
       type: [String],
