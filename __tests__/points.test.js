@@ -27,6 +27,10 @@ function daysAgo(n) {
   return d;
 }
 
+function today() {
+  return daysAgo(0);
+}
+
 describe("Talking Points (utils/points.js)", () => {
   let spy;
 
@@ -62,7 +66,7 @@ describe("Talking Points (utils/points.js)", () => {
   });
 
   it("awards nothing once the daily cap is reached", async () => {
-    const user = fakeUser({ talkingPointsToday: DAILY_POINTS_CAP });
+    const user = fakeUser({ talkingPointsToday: DAILY_POINTS_CAP, talkingPointsDate: today() });
     spy.mockResolvedValue(user);
 
     const earned = await awardMessagePoints("user1", MESSAGE_POINTS.direct);
@@ -73,7 +77,7 @@ describe("Talking Points (utils/points.js)", () => {
   });
 
   it("awards only the remaining points under the cap", async () => {
-    const user = fakeUser({ talkingPointsToday: DAILY_POINTS_CAP - 1 });
+    const user = fakeUser({ talkingPointsToday: DAILY_POINTS_CAP - 1, talkingPointsDate: today() });
     spy.mockResolvedValue(user);
 
     const earned = await awardMessagePoints("user1", MESSAGE_POINTS.therry);
