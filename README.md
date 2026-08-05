@@ -202,6 +202,12 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 |--------|------|-------------|
 | GET | `/audit` | 🔒 Paginated privacy audit log (admin) - filter by `action`, `actorId`, `targetId`, `from`/`to` |
 
+### Therapist - `/api/therapist`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/clients/risk-summary` | 🔒 Per-client check-in signals (mood/crisis/exercise/login) for the therapist's roster; audit-logged |
+
 ### Push - `/api/push`
 
 | Method | Path | Description |
@@ -227,7 +233,7 @@ Protected routes require a valid access token (httpOnly `token` cookie or `Autho
 - **Mood** - user, mood (`great`/`good`/`okay`/`bad`/`terrible`), emoji, note (encrypted at rest), factors, intensity (1–10), date.
 - **Crisis** - user, alertType, `severity` (`mild`/`medium`/`severe`), description (encrypted at rest), source (`manual` \| `therry`), `therryMessageId`, status (`active`/`acknowledged`/`resolved`), acknowledgedBy, resolvedAt, resourcesShared.
 - **CrisisLog** - chronicles every crisis event (manual alert or Therry detection): user, source, category, therryMessageId, notified therapist/admins, hotlines shared, and follow-up actions recorded by therapists/admins.
-- **AuditLog** - actor, actorRole, action (`user_profile_view`, `client_roster_view`, `crisis_view`, `safety_plan_view`, `safety_plan_update`, `data_export`, `account_deletion`, `ai_disclosure_ack`), target, detail, ip, userAgent.
+- **AuditLog** - actor, actorRole, action (`user_profile_view`, `client_roster_view`, `crisis_view`, `safety_plan_view`, `safety_plan_update`, `risk_summary_view`, `data_export`, `account_deletion`, `ai_disclosure_ack`), target, detail, ip, userAgent.
 - **SafetyPlan** - one per user (unique `user`): seven short lists (warningSigns, internalCoping, distractionPeople, distractionSettings, helpPeople, professionals, meansRestriction, reasonsForLiving), each item encrypted at rest, ≤10 items × ≤120 chars.
 - **Exercise** - title, description, duration (sec), type, steps, difficulty, emoji, color.
 - **ExerciseLog** - user, exercise, startedAt, completedAt, timeSpent, completed.
