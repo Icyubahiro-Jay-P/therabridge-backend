@@ -13,6 +13,11 @@ const crisisSchema = new mongoose.Schema(
       enum: ["immediate_danger", "severe_distress", "panic_attack", "self_harm_thoughts", "emergency"],
       required: true,
     },
+    severity: {
+      type: String,
+      enum: ["mild", "medium", "severe"],
+      default: "medium",
+    },
     description: {
       type: String,
       default: "",
