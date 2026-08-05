@@ -235,7 +235,8 @@ All user-entered free-text is capped at both the API and the model layer so the 
 | `/api/chat` | `16kb` | DM/community messages ≤2000 chars (worst-case JSON escaping ≈ 12kb) |
 | `/api/therry` | `32kb` | Therry messages ≤4000 chars |
 | `/api/crisis` | `16kb` | crisis descriptions ≤1000 chars |
-| `/api/users`, `/api/mood`, `/api/exercises`, `/api/notifications`, `/api/push`, `/api/audit` | `10kb` | profile/mood/exercise/notification payloads |
+| `/api/exercises` | `16kb` | exercise catalog create/update bodies (steps, instructions) |
+| `/api/users`, `/api/mood`, `/api/notifications`, `/api/push`, `/api/audit` | `10kb` | profile/mood/notification payloads |
 
 Oversized request bodies are rejected by Express before any handler runs and surface as `413 { error: { code: "PAYLOAD_TOO_LARGE" } }` from the error handler.
 
