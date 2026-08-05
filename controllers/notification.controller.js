@@ -1,4 +1,5 @@
 import Notification from "../models/notification.model.js";
+import { decryptField } from "../utils/crypto.js";
 import {
   getPaginationParams,
   formatPaginatedResponse,
@@ -16,7 +17,13 @@ export const getMyNotifications = async (req, res) => {
       .skip(offset)
       .limit(limit);
 
-    res.status(200).json(formatPaginatedResponse(notifications, total, page, limit));
+    const payload = notifications.map((n) => {
+      const obj = n.toObject();
+      obj.body = decryptField(obj.body);
+      return obj;
+    });
+
+    res.status(200).json(formatPaginatedResponse(payload, total, page, limit));
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
@@ -42,7 +49,9 @@ export const markAsRead = async (req, res) => {
     if (!notification) {
       return res.status(404).json({ error: { message: "Notification not found.", code: "NOT_FOUND" } });
     }
-    res.status(200).json(notification);
+    const obj = notification.toObject();
+    obj.body = decryptField(obj.body);
+    res.status(200).json(obj);
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
   }
