@@ -2,6 +2,7 @@ import express from "express";
 import {
   sendMessage,
   getConversation,
+  markConversationRead,
   getConversationUpdates,
   getMyConversations,
   searchUsers,
@@ -50,6 +51,7 @@ router.use(authMiddleware);
 // ====================== DIRECT MESSAGES ======================
 router.get("/conversations", getMyConversations);
 router.get("/conversation/:userId", getConversation);
+router.put("/conversation/:userId/read", markConversationRead);
 router.get("/conversation/:userId/updates", getConversationUpdates);
 router.post("/send", spamFilter, validate(sendMessageSchema), sendMessage);
 router.get("/search", searchUsers);
