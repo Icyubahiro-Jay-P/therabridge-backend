@@ -28,7 +28,6 @@ const messageSchema = new mongoose.Schema(
     content: {
       type: String,
       required: true,
-      maxlength: 2000,
     },
     read: {
       type: Boolean,
@@ -83,7 +82,6 @@ const communityMessageSchema = new mongoose.Schema({
   content: {
     type: String,
     required: true,
-    maxlength: 2000,
   },
   createdAt: {
     type: Date,
