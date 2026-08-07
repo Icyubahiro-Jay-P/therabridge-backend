@@ -364,7 +364,7 @@ export const refresh = async (req, res) => {
       refreshToken: newRefreshToken,
     });
 
-    res.status(200).json({ token: accessToken });
+    res.status(200).json({ ok: true });
   } catch (error) {
     clearAuthCookies(res);
     res.status(401).json({ message: "Invalid or expired refresh token." });
