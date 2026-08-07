@@ -25,7 +25,7 @@ export const getMyNotifications = async (req, res) => {
 
     res.status(200).json(formatPaginatedResponse(payload, total, page, limit));
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -34,7 +34,7 @@ export const getUnreadCount = async (req, res) => {
     const count = await Notification.countDocuments({ recipient: req.user.id, read: false });
     res.status(200).json({ count });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -53,7 +53,7 @@ export const markAsRead = async (req, res) => {
     obj.body = decryptField(obj.body);
     res.status(200).json(obj);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -65,7 +65,7 @@ export const markAllAsRead = async (req, res) => {
     );
     res.status(200).json({ message: "All notifications marked as read." });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -81,7 +81,7 @@ export const deleteNotification = async (req, res) => {
     }
     res.status(200).json({ message: "Notification deleted." });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -90,7 +90,7 @@ export const deleteAllNotifications = async (req, res) => {
     await Notification.deleteMany({ recipient: req.user.id });
     res.status(200).json({ message: "All notifications deleted." });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
