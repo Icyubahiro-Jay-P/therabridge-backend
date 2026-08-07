@@ -228,6 +228,12 @@ describe("Auth Controller", () => {
       const user = { _id: "user123", password: "hash", failedLoginAttempts: 0 }
       User.findOne.mockResolvedValue(user)
       bcrypt.compare.mockResolvedValue(false)
+      User.updateOne.mockImplementation(async (_filter, update) => {
+        if (update.$set.failedLoginAttempts !== undefined) {
+          user.failedLoginAttempts = update.$set.failedLoginAttempts
+        }
+        return {}
+      })
 
       const { req, res } = mockReqRes({
         body: { identifier: "test@test.com", password: "wrongpass" },
