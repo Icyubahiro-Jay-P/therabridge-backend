@@ -6,6 +6,7 @@ vi.mock("../models/user.model.js", () => ({
     findById: vi.fn(),
     findByIdAndUpdate: vi.fn(),
     findByIdAndDelete: vi.fn(),
+    updateOne: vi.fn().mockResolvedValue({}),
   },
 }))
 
