@@ -151,6 +151,16 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Login lockout: consecutive failed attempts and when the account is
+    // locked until. Reset to 0/null on a successful login.
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockedUntil: {
+      type: Date,
+      default: null,
+    },
     // ISO-3166 alpha-2 country code used to route crisis hotline resources
     countryCode: {
       type: String,
