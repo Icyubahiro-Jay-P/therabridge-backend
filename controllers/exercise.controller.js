@@ -158,6 +158,6 @@ export const createExercise = async (req, res) => {
     await exercise.save();
     res.status(201).json(exercise);
   } catch (error) {
-    res.status(400).json({ error: { message: error.message, code: "VALIDATION_ERROR" } });
+    throw error;
   }
 };
