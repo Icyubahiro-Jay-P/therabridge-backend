@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
-import { Message } from "../models/chat.model.js";
+import { Message, Community } from "../models/chat.model.js";
 import { encryptField } from "../utils/crypto.js";
 import logger from "../utils/logger.js";
 
@@ -157,8 +157,32 @@ export const initChatSocket = (server) => {
 
     // Community rooms: the client joins rooms for the communities it's
     // currently viewing so real-time message pushes can target them.
-    socket.on("join_community", ({ communityId } = {}) => {
-      if (communityId) socket.join(`community:${communityId}`);
+    // Membership is verified server-side before the join so a user can't
+    // subscribe to a room for a community they don't belong to by guessing
+    // its ObjectId.
+    socket.on("join_community", async ({ communityId } = {}) => {
+      if (!communityId || typeof communityId !== "string") return;
+      try {
+        const { id, role } = socket.data.user;
+        if (role === "admin") {
+          socket.join(`community:${communityId}`);
+          return;
+        }
+        const isMember = await Community.exists({
+          _id: communityId,
+          members: id,
+        });
+        if (isMember) {
+          socket.join(`community:${communityId}`);
+        } else {
+          socket.leave(`community:${communityId}`);
+        }
+      } catch (err) {
+        logger.warn(
+          { err, userId: socket.data.user?.id },
+          "failed to verify community membership on join",
+        );
+      }
     });
 
     socket.on("leave_community", ({ communityId } = {}) => {
