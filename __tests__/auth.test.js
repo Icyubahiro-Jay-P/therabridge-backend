@@ -223,6 +223,71 @@ describe("Auth Controller", () => {
         expect.objectContaining({ error: expect.objectContaining({ message: "Invalid credentials." }) })
       )
     })
+
+    it("locks the account after MAX_LOGIN_ATTEMPTS consecutive failures", async () => {
+      User.findOne.mockResolvedValue({ _id: "user123", password: "hash" })
+      bcrypt.compare.mockResolvedValue(false)
+
+      const { req, res } = mockReqRes({
+        body: { identifier: "test@test.com", password: "wrongpass" },
+      })
+      for (let i = 0; i < 4; i++) {
+        await login(req, res)
+      }
+      // The 5th failure triggers the lockout.
+      await login(req, res)
+      expect(User.updateOne).toHaveBeenCalledWith(
+        { _id: "user123" },
+        expect.objectContaining({
+          $set: expect.objectContaining({ lockedUntil: expect.any(Date) }),
+        })
+      )
+      expect(res.status).toHaveBeenLastCalledWith(429)
+      expect(res.json).toHaveBeenLastCalledWith(
+        expect.objectContaining({ error: expect.objectContaining({ code: "ACCOUNT_LOCKED" }) })
+      )
+    })
+
+    it("rejects with 429 while the account is locked", async () => {
+      User.findOne.mockResolvedValue({
+        _id: "user123",
+        password: "hash",
+        lockedUntil: new Date(Date.now() + 60 * 60 * 1000),
+      })
+      bcrypt.compare.mockResolvedValue(false)
+
+      const { req, res } = mockReqRes({
+        body: { identifier: "test@test.com", password: "wrongpass" },
+      })
+      await login(req, res)
+      expect(res.status).toHaveBeenCalledWith(429)
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.objectContaining({ code: "ACCOUNT_LOCKED" }) })
+      )
+    })
+
+    it("clears lockout state on a successful login", async () => {
+      const user = {
+        _id: "user123",
+        password: "hash",
+        failedLoginAttempts: 3,
+        lockedUntil: new Date(Date.now() + 60 * 60 * 1000),
+        refreshTokens: [],
+        save: vi.fn().mockResolvedValue(true),
+      }
+      User.findOne.mockResolvedValue(user)
+      bcrypt.compare.mockResolvedValue(true)
+
+      const { req, res } = mockReqRes({
+        body: { identifier: "test@test.com", password: "correctpass" },
+      })
+      await login(req, res)
+      expect(User.updateOne).toHaveBeenCalledWith(
+        { _id: "user123" },
+        { $set: { failedLoginAttempts: 0, lockedUntil: null } }
+      )
+      expect(res.status).toHaveBeenCalledWith(200)
+    })
   })
 
   describe("changePassword", () => {
