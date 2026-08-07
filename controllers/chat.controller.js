@@ -106,7 +106,7 @@ export const sendMessage = async (req, res) => {
 
     res.status(201).json({ ...messageObj, pointsEarned });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -243,7 +243,7 @@ export const getConversation = async (req, res) => {
       ),
     );
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -287,7 +287,7 @@ export const markConversationRead = async (req, res) => {
 
     res.status(200).json({ message: "Conversation marked as read.", markedRead });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -335,7 +335,7 @@ export const getConversationUpdates = async (req, res) => {
 
     res.status(200).json(messages.map(decryptMessageContent));
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -425,7 +425,7 @@ export const getMyConversations = async (req, res) => {
         formatPaginatedResponse(result, total, page, limit),
       );
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -453,7 +453,7 @@ export const searchUsers = async (req, res) => {
 
     res.status(200).json(users);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -481,7 +481,7 @@ export const getSuggestedUsers = async (req, res) => {
 
     res.status(200).json(users);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -530,7 +530,7 @@ export const createCommunity = async (req, res) => {
 
     res.status(201).json(community);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -586,7 +586,7 @@ export const joinCommunity = async (req, res) => {
       .status(200)
       .json({ message: "Joined community successfully!", community });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -616,7 +616,7 @@ export const leaveCommunity = async (req, res) => {
 
     res.status(200).json({ message: "You left the community." });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -637,7 +637,7 @@ export const getMyCommunities = async (req, res) => {
 
     res.status(200).json(communities);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -706,7 +706,7 @@ export const getCommunityMessages = async (req, res) => {
 
     res.status(200).json(community);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -744,7 +744,7 @@ export const getCommunityUpdates = async (req, res) => {
 
     res.status(200).json(community);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -829,7 +829,7 @@ export const sendCommunityMessage = async (req, res) => {
 
     res.status(201).json({ ...messageObj, pointsEarned });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -886,7 +886,7 @@ export const updateCommunity = async (req, res) => {
 
     res.status(200).json(community);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -929,7 +929,7 @@ export const removeMember = async (req, res) => {
 
     res.status(200).json({ message: "Member removed successfully." });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -980,7 +980,7 @@ export const inviteMember = async (req, res) => {
 
     res.status(200).json({ message: "Member invited successfully!", community });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -999,7 +999,7 @@ export const getJoinRequests = async (req, res) => {
     }
     res.status(200).json(community.pendingMembers);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1049,7 +1049,7 @@ export const respondToJoinRequest = async (req, res) => {
 
     res.status(200).json({ message, community });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1080,7 +1080,7 @@ export const addModerator = async (req, res) => {
 
     res.status(200).json({ message: "Moderator added.", moderators: community.moderators });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1107,7 +1107,7 @@ export const removeModerator = async (req, res) => {
 
     res.status(200).json({ message: "Moderator removed.", moderators: community.moderators });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1139,7 +1139,7 @@ export const getCommunityByKey = async (req, res) => {
 
     res.status(200).json(community);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1166,7 +1166,7 @@ export const markCommunityMessagesRead = async (req, res) => {
 
     res.status(200).json({ message: "Messages marked as read." });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1187,7 +1187,7 @@ export const deleteAllMyMessages = async (req, res) => {
       modifiedCount: result.modifiedCount,
     });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1221,7 +1221,7 @@ export const unsendMessage = async (req, res) => {
       unsentMessage: decryptMessageContent(message),
     });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1257,7 +1257,7 @@ export const reportPossibleScreenshot = async (req, res) => {
 
     res.status(201).json(result.notice);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1312,7 +1312,7 @@ export const generateWatermarkStamp = async (req, res) => {
     res.set("Cache-Control", "no-store");
     res.status(200).send(png);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1323,7 +1323,7 @@ export const getChatSettings = async (req, res) => {
     const user = await User.findById(req.user.id).select("chatSettings");
     res.status(200).json(user.chatSettings);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1359,7 +1359,7 @@ export const updateChatSettings = async (req, res) => {
       chatSettings: user.chatSettings,
     });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1424,7 +1424,7 @@ export const editMessage = async (req, res) => {
 
     res.status(200).json(editedMessage);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1508,7 +1508,7 @@ export const editCommunityMessage = async (req, res) => {
     });
     res.status(200).json(updatedObj);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1556,7 +1556,7 @@ export const unsendCommunityMessage = async (req, res) => {
       .status(200)
       .json({ message: "Message unsent.", unsentMessage: updatedObj });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1578,7 +1578,7 @@ export const deleteCommunity = async (req, res) => {
     await Community.findByIdAndDelete(communityId);
     res.status(200).json({ message: "Community deleted successfully." });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1596,7 +1596,7 @@ export const toggleDisableCommunity = async (req, res) => {
     await community.save();
     res.status(200).json({ isDisabled: community.isDisabled, message: community.isDisabled ? "Community disabled." : "Community enabled." });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -1623,6 +1623,6 @@ export const deleteAllMyCommunityMessages = async (req, res) => {
       deletedCount,
     });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
