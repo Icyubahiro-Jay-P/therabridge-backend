@@ -20,7 +20,7 @@ export const startExercise = async (req, res) => {
     await log.save();
     res.status(201).json({ logId: log._id, startedAt: log.startedAt });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -109,7 +109,7 @@ export const completeExercise = async (req, res) => {
       exerciseStreak: user?.exerciseStreak || 0,
     });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -122,7 +122,7 @@ export const getLogs = async (req, res) => {
 
     res.status(200).json(logs);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -158,6 +158,6 @@ export const getExerciseStats = async (req, res) => {
       talkingPointsToday: user?.talkingPointsToday || 0,
     });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
