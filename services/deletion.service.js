@@ -12,6 +12,7 @@ import ExerciseLog from "../models/exerciseLog.model.js";
 import PushSubscription from "../models/pushSubscription.model.js";
 import SafetyPlan from "../models/safetyPlan.model.js";
 import AuditLog from "../models/auditLog.model.js";
+import { withTransaction } from "../utils/transactions.js";
 import logger from "../utils/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
