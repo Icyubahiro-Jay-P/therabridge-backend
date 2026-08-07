@@ -1,7 +1,11 @@
 import logger from "../utils/logger.js"
 
-export const errorHandler = (err, req, res, _next) => {
+export const errorHandler = (err, req, res, next) => {
   const requestId = req.requestId
+
+  if (res.headersSent) {
+    return next(err)
+  }
 
   if (err.type === "entity.too.large") {
     logger.warn({ requestId, limit: err.limit }, "Payload too large")
