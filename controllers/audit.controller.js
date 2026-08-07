@@ -32,6 +32,6 @@ export const getAuditLogs = async (req, res) => {
 
     res.status(200).json(formatPaginatedResponse(logs, total, page, limit));
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
