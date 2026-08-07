@@ -117,24 +117,42 @@ const handleTherryCrisis = async ({ userId, therryMessage, rawMessage }) => {
       severity === "severe" ? "critical" : severity === "medium" ? "high" : "low";
     const urgent = severity === "severe";
 
-    const crisis = await Crisis.create({
-      user: userId,
-      alertType,
-      severity,
-      description: encryptField(rawMessage),
-      source: "therry",
-      therryMessageId: therryMessage?._id || null,
-      status: "active",
-      resourcesShared: [],
-    });
-    const log = await CrisisLog.create({
-      user: userId,
-      therryMessageId: therryMessage?._id || null,
-      excerpt: encryptField(String(rawMessage).slice(0, 280)),
-      source: "therry",
-      actionTaken: "crisis_alert_created",
-      severity: crisisLogSeverity,
-      detectedAt: new Date(),
+    // The crisis alert and its log are created atomically: if either write
+    // fails the whole escalation rolls back rather than recording one but not
+    // the other. Notifications to the therapist/admins happen after commit -
+    // they're best-effort (push/socket) and must not hold up the transaction.
+    const { crisis, log } = await withTransaction(async (session) => {
+      const opts = session ? { session } : undefined;
+      const crisis = await Crisis.create(
+        [
+          {
+            user: userId,
+            alertType,
+            severity,
+            description: encryptField(rawMessage),
+            source: "therry",
+            therryMessageId: therryMessage?._id || null,
+            status: "active",
+            resourcesShared: [],
+          },
+        ],
+        opts,
+      );
+      const log = await CrisisLog.create(
+        [
+          {
+            user: userId,
+            therryMessageId: therryMessage?._id || null,
+            excerpt: encryptField(String(rawMessage).slice(0, 280)),
+            source: "therry",
+            actionTaken: "crisis_alert_created",
+            severity: crisisLogSeverity,
+            detectedAt: new Date(),
+          },
+        ],
+        opts,
+      );
+      return { crisis: crisis[0], log: log[0] };
     });
 
     const user = await User.findById(userId).select("therapist countryCode");
