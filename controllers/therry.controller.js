@@ -334,7 +334,7 @@ export const getHistory = async (req, res) => {
 
     res.status(200).json(payload);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
