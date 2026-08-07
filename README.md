@@ -89,6 +89,7 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | POST | `/users/ai-disclosure` | 🔒 Acknowledge the AI companion disclosure (persists `aiDisclosureAcknowledgedAt`) |
 | POST | `/users/change-password` | 🔒 Change password |
 | POST | `/users/upload-avatar` | 🔒 Upload profile picture (multipart) |
+| DELETE | `/users/avatar` | 🔒 Remove profile picture |
 | PUT | `/users/privacy` | 🔒 Update per-field privacy settings |
 | GET | `/users/users` | 🔒 List users (admin) |
 | GET | `/users/therapists` | 🔒 List therapists |
