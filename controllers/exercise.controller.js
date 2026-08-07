@@ -135,7 +135,7 @@ export const getAllExercises = async (req, res) => {
 
     res.status(200).json(exercises);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -147,7 +147,7 @@ export const getExerciseById = async (req, res) => {
     }
     res.status(200).json(exercise);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
