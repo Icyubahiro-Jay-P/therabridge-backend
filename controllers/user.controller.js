@@ -566,6 +566,15 @@ export const uploadProfilePicture = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
+    // Verify the real file signature (magic bytes), not just the extension.
+    const isImage = await sniffUpload(req.file.path);
+    if (!isImage) {
+      fs.unlinkSync(req.file.path);
+      return res
+        .status(400)
+        .json({ message: "File is not a valid image." });
+    }
+
     const user = await User.findById(req.user.id);
     if (!user) {
       fs.unlinkSync(req.file.path);
@@ -595,8 +604,8 @@ export const uploadProfilePicture = async (req, res) => {
       req.file.filename = optimizedFilename;
     } catch {
       // Sharp's decoder (libspng) is stricter than browsers and rejects some
-      // images (e.g. slightly malformed PNGs). If it can't optimize the file,
-      // keep the original upload - the browser already validated it renders.
+      // images (e.g. slightly malformed PNGs). The signature check above
+      // already confirmed this is a real image, so keep the original upload.
     }
 
     // Delete previous avatar if it was an uploaded file
