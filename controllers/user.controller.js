@@ -536,7 +536,6 @@ export const updateProfile = async (req, res) => {
     }
 
     if (bio !== undefined) updates.bio = bio;
-    if (avatar !== undefined) updates.avatar = avatar;
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
