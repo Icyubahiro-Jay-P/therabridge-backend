@@ -5,6 +5,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import { recordPossibleScreenshot, emitToUser, emitToCommunity } from "../sockets/chatSocket.js";
 import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
+import { withTransaction } from "../utils/transactions.js";
 import { createNotification } from "../services/notification.service.js";
 import {
   getPaginationParams,
@@ -70,7 +71,13 @@ export const sendMessage = async (req, res) => {
       content: encryptField(content.trim()),
     });
 
-    await message.save();
+    // Message + Talking Points award are committed atomically so a crash can't
+    // leave the message stored without its points (or vice versa).
+    const pointsEarned = await withTransaction(async (session) => {
+      await message.save(session ? { session } : undefined);
+      return awardMessagePoints(req.user.id, MESSAGE_POINTS.direct, session);
+    });
+
     await message.populate("sender", "username firstName lastName avatar");
     await message.populate("recipient", "username firstName lastName avatar");
 
