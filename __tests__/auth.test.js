@@ -225,18 +225,17 @@ describe("Auth Controller", () => {
     })
 
     it("locks the account after MAX_LOGIN_ATTEMPTS consecutive failures", async () => {
-      User.findOne.mockResolvedValue({ _id: "user123", password: "hash" })
+      const user = { _id: "user123", password: "hash", failedLoginAttempts: 0 }
+      User.findOne.mockResolvedValue(user)
       bcrypt.compare.mockResolvedValue(false)
 
       const { req, res } = mockReqRes({
         body: { identifier: "test@test.com", password: "wrongpass" },
       })
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 5; i++) {
         await login(req, res)
       }
-      // The 5th failure triggers the lockout.
-      await login(req, res)
-      expect(User.updateOne).toHaveBeenCalledWith(
+      expect(User.updateOne).toHaveBeenLastCalledWith(
         { _id: "user123" },
         expect.objectContaining({
           $set: expect.objectContaining({ lockedUntil: expect.any(Date) }),
@@ -271,7 +270,7 @@ describe("Auth Controller", () => {
         _id: "user123",
         password: "hash",
         failedLoginAttempts: 3,
-        lockedUntil: new Date(Date.now() + 60 * 60 * 1000),
+        lockedUntil: new Date(Date.now() - 60 * 60 * 1000),
         refreshTokens: [],
         save: vi.fn().mockResolvedValue(true),
       }
