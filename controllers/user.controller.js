@@ -27,6 +27,7 @@ import {
   setAuthCookies,
   clearAuthCookies,
 } from "../utils/tokens.js";
+import { sniffUpload } from "../middleware/upload.js";
 import {
   getPaginationParams,
   formatPaginatedResponse,
