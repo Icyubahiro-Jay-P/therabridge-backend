@@ -827,11 +827,6 @@ export const sendCommunityMessage = async (req, res) => {
       );
     }
 
-    const pointsEarned = await awardMessagePoints(
-      req.user.id,
-      MESSAGE_POINTS.community,
-    );
-
     res.status(201).json({ ...messageObj, pointsEarned });
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
