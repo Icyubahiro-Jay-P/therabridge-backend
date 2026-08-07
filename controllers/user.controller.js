@@ -1002,6 +1002,11 @@ export const getFullUserData = async (req, res) => {
           .status(403)
           .json({ message: "Therapists can only view user profiles." });
       }
+      if (!user.therapist || user.therapist.toString() !== currentUser.id) {
+        return res
+          .status(403)
+          .json({ message: "You can only view profiles of your assigned clients." });
+      }
     }
     await logAccess({
       actor: currentUser.id,

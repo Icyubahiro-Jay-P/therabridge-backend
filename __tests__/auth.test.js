@@ -9,6 +9,12 @@ vi.mock("../models/user.model.js", () => ({
   },
 }))
 
+vi.mock("../services/audit.service.js", () => ({
+  logAccess: vi.fn(),
+  ipFromReq: vi.fn().mockReturnValue("127.0.0.1"),
+  uaFromReq: vi.fn().mockReturnValue("test"),
+}))
+
 vi.mock("bcryptjs", () => ({
   default: {
     hash: vi.fn().mockResolvedValue("hashedpassword"),
@@ -23,7 +29,7 @@ vi.mock("jsonwebtoken", () => ({
   },
 }))
 
-import { register, login, changePassword } from "../controllers/user.controller.js"
+import { register, login, changePassword, getFullUserData } from "../controllers/user.controller.js"
 import User from "../models/user.model.js"
 import bcrypt from "bcryptjs"
 
@@ -233,6 +239,64 @@ describe("Auth Controller", () => {
       })
       await changePassword(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
+    })
+  })
+
+  describe("getFullUserData", () => {
+    beforeEach(() => {
+      vi.clearAllMocks()
+    })
+
+    it("forbids a therapist from viewing a user they are not assigned to", async () => {
+      User.findById.mockReturnValue({
+        select: vi.fn().mockResolvedValue({
+          _id: "client1",
+          role: "user",
+          therapist: "otherTherapist",
+          firstName: "Sensitive",
+          email: "client@example.com",
+        }),
+      })
+      const { req, res } = mockReqRes({
+        params: { id: "client1" },
+        user: { id: "therapist123", role: "therapist" },
+      })
+      await getFullUserData(req, res)
+      expect(res.status).toHaveBeenCalledWith(403)
+    })
+
+    it("lets an assigned therapist view the client profile", async () => {
+      const client = {
+        _id: "client1",
+        role: "user",
+        therapist: "therapist123",
+        firstName: "Client",
+        email: "client@example.com",
+      }
+      User.findById.mockReturnValue({ select: vi.fn().mockResolvedValue(client) })
+      const { req, res } = mockReqRes({
+        params: { id: "client1" },
+        user: { id: "therapist123", role: "therapist" },
+      })
+      await getFullUserData(req, res)
+      expect(res.status).toHaveBeenCalledWith(200)
+      expect(res.json).toHaveBeenCalledWith(client)
+    })
+
+    it("lets an admin view any user profile", async () => {
+      const client = {
+        _id: "client1",
+        role: "user",
+        firstName: "Client",
+        email: "client@example.com",
+      }
+      User.findById.mockReturnValue({ select: vi.fn().mockResolvedValue(client) })
+      const { req, res } = mockReqRes({
+        params: { id: "client1" },
+        user: { id: "admin123", role: "admin" },
+      })
+      await getFullUserData(req, res)
+      expect(res.status).toHaveBeenCalledWith(200)
     })
   })
 })
