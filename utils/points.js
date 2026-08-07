@@ -13,8 +13,8 @@ export const MESSAGE_POINTS = {
 // "Talking Points" design in the README.
 export const DAILY_POINTS_CAP = 20;
 
-export const awardMessagePoints = async (userId, points) => {
-  const user = await User.findById(userId);
+export const awardMessagePoints = async (userId, points, session = null) => {
+  const user = await User.findById(userId, null, session ? { session } : null);
   if (!user) return 0;
 
   const today = new Date();
@@ -31,14 +31,14 @@ export const awardMessagePoints = async (userId, points) => {
   }
 
   if (user.talkingPointsToday >= DAILY_POINTS_CAP) {
-    await user.save();
+    await user.save({ session });
     return 0;
   }
 
   const awarded = Math.min(points, DAILY_POINTS_CAP - user.talkingPointsToday);
   user.talkingPointsToday += awarded;
   user.exerciseScore = (user.exerciseScore || 0) + awarded;
-  await user.save();
+  await user.save({ session });
 
   return awarded;
 };
