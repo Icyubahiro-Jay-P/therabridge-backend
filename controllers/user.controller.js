@@ -37,6 +37,12 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Login lockout: 5 consecutive failed attempts locks the account for 15 minutes.
+// This protects against password-guessing bots that would otherwise be able to
+// brute-force an account even with the per-IP rate limiter in place.
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
+
 const updateLoginStreak = async (user) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -202,11 +208,47 @@ export const login = async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: { message: "Invalid credentials.", code: "AUTH_ERROR" } });
     }
+
+    // Account lockout: after MAX_LOGIN_ATTEMPTS failures the account is locked
+    // until lockedUntil. Even with the per-IP limiter, a botnet can otherwise
+    // guess from many IPs at once.
+    const now = Date.now();
+    if (user.lockedUntil && user.lockedUntil.getTime() > now) {
+      const remainingMin = Math.ceil(
+        (user.lockedUntil.getTime() - now) / 60000,
+      );
+      return res.status(429).json({
+        error: {
+          message: `Too many failed login attempts. Try again in ${remainingMin} minute${remainingMin === 1 ? "" : "s"}.`,
+          code: "ACCOUNT_LOCKED",
+        },
+      });
+    }
+
     // verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      const failed = (user.failedLoginAttempts || 0) + 1;
+      if (failed >= MAX_LOGIN_ATTEMPTS) {
+        user.failedLoginAttempts = 0;
+        user.lockedUntil = new Date(now + LOGIN_LOCKOUT_MS);
+        await user.save();
+        const remainingMin = Math.ceil(LOGIN_LOCKOUT_MS / 60000);
+        return res.status(429).json({
+          error: {
+            message: `Too many failed login attempts. Account locked for ${remainingMin} minutes.`,
+            code: "ACCOUNT_LOCKED",
+          },
+        });
+      }
+      user.failedLoginAttempts = failed;
+      await user.save();
       return res.status(401).json({ error: { message: "Invalid credentials.", code: "AUTH_ERROR" } });
     }
+
+    // Successful login: clear any prior lockout state.
+    user.failedLoginAttempts = 0;
+    user.lockedUntil = null;
 
     if (user.isDisabled) {
       return res
@@ -321,7 +363,7 @@ export const refresh = async (req, res) => {
 export const profile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
-      "-password -oldPasswords -refreshTokens",
+      "-password -oldPasswords -refreshTokens -resetPasswordToken -resetPasswordExpire",
     );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
