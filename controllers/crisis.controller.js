@@ -111,7 +111,7 @@ export const createCrisisAlert = async (req, res) => {
       ...(panicExercise ? { panicExercise } : {}),
     });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -120,7 +120,7 @@ export const getMyCrisisAlerts = async (req, res) => {
     const alerts = await Crisis.find({ user: req.user.id }).sort("-createdAt");
     res.status(200).json(alerts.map(decryptCrisis));
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -146,7 +146,7 @@ export const acknowledgeCrisis = async (req, res) => {
     );
     res.status(200).json({ message: "Crisis acknowledged.", crisis: decryptCrisis(crisis) });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -162,7 +162,7 @@ export const resolveCrisis = async (req, res) => {
     await crisis.save();
     res.status(200).json({ message: "Crisis resolved.", crisis: decryptCrisis(crisis) });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -186,7 +186,7 @@ export const getAllActiveCrisisAlerts = async (req, res) => {
 
     res.status(200).json(alerts.map(decryptCrisis));
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -219,7 +219,7 @@ export const getCrisisLogs = async (req, res) => {
 
     res.status(200).json(formatPaginatedResponse(logs.map(decryptCrisisLog), total, page, limit));
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -245,7 +245,7 @@ export const updateCrisisLogAction = async (req, res) => {
 
     res.status(200).json({ message: "Crisis log updated.", log: decryptCrisisLog(log) });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -254,7 +254,7 @@ export const getHotlines = async (req, res) => {
     const user = await User.findById(req.user.id).select("countryCode");
     res.status(200).json(getHotlinesForCountry(user?.countryCode));
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -284,6 +284,6 @@ export const messageTherapist = async (req, res) => {
 
     res.status(200).json({ message: "Your therapist has been notified." });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
