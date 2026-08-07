@@ -176,6 +176,6 @@ export const getClientsRiskSummary = async (req, res) => {
 
     res.status(200).json({ clients: summaries });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
