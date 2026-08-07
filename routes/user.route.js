@@ -15,6 +15,7 @@ import {
   getUserById,
   changePassword,
   uploadProfilePicture,
+  deleteAvatar,
   updatePrivacy,
   disableUser,
   changeUserRole,
@@ -75,6 +76,7 @@ router.post(
   uploadProfilePic,
   uploadProfilePicture,
 );
+router.delete("/avatar", authMiddleware, deleteAvatar);
 router.put("/privacy", authMiddleware, validate(privacySettingsSchema), updatePrivacy);
 
 // Admin routes
