@@ -131,12 +131,14 @@ export const acknowledgeCrisis = async (req, res) => {
     if (!crisis) {
       return res.status(404).json({ error: { message: "Crisis alert not found.", code: "NOT_FOUND" } });
     }
-    if (
-      crisis.user.toString() !== req.user.id &&
-      req.user.role !== "therapist" &&
-      req.user.role !== "admin"
-    ) {
-      return res.status(403).json({ error: { message: "You can only acknowledge your own crisis alerts.", code: "FORBIDDEN" } });
+    if (req.user.role === "user") {
+      return res.status(403).json({ error: { message: "Only therapists or admins can acknowledge/resolve a crisis alert.", code: "FORBIDDEN" } });
+    }
+    if (req.user.role === "therapist") {
+      const client = await User.findById(crisis.user);
+      if (!client?.therapist || client.therapist.toString() !== req.user.id) {
+        return res.status(403).json({ error: { message: "You can only act on alerts for your assigned clients.", code: "FORBIDDEN" } });
+      }
     }
     if (crisis.status !== "active") {
       return res.status(400).json({ error: { message: "Crisis alert already acknowledged or resolved.", code: "BAD_REQUEST" } });
@@ -164,12 +166,14 @@ export const resolveCrisis = async (req, res) => {
     if (!crisis) {
       return res.status(404).json({ error: { message: "Crisis alert not found.", code: "NOT_FOUND" } });
     }
-    if (
-      crisis.user.toString() !== req.user.id &&
-      req.user.role !== "therapist" &&
-      req.user.role !== "admin"
-    ) {
-      return res.status(403).json({ error: { message: "You can only resolve your own crisis alerts.", code: "FORBIDDEN" } });
+    if (req.user.role === "user") {
+      return res.status(403).json({ error: { message: "Only therapists or admins can acknowledge/resolve a crisis alert.", code: "FORBIDDEN" } });
+    }
+    if (req.user.role === "therapist") {
+      const client = await User.findById(crisis.user);
+      if (!client?.therapist || client.therapist.toString() !== req.user.id) {
+        return res.status(403).json({ error: { message: "You can only act on alerts for your assigned clients.", code: "FORBIDDEN" } });
+      }
     }
     crisis.status = "resolved";
     crisis.resolvedAt = new Date();
