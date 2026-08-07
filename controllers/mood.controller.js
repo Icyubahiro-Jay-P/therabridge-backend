@@ -42,7 +42,7 @@ export const logMood = async (req, res) => {
 
     res.status(201).json(entryObj);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -90,7 +90,7 @@ export const getMyMoods = async (req, res) => {
 
     res.status(200).json(formatPaginatedResponse(payload, total, page, limit));
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -147,7 +147,7 @@ export const getMoodStats = async (req, res) => {
     stats.streak = streakCount;
     res.status(200).json(stats);
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -160,6 +160,6 @@ export const deleteMood = async (req, res) => {
     }
     res.status(200).json({ message: "Mood entry deleted." });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
