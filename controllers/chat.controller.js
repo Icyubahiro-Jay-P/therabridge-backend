@@ -778,7 +778,11 @@ export const sendCommunityMessage = async (req, res) => {
       content: encryptField(content.trim()),
     });
 
-    await community.save();
+    // Message + Talking Points award committed atomically.
+    const pointsEarned = await withTransaction(async (session) => {
+      await community.save(session ? { session } : undefined);
+      return awardMessagePoints(req.user.id, MESSAGE_POINTS.community, session);
+    });
 
     const updatedCommunity = await Community.findById(communityId).populate(
       "messages.sender",
