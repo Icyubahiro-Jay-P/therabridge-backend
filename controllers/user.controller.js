@@ -181,7 +181,7 @@ export const register = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -244,7 +244,7 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -328,7 +328,7 @@ export const profile = async (req, res) => {
     }
     res.status(200).json(user);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -373,7 +373,7 @@ export const getUserProfile = async (req, res) => {
 
     res.status(200).json(filtered);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -435,7 +435,7 @@ export const getUserById = async (req, res) => {
 
     res.status(200).json(filtered);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -502,7 +502,7 @@ export const updateProfile = async (req, res) => {
       user,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -580,7 +580,7 @@ export const uploadProfilePicture = async (req, res) => {
         fs.unlinkSync(req.file.path);
       } catch {}
     }
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -610,7 +610,7 @@ export const deleteProfile = async (req, res) => {
       res.status(200).json({ message: "User deleted successfully" });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -658,7 +658,7 @@ export const changePassword = async (req, res) => {
     await user.save();
     res.status(200).json({ message: "Password changed successfully" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -686,7 +686,7 @@ export const getTherapists = async (req, res) => {
       .status(200)
       .json(formatPaginatedResponse(therapists, total, page, limit));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -715,7 +715,7 @@ export const getAllUsers = async (req, res) => {
 
     res.status(200).json(users);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -905,7 +905,7 @@ export const updatePrivacy = async (req, res) => {
       privacySettings: user.privacySettings,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -932,7 +932,7 @@ export const disableUser = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -954,7 +954,7 @@ export const changeUserRole = async (req, res) => {
       user: { _id: user._id, username: user.username, role: user.role },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -982,7 +982,7 @@ export const deleteUserByAdmin = async (req, res) => {
     });
     res.status(200).json({ message: "User deleted by admin." });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -1015,7 +1015,7 @@ export const getFullUserData = async (req, res) => {
     });
     res.status(200).json(user);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -1045,7 +1045,7 @@ export const acknowledgeAiDisclosure = async (req, res) => {
     });
     res.status(200).json({ acknowledgedAt: user.aiDisclosureAcknowledgedAt });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -1158,7 +1158,7 @@ export const exportMyData = async (req, res) => {
     );
     res.status(200).json(data);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -1181,7 +1181,7 @@ export const getTherapistClients = async (req, res) => {
 
     res.status(200).json(clients);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -1208,7 +1208,7 @@ export const addTherapistClient = async (req, res) => {
       client: { _id: user._id, username: user.username, firstName: user.firstName, lastName: user.lastName, avatar: user.avatar },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
 
@@ -1235,6 +1235,6 @@ export const assignTherapist = async (req, res) => {
     await user.save();
     res.status(200).json({ message: "Therapist assignment updated.", user: { _id: user._id, therapist: user.therapist } });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    throw error;
   }
 };
