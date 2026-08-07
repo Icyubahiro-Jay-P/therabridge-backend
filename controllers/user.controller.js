@@ -645,6 +645,43 @@ export const uploadProfilePicture = async (req, res) => {
   }
 };
 
+export const deleteAvatar = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.avatar && user.avatar.startsWith("/uploads/")) {
+      const resolvedPath = path.resolve(path.join(__dirname, "..", user.avatar));
+      const uploadsDir = path.resolve(path.join(__dirname, "..", "uploads"));
+      if (resolvedPath.startsWith(uploadsDir) && fs.existsSync(resolvedPath)) {
+        fs.unlinkSync(resolvedPath);
+      }
+    }
+
+    user.avatar = null;
+    await user.save();
+
+    res.status(200).json({
+      message: "Profile picture removed successfully",
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        avatar: user.avatar,
+        bio: user.bio,
+        privacySettings: user.privacySettings,
+      },
+    });
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const deleteProfile = async (req, res) => {
   try {
     // prompt a user to confirm deletion by rewriting their username in the request body
