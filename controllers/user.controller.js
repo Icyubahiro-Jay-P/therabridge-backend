@@ -494,7 +494,7 @@ export const getUserById = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { firstName, lastName, dateOfBirth, bio, avatar } = req.body;
+    const { firstName, lastName, dateOfBirth, bio } = req.body;
 
     const updates = {};
 
