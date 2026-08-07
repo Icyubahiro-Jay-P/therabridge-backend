@@ -48,7 +48,6 @@ export const updateProfileSchema = z.object({
     )
     .optional(),
   bio: z.string().trim().max(300).optional(),
-  avatar: z.string().max(500).optional(),
 })
 
 export const changePasswordSchema = z.object({
