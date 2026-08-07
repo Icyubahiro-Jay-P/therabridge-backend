@@ -42,7 +42,7 @@ export const getMySafetyPlan = async (req, res) => {
     const plan = await SafetyPlan.findOne({ user: req.user.id });
     res.status(200).json(plan ? decryptPlan(plan) : {});
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -73,7 +73,7 @@ export const upsertMySafetyPlan = async (req, res) => {
 
     res.status(200).json({ message: "Safety plan saved.", plan: decryptPlan(plan) });
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
 
@@ -109,6 +109,6 @@ export const getClientSafetyPlan = async (req, res) => {
 
     res.status(200).json(plan ? decryptPlan(plan) : {});
   } catch (error) {
-    res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 };
