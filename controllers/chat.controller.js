@@ -104,11 +104,6 @@ export const sendMessage = async (req, res) => {
       { skipIfOnline: true },
     );
 
-    const pointsEarned = await awardMessagePoints(
-      req.user.id,
-      MESSAGE_POINTS.direct,
-    );
-
     res.status(201).json({ ...messageObj, pointsEarned });
   } catch (error) {
     res.status(500).json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
