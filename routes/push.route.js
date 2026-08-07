@@ -20,10 +20,14 @@ router.get("/vapid-public-key", authMiddleware, (req, res) => {
 router.post("/subscribe", authMiddleware, async (req, res) => {
   try {
     const { subscription, userAgent } = req.body;
-    if (!subscription?.endpoint) {
+    if (
+      !subscription?.endpoint ||
+      !subscription?.keys?.p256dh ||
+      !subscription?.keys?.auth
+    ) {
       return res
         .status(400)
-        .json({ error: { message: "Missing push subscription.", code: "BAD_REQUEST" } });
+        .json({ error: { message: "Invalid push subscription.", code: "BAD_REQUEST" } });
     }
     const saved = await savePushSubscription(
       req.user.id,
@@ -32,9 +36,7 @@ router.post("/subscribe", authMiddleware, async (req, res) => {
     );
     res.status(201).json({ success: true, subscription: saved });
   } catch (error) {
-    res
-      .status(400)
-      .json({ error: { message: error.message, code: "BAD_REQUEST" } });
+    throw error;
   }
 });
 
@@ -45,9 +47,7 @@ router.post("/unsubscribe", authMiddleware, async (req, res) => {
     await deletePushSubscription(req.user.id, endpoint);
     res.status(200).json({ success: true });
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: { message: error.message, code: "INTERNAL_ERROR" } });
+    throw error;
   }
 });
 
