@@ -826,7 +826,7 @@ export const forgotPassword = async (req, res) => {
       .status(200)
       .json({ success: true, data: "Password reset email sent" });
   } catch (error) {
-    res.status(400).json({ error: { message: error.message, code: "BAD_REQUEST" } });
+    throw error;
   }
 };
 
@@ -858,7 +858,7 @@ export const resetPassword = async (req, res) => {
       message: "Password updated successfully",
     });
   } catch (error) {
-    res.status(400).json({ error: { message: error.message, code: "BAD_REQUEST" } });
+    throw error;
   }
 };
 
