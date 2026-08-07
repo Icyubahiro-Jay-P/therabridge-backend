@@ -9,6 +9,7 @@ import "./utils/validateEnv.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
+import mongoose from "mongoose";
 import { connectDB } from "./db/connectDB.js";
 import { initChatSocket } from "./sockets/chatSocket.js";
 import userRoutes from "./routes/user.route.js";
@@ -151,7 +152,6 @@ app.use("/api/therapist", therapistRoutes);
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
   try {
-    const mongoose = (await import("mongoose")).default;
     const dbState = mongoose.connection.readyState;
     const dbStatus = { 0: "disconnected", 1: "connected", 2: "connecting", 3: "disconnecting" };
 
@@ -176,9 +176,46 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // ====================== START SERVER ======================
+const serverInstance = { httpServer: null, dbClosed: false };
+
+process.on("unhandledRejection", (reason) => {
+  logger.error({ err: reason }, "Unhandled promise rejection");
+});
+
+process.on("uncaughtException", (err) => {
+  logger.fatal({ err }, "Uncaught exception");
+  process.exit(1);
+});
+
+const shutdown = (signal) => {
+  logger.info({ signal }, "Shutting down gracefully");
+  if (!serverInstance.httpServer) return;
+  serverInstance.httpServer.close(() => {
+    if (serverInstance.dbClosed) return;
+    serverInstance.dbClosed = true;
+    mongoose
+      .disconnect()
+      .then(() => {
+        logger.info("Database disconnected");
+        process.exit(0);
+      })
+      .catch((err) => {
+        logger.error({ err }, "Error disconnecting database");
+        process.exit(1);
+      });
+  });
+  setTimeout(() => {
+    logger.error("Graceful shutdown timed out, forcing exit");
+    process.exit(1);
+  }, 10000).unref();
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+
 connectDB()
   .then(() => {
-    server.listen(PORT, () => {
+    serverInstance.httpServer = server.listen(PORT, () => {
       logger.info({ port: PORT }, "Therabridge server started");
     });
   })
