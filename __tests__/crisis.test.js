@@ -7,6 +7,7 @@ vi.mock("../models/crisis.model.js", () => {
       this._id = "crisis123"
       this.save = vi.fn().mockResolvedValue(true)
     }
+    static findById = vi.fn()
   }
   return { default: Crisis }
 })
@@ -42,7 +43,7 @@ import Crisis from "../models/crisis.model.js"
 import CrisisLog from "../models/crisisLog.model.js"
 import User from "../models/user.model.js"
 import { createNotification as mockCreateNotification } from "../services/notification.service.js"
-import { createCrisisAlert } from "../controllers/crisis.controller.js"
+import { createCrisisAlert, acknowledgeCrisis, resolveCrisis } from "../controllers/crisis.controller.js"
 
 function mockReqRes(overrides = {}) {
   const req = {
@@ -171,5 +172,71 @@ describe("createCrisisAlert severity escalation", () => {
     await createCrisisAlert(req, res)
     const payload = res.json.mock.calls[0][0]
     expect(payload.panicExercise).toBeUndefined()
+  })
+})
+
+describe("crisis alert authorization", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("forbids a regular user from acknowledging someone else's alert", async () => {
+    Crisis.findById.mockResolvedValue({
+      _id: "crisis123",
+      user: { toString: () => "owner456" },
+      status: "active",
+      save: vi.fn().mockResolvedValue(true),
+    })
+    const { req, res } = mockReqRes({
+      params: { id: "crisis123" },
+      user: { id: "user123", role: "user" },
+    })
+    await acknowledgeCrisis(req, res)
+    expect(res.status).toHaveBeenCalledWith(403)
+  })
+
+  it("forbids a regular user from resolving someone else's alert", async () => {
+    Crisis.findById.mockResolvedValue({
+      _id: "crisis123",
+      user: { toString: () => "owner456" },
+      status: "active",
+      save: vi.fn().mockResolvedValue(true),
+    })
+    const { req, res } = mockReqRes({
+      params: { id: "crisis123" },
+      user: { id: "user123", role: "user" },
+    })
+    await resolveCrisis(req, res)
+    expect(res.status).toHaveBeenCalledWith(403)
+  })
+
+  it("lets the alert owner acknowledge their own alert", async () => {
+    Crisis.findById.mockResolvedValue({
+      _id: "crisis123",
+      user: { toString: () => "user123" },
+      status: "active",
+      save: vi.fn().mockResolvedValue(true),
+    })
+    const { req, res } = mockReqRes({
+      params: { id: "crisis123" },
+      user: { id: "user123", role: "user" },
+    })
+    await acknowledgeCrisis(req, res)
+    expect(res.status).toHaveBeenCalledWith(200)
+  })
+
+  it("lets a therapist acknowledge an alert", async () => {
+    Crisis.findById.mockResolvedValue({
+      _id: "crisis123",
+      user: { toString: () => "owner456" },
+      status: "active",
+      save: vi.fn().mockResolvedValue(true),
+    })
+    const { req, res } = mockReqRes({
+      params: { id: "crisis123" },
+      user: { id: "therapist123", role: "therapist" },
+    })
+    await acknowledgeCrisis(req, res)
+    expect(res.status).toHaveBeenCalledWith(200)
   })
 })
