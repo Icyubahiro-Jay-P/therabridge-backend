@@ -102,6 +102,14 @@ const passwordResetLimiter = rateLimit({
   message: { error: { message: "Too many password reset attempts, try again later", code: "RATE_LIMITED" } },
 });
 
+const crisisLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { message: "Too many alerts, please contact your therapist directly", code: "RATE_LIMITED" } },
+});
+
 // Long-poll + layout polling endpoints run frequently (every ~10s), so they
 // are exempt from the general limiter to avoid tripping it during normal use.
 const skipFrequentPolling = (req) => /\/updates$/.test(req.path);
@@ -142,6 +150,7 @@ app.use("/api/exercises", exerciseRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/mood", moodRoutes);
+app.use("/api/crisis", crisisLimiter);
 app.use("/api/crisis", crisisRoutes);
 app.use("/api/therry", therryRoutes);
 app.use("/api/push", pushRoutes);
