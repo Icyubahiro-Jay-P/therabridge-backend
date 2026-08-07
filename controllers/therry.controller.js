@@ -6,6 +6,7 @@ import CrisisLog from "../models/crisisLog.model.js";
 import User from "../models/user.model.js";
 import { createNotification } from "../services/notification.service.js";
 import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
+import { withTransaction } from "../utils/transactions.js";
 import { encryptField, decryptField } from "../utils/crypto.js";
 import { getHotlinesForCountry } from "../utils/hotlines.js";
 import { getPanicExercise } from "./exercise.controller.js";
