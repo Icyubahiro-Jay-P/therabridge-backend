@@ -34,50 +34,60 @@ const deleteAvatarFile = async (avatar) => {
 // Permanently removes every piece of data belonging to a user. Used by both
 // self-service account deletion and admin deletion. The audit trail is kept
 // for accountability but the user's identity is nulled out of it.
+// Runs inside a multi-document transaction so a crash mid-way can't leave a
+// user's data half-deleted (a GDPR problem) or their account gone while
+// orphaned records remain.
 export const deleteUserAndData = async (userId) => {
-  const user = await User.findById(userId);
-  if (user) {
-    await deleteAvatarFile(user.avatar);
-  }
+  return withTransaction(async (session) => {
+    const opts = session ? { session } : undefined;
+    const user = await User.findById(userId, null, opts);
+    if (user) {
+      await deleteAvatarFile(user.avatar);
+    }
 
-  // Communities owned by the user are deleted outright.
-  await Community.deleteMany({ owner: userId });
-  // Pull the user from any other community and drop their messages there.
-  await Community.updateMany(
-    { members: userId },
-    {
-      $pull: {
-        members: userId,
-        moderators: userId,
-        pendingMembers: userId,
-        messages: { sender: userId },
+    // Communities owned by the user are deleted outright.
+    await Community.deleteMany({ owner: userId }, opts);
+    // Pull the user from any other community and drop their messages there.
+    await Community.updateMany(
+      { members: userId },
+      {
+        $pull: {
+          members: userId,
+          moderators: userId,
+          pendingMembers: userId,
+          messages: { sender: userId },
+        },
       },
-    },
-  );
+      opts,
+    );
 
-  // Direct messages, mood logs, crisis records, Therry history, notifications,
-  // exercise history, and push subscriptions.
-  await Message.deleteMany({
-    $or: [{ sender: userId }, { recipient: userId }],
+    // Direct messages, mood logs, crisis records, Therry history, notifications,
+    // exercise history, and push subscriptions.
+    await Message.deleteMany(
+      { $or: [{ sender: userId }, { recipient: userId }] },
+      opts,
+    );
+    await Mood.deleteMany({ user: userId }, opts);
+    await Crisis.deleteMany({ user: userId }, opts);
+    await CrisisLog.deleteMany({ user: userId }, opts);
+    await TherryMessage.deleteMany({ user: userId }, opts);
+    await Notification.deleteMany({ recipient: userId }, opts);
+    await ExerciseLog.deleteMany({ user: userId }, opts);
+    await PushSubscription.deleteMany({ user: userId }, opts);
+    await SafetyPlan.deleteMany({ user: userId }, opts);
+
+    // Keep the audit trail, but strip the identity from it.
+    await AuditLog.updateMany(
+      { actor: userId },
+      { $set: { actor: null, detail: { ...{}, anonymized: true } } },
+      opts,
+    );
+    await AuditLog.updateMany(
+      { target: userId },
+      { $set: { target: null, detail: { anonymized: true } } },
+      opts,
+    );
+
+    await User.findByIdAndDelete(userId, opts);
   });
-  await Mood.deleteMany({ user: userId });
-  await Crisis.deleteMany({ user: userId });
-  await CrisisLog.deleteMany({ user: userId });
-  await TherryMessage.deleteMany({ user: userId });
-  await Notification.deleteMany({ recipient: userId });
-  await ExerciseLog.deleteMany({ user: userId });
-  await PushSubscription.deleteMany({ user: userId });
-  await SafetyPlan.deleteMany({ user: userId });
-
-  // Keep the audit trail, but strip the identity from it.
-  await AuditLog.updateMany(
-    { actor: userId },
-    { $set: { actor: null, detail: { ...{}, anonymized: true } } },
-  );
-  await AuditLog.updateMany(
-    { target: userId },
-    { $set: { target: null, detail: { anonymized: true } } },
-  );
-
-  await User.findByIdAndDelete(userId);
 };
