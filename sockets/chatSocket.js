@@ -85,6 +85,16 @@ export const recordPossibleScreenshot = async ({
   const peer = await User.findById(peerId).select("_id");
   if (!peer) return { invalid: true };
 
+  // Only allow the notice against a real, existing conversation so a user
+  // can't spam unsolicited screenshot alerts at arbitrary accounts.
+  const hasConversation = await Message.exists({
+    $or: [
+      { sender: initiatorId, recipient: peerId },
+      { sender: peerId, recipient: initiatorId },
+    ],
+  });
+  if (!hasConversation) return { invalid: true };
+
   const message = new Message({
     sender: initiatorId,
     recipient: peerId,
