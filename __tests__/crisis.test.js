@@ -214,13 +214,13 @@ describe("crisis alert authorization", () => {
   it("lets an assigned therapist acknowledge an alert", async () => {
     Crisis.findById.mockResolvedValue({
       _id: "crisis123",
-      user: { toString: () => "owner456" },
+      user: "owner456",
       status: "active",
       save: vi.fn().mockResolvedValue(true),
     })
     User.findById.mockResolvedValue({
       _id: "owner456",
-      therapist: { toString: () => "therapist123" },
+      therapist: "therapist123",
     })
     const { req, res } = mockReqRes({
       params: { id: "crisis123" },
@@ -234,13 +234,13 @@ describe("crisis alert authorization", () => {
   it("forbids a therapist from acknowledging an unassigned client's alert", async () => {
     Crisis.findById.mockResolvedValue({
       _id: "crisis123",
-      user: { toString: () => "owner456" },
+      user: "owner456",
       status: "active",
       save: vi.fn().mockResolvedValue(true),
     })
     User.findById.mockResolvedValue({
       _id: "owner456",
-      therapist: { toString: () => "otherTherapist" },
+      therapist: "otherTherapist",
     })
     const { req, res } = mockReqRes({
       params: { id: "crisis123" },
@@ -253,7 +253,7 @@ describe("crisis alert authorization", () => {
   it("lets an admin acknowledge any alert", async () => {
     Crisis.findById.mockResolvedValue({
       _id: "crisis123",
-      user: { toString: () => "owner456" },
+      user: "owner456",
       status: "active",
       save: vi.fn().mockResolvedValue(true),
     })
