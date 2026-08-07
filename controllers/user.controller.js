@@ -230,9 +230,15 @@ export const login = async (req, res) => {
     if (!isPasswordValid) {
       const failed = (user.failedLoginAttempts || 0) + 1;
       if (failed >= MAX_LOGIN_ATTEMPTS) {
-        user.failedLoginAttempts = 0;
-        user.lockedUntil = new Date(now + LOGIN_LOCKOUT_MS);
-        await user.save();
+        await User.updateOne(
+          { _id: user._id },
+          {
+            $set: {
+              failedLoginAttempts: 0,
+              lockedUntil: new Date(now + LOGIN_LOCKOUT_MS),
+            },
+          },
+        );
         const remainingMin = Math.ceil(LOGIN_LOCKOUT_MS / 60000);
         return res.status(429).json({
           error: {
@@ -241,12 +247,18 @@ export const login = async (req, res) => {
           },
         });
       }
-      user.failedLoginAttempts = failed;
-      await user.save();
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { failedLoginAttempts: failed } },
+      );
       return res.status(401).json({ error: { message: "Invalid credentials.", code: "AUTH_ERROR" } });
     }
 
     // Successful login: clear any prior lockout state.
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { failedLoginAttempts: 0, lockedUntil: null } },
+    );
     user.failedLoginAttempts = 0;
     user.lockedUntil = null;
 
