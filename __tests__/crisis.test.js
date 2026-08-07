@@ -17,7 +17,7 @@ vi.mock("../models/crisisLog.model.js", () => ({
 }))
 
 vi.mock("../models/user.model.js", () => ({
-  default: { find: vi.fn() },
+  default: { find: vi.fn(), findById: vi.fn() },
 }))
 
 vi.mock("../models/exercise.model.js", () => {
@@ -180,37 +180,7 @@ describe("crisis alert authorization", () => {
     vi.clearAllMocks()
   })
 
-  it("forbids a regular user from acknowledging someone else's alert", async () => {
-    Crisis.findById.mockResolvedValue({
-      _id: "crisis123",
-      user: { toString: () => "owner456" },
-      status: "active",
-      save: vi.fn().mockResolvedValue(true),
-    })
-    const { req, res } = mockReqRes({
-      params: { id: "crisis123" },
-      user: { id: "user123", role: "user" },
-    })
-    await acknowledgeCrisis(req, res)
-    expect(res.status).toHaveBeenCalledWith(403)
-  })
-
-  it("forbids a regular user from resolving someone else's alert", async () => {
-    Crisis.findById.mockResolvedValue({
-      _id: "crisis123",
-      user: { toString: () => "owner456" },
-      status: "active",
-      save: vi.fn().mockResolvedValue(true),
-    })
-    const { req, res } = mockReqRes({
-      params: { id: "crisis123" },
-      user: { id: "user123", role: "user" },
-    })
-    await resolveCrisis(req, res)
-    expect(res.status).toHaveBeenCalledWith(403)
-  })
-
-  it("lets the alert owner acknowledge their own alert", async () => {
+  it("forbids a regular user from acknowledging any alert, even their own", async () => {
     Crisis.findById.mockResolvedValue({
       _id: "crisis123",
       user: { toString: () => "user123" },
@@ -222,10 +192,65 @@ describe("crisis alert authorization", () => {
       user: { id: "user123", role: "user" },
     })
     await acknowledgeCrisis(req, res)
+    expect(res.status).toHaveBeenCalledWith(403)
+    expect(User.findById).not.toHaveBeenCalled()
+  })
+
+  it("forbids a regular user from resolving any alert, even their own", async () => {
+    Crisis.findById.mockResolvedValue({
+      _id: "crisis123",
+      user: { toString: () => "user123" },
+      status: "active",
+      save: vi.fn().mockResolvedValue(true),
+    })
+    const { req, res } = mockReqRes({
+      params: { id: "crisis123" },
+      user: { id: "user123", role: "user" },
+    })
+    await resolveCrisis(req, res)
+    expect(res.status).toHaveBeenCalledWith(403)
+  })
+
+  it("lets an assigned therapist acknowledge an alert", async () => {
+    Crisis.findById.mockResolvedValue({
+      _id: "crisis123",
+      user: { toString: () => "owner456" },
+      status: "active",
+      save: vi.fn().mockResolvedValue(true),
+    })
+    User.findById.mockResolvedValue({
+      _id: "owner456",
+      therapist: { toString: () => "therapist123" },
+    })
+    const { req, res } = mockReqRes({
+      params: { id: "crisis123" },
+      user: { id: "therapist123", role: "therapist" },
+    })
+    await acknowledgeCrisis(req, res)
+    expect(User.findById).toHaveBeenCalledWith("owner456")
     expect(res.status).toHaveBeenCalledWith(200)
   })
 
-  it("lets a therapist acknowledge an alert", async () => {
+  it("forbids a therapist from acknowledging an unassigned client's alert", async () => {
+    Crisis.findById.mockResolvedValue({
+      _id: "crisis123",
+      user: { toString: () => "owner456" },
+      status: "active",
+      save: vi.fn().mockResolvedValue(true),
+    })
+    User.findById.mockResolvedValue({
+      _id: "owner456",
+      therapist: { toString: () => "otherTherapist" },
+    })
+    const { req, res } = mockReqRes({
+      params: { id: "crisis123" },
+      user: { id: "therapist123", role: "therapist" },
+    })
+    await acknowledgeCrisis(req, res)
+    expect(res.status).toHaveBeenCalledWith(403)
+  })
+
+  it("lets an admin acknowledge any alert", async () => {
     Crisis.findById.mockResolvedValue({
       _id: "crisis123",
       user: { toString: () => "owner456" },
@@ -234,7 +259,7 @@ describe("crisis alert authorization", () => {
     })
     const { req, res } = mockReqRes({
       params: { id: "crisis123" },
-      user: { id: "therapist123", role: "therapist" },
+      user: { id: "admin123", role: "admin" },
     })
     await acknowledgeCrisis(req, res)
     expect(res.status).toHaveBeenCalledWith(200)
