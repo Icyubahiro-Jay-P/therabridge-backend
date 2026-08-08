@@ -51,6 +51,4 @@ const safetyPlanSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-safetyPlanSchema.index({ user: 1 });
-
 export default mongoose.model("SafetyPlan", safetyPlanSchema);
