@@ -1,6 +1,3 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import User from "../models/user.model.js";
 import { Message, Community } from "../models/chat.model.js";
 import Mood from "../models/mood.model.js";
