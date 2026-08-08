@@ -34,7 +34,6 @@ import {
 } from "../utils/pagination.js";
 
 const __filename = undefined;
-
 // Login lockout: 5 consecutive failed attempts locks the account for 15 minutes.
 // This protects against password-guessing bots that would otherwise be able to
 // brute-force an account even with the per-IP rate limiter in place.
