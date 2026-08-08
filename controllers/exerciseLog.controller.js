@@ -116,7 +116,7 @@ export const completeExercise = async (req, res) => {
 export const getLogs = async (req, res) => {
   try {
     const logs = await ExerciseLog.find({ user: req.user.id })
-      .populate("exercise", "title emoji color type duration")
+      .populate("exercise", "title color type duration")
       .sort("-startedAt")
       .limit(50);
 
