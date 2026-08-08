@@ -851,7 +851,7 @@ export const forgotPassword = async (req, res) => {
                 <a href="${resetUrl}" style="color: white; text-decoration: none;" class="button" target="_blank">Reset Password Now</a>
             </div>
             <div class="warning">
-                <strong>⚠️ Didn't request this?</strong><br>
+                <strong>Didn't request this?</strong><br>
                 If you didn't ask for a password reset, you can safely ignore this email. Your account stays protected.
             </div>
         </div>
