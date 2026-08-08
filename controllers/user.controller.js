@@ -560,14 +560,13 @@ export const updateProfile = async (req, res) => {
 
 export const uploadProfilePicture = async (req, res) => {
   try {
-    if (!req.file) {
+    if (!req.file || !req.file.buffer) {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
     // Verify the real file signature (magic bytes), not just the extension.
-    const isImage = await sniffUpload(req.file.path);
+    const isImage = await sniffUpload(req.file.buffer);
     if (!isImage) {
-      fs.unlinkSync(req.file.path);
       return res
         .status(400)
         .json({ message: "File is not a valid image." });
@@ -575,50 +574,31 @@ export const uploadProfilePicture = async (req, res) => {
 
     const user = await User.findById(req.user.id);
     if (!user) {
-      fs.unlinkSync(req.file.path);
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Optimize the uploaded avatar using Sharp
-    const uploadDir = path.dirname(req.file.path);
-    const optimizedFilename = `${path.parse(req.file.filename).name}.webp`;
-    const optimizedPath = path.join(uploadDir, optimizedFilename);
-
+    // Optimize the uploaded avatar buffer with Sharp before it goes to
+    // Cloudinary. Uploads never touch the server disk.
+    let uploadBuffer = req.file.buffer;
     try {
-      await sharp(req.file.path, { failOn: "none" })
+      uploadBuffer = await sharp(req.file.buffer, { failOn: "none" })
         .rotate()
         .resize({
-          width: 1200,
-          height: 1200,
+          width: 400,
+          height: 400,
           fit: "inside",
           withoutEnlargement: true,
         })
         .webp({ quality: 80, effort: 6 })
-        .toFile(optimizedPath);
-
-      // Replace original uploaded file with optimized file
-      fs.unlinkSync(req.file.path);
-      req.file.path = optimizedPath;
-      req.file.filename = optimizedFilename;
+        .toBuffer();
     } catch {
       // Sharp's decoder (libspng) is stricter than browsers and rejects some
       // images (e.g. slightly malformed PNGs). The signature check above
-      // already confirmed this is a real image, so keep the original upload.
+      // already confirmed this is a real image, so upload the original.
     }
 
-    // Delete previous avatar if it was an uploaded file
-    if (user.avatar && user.avatar.startsWith("/uploads/")) {
-      const resolvedPath = path.resolve(
-        path.join(__dirname, "..", user.avatar),
-      );
-      const uploadsDir = path.resolve(path.join(__dirname, "..", "uploads"));
-      if (resolvedPath.startsWith(uploadsDir) && fs.existsSync(resolvedPath)) {
-        fs.unlinkSync(resolvedPath);
-      }
-    }
-
-    const avatarPath = "/uploads/" + req.file.filename;
-    user.avatar = avatarPath;
+    const result = await uploadAvatarToCloudinary(uploadBuffer, user.id);
+    user.avatar = result.secure_url;
     await user.save();
 
     res.status(200).json({
