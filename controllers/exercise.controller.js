@@ -8,7 +8,6 @@ const defaultExercises = [
     duration: 240,
     type: "breathing",
     difficulty: "beginner",
-    emoji: "🫁",
     color: "#06b6d4",
     steps: [
       { instruction: "Find a comfortable seated position and close your eyes.", duration: 5 },
@@ -25,7 +24,6 @@ const defaultExercises = [
     duration: 300,
     type: "mindfulness",
     difficulty: "beginner",
-    emoji: "🧘",
     color: "#8b5cf6",
     steps: [
       { instruction: "Lie down or sit comfortably. Close your eyes.", duration: 10 },
@@ -44,7 +42,6 @@ const defaultExercises = [
     duration: 300,
     type: "gratitude",
     difficulty: "beginner",
-    emoji: "📔",
     color: "#f59e0b",
     steps: [
       { instruction: "Take a moment to settle and breathe slowly.", duration: 30 },
@@ -60,7 +57,6 @@ const defaultExercises = [
     duration: 180,
     type: "grounding",
     difficulty: "beginner",
-    emoji: "🌍",
     color: "#10b981",
     steps: [
       { instruction: "Look around and name 5 things you can SEE.", duration: 30 },
@@ -77,7 +73,6 @@ const defaultExercises = [
     duration: 420,
     type: "movement",
     difficulty: "beginner",
-    emoji: "💪",
     color: "#ef4444",
     steps: [
       { instruction: "Sit or lie down comfortably. Take 3 deep breaths.", duration: 20 },
@@ -97,7 +92,6 @@ const defaultExercises = [
     duration: 180,
     type: "breathing",
     difficulty: "intermediate",
-    emoji: "🌬️",
     color: "#3b82f6",
     steps: [
       { instruction: "Sit upright. Place the tip of your tongue behind your upper front teeth.", duration: 10 },
@@ -153,8 +147,8 @@ export const getExerciseById = async (req, res) => {
 
 export const createExercise = async (req, res) => {
   try {
-    const { title, description, duration, type, steps, difficulty, emoji, color } = req.body;
-    const exercise = new Exercise({ title, description, duration, type, steps, difficulty, emoji, color });
+    const { title, description, duration, type, steps, difficulty, color } = req.body;
+    const exercise = new Exercise({ title, description, duration, type, steps, difficulty, color });
     await exercise.save();
     res.status(201).json(exercise);
   } catch (error) {
