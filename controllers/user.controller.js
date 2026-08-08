@@ -13,8 +13,6 @@ import { logAccess, ipFromReq, uaFromReq } from "../services/audit.service.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import path from "path";
-import { fileURLToPath } from "url";
 import sharp from "sharp";
 import { uploadAvatarToCloudinary, deleteAvatarFromCloudinary } from "../utils/cloudinary.js";
 import sendEmail from "../utils/nodemailer.js";
@@ -35,8 +33,7 @@ import {
   parseFilterParams,
 } from "../utils/pagination.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = undefined;
 
 // Login lockout: 5 consecutive failed attempts locks the account for 15 minutes.
 // This protects against password-guessing bots that would otherwise be able to
