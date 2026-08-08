@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
+import { Readable } from "stream";
 import logger from "./logger.js";
 
 cloudinary.config({
@@ -9,8 +10,19 @@ cloudinary.config({
 
 export const avatarPublicId = (userId) => `avatars/${userId}`;
 
+// The SDK's `upload()` only accepts a path/URL string or Readable stream - a
+// Buffer crashes with ERR_INVALID_ARG_TYPE - so we stream the buffer instead.
+const uploadStream = (buffer, options) =>
+  new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(options, (error, result) => {
+      if (error) return reject(error);
+      resolve(result);
+    });
+    Readable.from(buffer).pipe(stream);
+  });
+
 export const uploadAvatarToCloudinary = (buffer, userId) => {
-  return cloudinary.uploader.upload(buffer, {
+  return uploadStream(buffer, {
     public_id: avatarPublicId(userId),
     overwrite: true,
     resource_type: "image",
