@@ -13,19 +13,16 @@ import PushSubscription from "../models/pushSubscription.model.js";
 import SafetyPlan from "../models/safetyPlan.model.js";
 import AuditLog from "../models/auditLog.model.js";
 import { withTransaction } from "../utils/transactions.js";
+import { deleteAvatarFromCloudinary } from "../utils/cloudinary.js";
 import logger from "../utils/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const deleteAvatarFile = async (avatar) => {
-  if (!avatar || !avatar.startsWith("/uploads/")) return;
+const deleteAvatarFile = async (avatar, userId) => {
+  if (!avatar || !userId) return;
   try {
-    const resolvedPath = path.resolve(path.join(__dirname, "..", avatar));
-    const uploadsDir = path.resolve(path.join(__dirname, "..", "uploads"));
-    if (resolvedPath.startsWith(uploadsDir) && fs.existsSync(resolvedPath)) {
-      fs.unlinkSync(resolvedPath);
-    }
+    await deleteAvatarFromCloudinary(userId);
   } catch (error) {
     logger.error({ err: error }, "Failed to delete avatar file");
   }
@@ -42,7 +39,7 @@ export const deleteUserAndData = async (userId) => {
     const opts = session ? { session } : undefined;
     const user = await User.findById(userId, null, opts);
     if (user) {
-      await deleteAvatarFile(user.avatar);
+      await deleteAvatarFile(user.avatar, userId);
     }
 
     // Communities owned by the user are deleted outright.
