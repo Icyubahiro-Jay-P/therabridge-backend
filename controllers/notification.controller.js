@@ -1,5 +1,6 @@
 import Notification from "../models/notification.model.js";
 import { decryptField } from "../utils/crypto.js";
+import { emitToUser } from "../sockets/chatSocket.js";
 import {
   getPaginationParams,
   formatPaginatedResponse,
@@ -51,6 +52,13 @@ export const markAsRead = async (req, res) => {
     }
     const obj = notification.toObject();
     obj.body = decryptField(obj.body);
+
+    const unread = await Notification.countDocuments({
+      recipient: req.user.id,
+      read: false,
+    });
+    emitToUser(req.user.id, "notifications_updated", { count: unread });
+
     res.status(200).json(obj);
   } catch (error) {
     throw error;
@@ -63,6 +71,7 @@ export const markAllAsRead = async (req, res) => {
       { recipient: req.user.id, read: false },
       { $set: { read: true, readAt: new Date() } }
     );
+    emitToUser(req.user.id, "notifications_updated", { count: 0 });
     res.status(200).json({ message: "All notifications marked as read." });
   } catch (error) {
     throw error;
@@ -79,6 +88,13 @@ export const deleteNotification = async (req, res) => {
     if (!notification) {
       return res.status(404).json({ error: { message: "Notification not found.", code: "NOT_FOUND" } });
     }
+
+    const unread = await Notification.countDocuments({
+      recipient: req.user.id,
+      read: false,
+    });
+    emitToUser(req.user.id, "notifications_updated", { count: unread });
+
     res.status(200).json({ message: "Notification deleted." });
   } catch (error) {
     throw error;
@@ -88,6 +104,7 @@ export const deleteNotification = async (req, res) => {
 export const deleteAllNotifications = async (req, res) => {
   try {
     await Notification.deleteMany({ recipient: req.user.id });
+    emitToUser(req.user.id, "notifications_updated", { count: 0 });
     res.status(200).json({ message: "All notifications deleted." });
   } catch (error) {
     throw error;
