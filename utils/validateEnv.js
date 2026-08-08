@@ -74,6 +74,21 @@ export const validateEnv = () => {
     requireEnv("VAPID_PRIVATE_KEY", (v) => !!v, "must be set for device notifications");
     requireEnv("VAPID_SUBJECT", (v) => !!v, "must be set for device notifications");
     requireEnv("GEMINI_API_KEY", (v) => !!v && !isPlaceholder(v), "must be a real Gemini API key");
+    requireEnv(
+      "CLOUDINARY_CLOUD_NAME",
+      (v) => !!v && !isPlaceholder(v),
+      "must be your Cloudinary cloud name - profile pictures are stored there",
+    );
+    requireEnv(
+      "CLOUDINARY_API_KEY",
+      (v) => !!v && !isPlaceholder(v),
+      "must be your Cloudinary API key",
+    );
+    requireEnv(
+      "CLOUDINARY_API_SECRET",
+      (v) => !!v && !isPlaceholder(v),
+      "must be your Cloudinary API secret",
+    );
   } else {
     // Fail fast even in dev on the two settings that are dangerous regardless:
     // a forgeable JWT secret and field encryption silently disabled.
@@ -86,6 +101,11 @@ export const validateEnv = () => {
       "FIELD_ENCRYPTION_KEY",
       isValidEncryptionKey,
       "not set - sensitive fields will be stored in plaintext (dev only warning)",
+    );
+    warnIfWeak(
+      "CLOUDINARY_CLOUD_NAME",
+      (v) => !!v && !isPlaceholder(v),
+      "not set - profile picture uploads will fail (dev only warning)",
     );
   }
 
