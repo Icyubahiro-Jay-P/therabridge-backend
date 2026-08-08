@@ -13,10 +13,6 @@ const moodSchema = new mongoose.Schema(
       enum: ["great", "good", "okay", "bad", "terrible"],
       required: true,
     },
-    emoji: {
-      type: String,
-      default: "",
-    },
     note: {
       type: String,
       default: "",
