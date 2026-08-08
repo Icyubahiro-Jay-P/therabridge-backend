@@ -140,7 +140,6 @@ export const createExerciseSchema = z.object({
       }),
     )
     .optional(),
-  emoji: z.string().optional(),
   color: z.string().optional(),
 })
 
