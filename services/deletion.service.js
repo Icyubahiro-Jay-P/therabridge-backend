@@ -13,9 +13,6 @@ import { withTransaction } from "../utils/transactions.js";
 import { deleteAvatarFromCloudinary } from "../utils/cloudinary.js";
 import logger from "../utils/logger.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const deleteAvatarFile = async (avatar, userId) => {
   if (!avatar || !userId) return;
   try {
