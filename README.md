@@ -70,7 +70,7 @@ Copy `backend/.env.example` to `.env`:
 
 ## API Routes
 
-All endpoints below are mounted under `/api`. Endpoints marked **🔒** require the JWT cookie.
+All endpoints below are mounted under `/api` and require the JWT cookie.
 
 ### Users - `/api/users`
 
@@ -82,58 +82,58 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 | POST | `/users/refresh` | Rotate refresh token, issue new access token |
 | POST | `/users/forgot-password` | Request reset email |
 | POST | `/users/reset-password/:token` | Reset password |
-| GET | `/users/profile` | 🔒 Get own profile |
-| PUT | `/users/profile` | 🔒 Update profile fields |
-| DELETE | `/users/profile` | 🔒 Delete account (cascades to all owned data) |
-| GET | `/users/export` | 🔒 Download all personal data as JSON (decrypted) |
-| POST | `/users/ai-disclosure` | 🔒 Acknowledge the AI companion disclosure (persists `aiDisclosureAcknowledgedAt`) |
-| POST | `/users/change-password` | 🔒 Change password |
-| POST | `/users/upload-avatar` | 🔒 Upload profile picture (multipart) |
-| DELETE | `/users/avatar` | 🔒 Remove profile picture |
-| PUT | `/users/privacy` | 🔒 Update per-field privacy settings |
-| GET | `/users/users` | 🔒 List users (admin) |
-| GET | `/users/therapists` | 🔒 List therapists |
-| GET | `/users/users/:id` | 🔒 Get user by id |
-| PUT | `/users/admin/disable/:id` | 🔒 Disable user (admin) |
-| PUT | `/users/admin/role/:id` | 🔒 Change role (admin) |
-| DELETE | `/users/admin/user/:id` | 🔒 Delete user (admin) |
-| PUT | `/users/admin/therapist` | 🔒 Assign a therapist to a user (admin) |
-| GET | `/users/therapist/user/:id` | 🔒 Full user data (therapist) |
-| GET | `/users/therapist/clients` | 🔒 List my clients (therapist) |
-| POST | `/users/therapist/clients` | 🔒 Add a client to my roster (therapist) |
+| GET | `/users/profile` |  Get own profile |
+| PUT | `/users/profile` |  Update profile fields |
+| DELETE | `/users/profile` |  Delete account (cascades to all owned data) |
+| GET | `/users/export` |  Download all personal data as JSON (decrypted) |
+| POST | `/users/ai-disclosure` |  Acknowledge the AI companion disclosure (persists `aiDisclosureAcknowledgedAt`) |
+| POST | `/users/change-password` |  Change password |
+| POST | `/users/upload-avatar` |  Upload profile picture (multipart) |
+| DELETE | `/users/avatar` |  Remove profile picture |
+| PUT | `/users/privacy` |  Update per-field privacy settings |
+| GET | `/users/users` |  List users (admin) |
+| GET | `/users/therapists` |  List therapists |
+| GET | `/users/users/:id` |  Get user by id |
+| PUT | `/users/admin/disable/:id` |  Disable user (admin) |
+| PUT | `/users/admin/role/:id` |  Change role (admin) |
+| DELETE | `/users/admin/user/:id` |  Delete user (admin) |
+| PUT | `/users/admin/therapist` |  Assign a therapist to a user (admin) |
+| GET | `/users/therapist/user/:id` |  Full user data (therapist) |
+| GET | `/users/therapist/clients` |  List my clients (therapist) |
+| POST | `/users/therapist/clients` |  Add a client to my roster (therapist) |
 | GET | `/users/:username` | Public profile |
 
 ### Chat - `/api/chat`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/chat/conversations` | 🔒 List DM conversations |
-| GET | `/chat/conversation/:userId` | 🔒 Get DM thread |
-| PUT | `/chat/conversation/:userId/read` | 🔒 Mark DM thread read (honors read-receipts setting; clears the reader's notification bell) |
-| GET | `/chat/conversation/:userId/updates` | 🔒 Long-poll DM updates (since `?since=`) |
-| POST | `/chat/send` | 🔒 Send DM (spam-filtered) |
-| GET | `/chat/search` | 🔒 Search users by query |
-| GET | `/chat/settings` | 🔒 Get chat settings |
-| PUT | `/chat/settings` | 🔒 Update chat settings |
-| PUT | `/chat/edit/:messageId` | 🔒 Edit message (tracks history) |
-| DELETE | `/chat/unsend/:messageId` | 🔒 Unsend message |
-| DELETE | `/chat/messages` | 🔒 Delete all my DMs |
-| POST | `/chat/screenshot-notice` | 🔒 REST fallback for possible-screenshot notices (rate-limited) |
-| POST | `/chat/watermark-stamp` | 🔒 Render text to a PNG with a tiled per-viewer watermark (Sharp) |
-| GET | `/chat/communities` | 🔒 List my communities |
-| POST | `/chat/communities` | 🔒 Create community |
-| POST | `/chat/communities/join` | 🔒 Join by invite key |
-| GET | `/chat/communities/by-key/:inviteKey` | 🔒 Look up community by key |
-| GET | `/chat/communities/:id` | 🔒 Get community + messages |
-| GET | `/chat/communities/:id/updates` | 🔒 Long-poll community updates |
-| PUT | `/chat/communities/:id` | 🔒 Update community |
-| POST | `/chat/communities/:id/messages` | 🔒 Send community message (spam-filtered) |
-| PUT | `/chat/communities/:id/messages/:msgId` | 🔒 Edit community message |
-| DELETE | `/chat/communities/:id/messages/:msgId` | 🔒 Unsend community message |
-| POST | `/chat/communities/:id/read` | 🔒 Mark community messages read |
-| POST | `/chat/communities/:id/members/remove` | 🔒 Remove a member |
-| DELETE | `/chat/communities/:id` | 🔒 Delete community |
-| DELETE | `/chat/community-messages` | 🔒 Delete all my community messages |
+| GET | `/chat/conversations` |  List DM conversations |
+| GET | `/chat/conversation/:userId` |  Get DM thread |
+| PUT | `/chat/conversation/:userId/read` |  Mark DM thread read (honors read-receipts setting; clears the reader's notification bell) |
+| GET | `/chat/conversation/:userId/updates` |  Long-poll DM updates (since `?since=`) |
+| POST | `/chat/send` |  Send DM (spam-filtered) |
+| GET | `/chat/search` |  Search users by query |
+| GET | `/chat/settings` |  Get chat settings |
+| PUT | `/chat/settings` |  Update chat settings |
+| PUT | `/chat/edit/:messageId` |  Edit message (tracks history) |
+| DELETE | `/chat/unsend/:messageId` |  Unsend message |
+| DELETE | `/chat/messages` |  Delete all my DMs |
+| POST | `/chat/screenshot-notice` |  REST fallback for possible-screenshot notices (rate-limited) |
+| POST | `/chat/watermark-stamp` |  Render text to a PNG with a tiled per-viewer watermark (Sharp) |
+| GET | `/chat/communities` |  List my communities |
+| POST | `/chat/communities` |  Create community |
+| POST | `/chat/communities/join` |  Join by invite key |
+| GET | `/chat/communities/by-key/:inviteKey` |  Look up community by key |
+| GET | `/chat/communities/:id` |  Get community + messages |
+| GET | `/chat/communities/:id/updates` |  Long-poll community updates |
+| PUT | `/chat/communities/:id` |  Update community |
+| POST | `/chat/communities/:id/messages` |  Send community message (spam-filtered) |
+| PUT | `/chat/communities/:id/messages/:msgId` |  Edit community message |
+| DELETE | `/chat/communities/:id/messages/:msgId` |  Unsend community message |
+| POST | `/chat/communities/:id/read` |  Mark community messages read |
+| POST | `/chat/communities/:id/members/remove` |  Remove a member |
+| DELETE | `/chat/communities/:id` |  Delete community |
+| DELETE | `/chat/community-messages` |  Delete all my community messages |
 
 ### Exercises - `/api/exercises`
 
@@ -141,31 +141,31 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 |--------|------|-------------|
 | GET | `/exercises` | List all exercises (public) |
 | GET | `/exercises/:id` | Get exercise (public) |
-| POST | `/exercises` | 🔒 Create exercise (admin) |
-| GET | `/exercises/logs/mine` | 🔒 My exercise logs |
-| GET | `/exercises/stats` | 🔒 Exercise/login streak & score stats |
-| POST | `/exercises/:id/start` | 🔒 Start exercise |
-| POST | `/exercises/:id/complete` | 🔒 Complete exercise (awards points/streaks) |
+| POST | `/exercises` |  Create exercise (admin) |
+| GET | `/exercises/logs/mine` |  My exercise logs |
+| GET | `/exercises/stats` |  Exercise/login streak & score stats |
+| POST | `/exercises/:id/start` |  Start exercise |
+| POST | `/exercises/:id/complete` |  Complete exercise (awards points/streaks) |
 
 ### Mood - `/api/mood`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/mood` | 🔒 Log mood entry |
-| GET | `/mood` | 🔒 Get my mood history |
-| GET | `/mood/stats` | 🔒 30-day mood stats (incl. streak) |
-| DELETE | `/mood/:id` | 🔒 Delete a mood entry |
+| POST | `/mood` |  Log mood entry |
+| GET | `/mood` |  Get my mood history |
+| GET | `/mood/stats` |  30-day mood stats (incl. streak) |
+| DELETE | `/mood/:id` |  Delete a mood entry |
 
 ### Notifications - `/api/notifications`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/notifications` | 🔒 Get my notifications |
-| GET | `/notifications/unread-count` | 🔒 Unread count |
-| PUT | `/notifications/:id/read` | 🔒 Mark one read |
-| PUT | `/notifications/read-all` | 🔒 Mark all read |
-| DELETE | `/notifications/:id` | 🔒 Delete one |
-| DELETE | `/notifications` | 🔒 Delete all |
+| GET | `/notifications` |  Get my notifications |
+| GET | `/notifications/unread-count` |  Unread count |
+| PUT | `/notifications/:id/read` |  Mark one read |
+| PUT | `/notifications/read-all` |  Mark all read |
+| DELETE | `/notifications/:id` |  Delete one |
+| DELETE | `/notifications` |  Delete all |
 
 ### Mood check-ins (proactive)
 
@@ -175,51 +175,51 @@ All endpoints below are mounted under `/api`. Endpoints marked **🔒** require 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/crisis` | 🔒 Create crisis alert (severity escalation: severe → urgent notify, medium → non-urgent, mild → log only unless `requestContact`; `panic_attack` also returns a `panicExercise` for first-response) |
-| GET | `/crisis/mine` | 🔒 Get my alerts |
-| GET | `/crisis/active` | 🔒 All active alerts (therapist/admin) |
-| GET | `/crisis/hotlines` | 🔒 Region-appropriate crisis hotlines (by `User.countryCode`) |
-| GET | `/crisis/logs` | 🔒 Crisis escalation log (therapist/admin) |
-| POST | `/crisis/logs/:logId/action` | 🔒 Record follow-up action on a crisis log (therapist/admin) |
-| POST | `/crisis/message-therapist` | 🔒 User asks their assigned therapist to be notified (falls back to admins) |
-| PUT | `/crisis/:id/acknowledge` | 🔒 Acknowledge alert |
-| PUT | `/crisis/:id/resolve` | 🔒 Resolve alert |
+| POST | `/crisis` |  Create crisis alert (severity escalation: severe → urgent notify, medium → non-urgent, mild → log only unless `requestContact`; `panic_attack` also returns a `panicExercise` for first-response) |
+| GET | `/crisis/mine` |  Get my alerts |
+| GET | `/crisis/active` |  All active alerts (therapist/admin) |
+| GET | `/crisis/hotlines` |  Region-appropriate crisis hotlines (by `User.countryCode`) |
+| GET | `/crisis/logs` |  Crisis escalation log (therapist/admin) |
+| POST | `/crisis/logs/:logId/action` |  Record follow-up action on a crisis log (therapist/admin) |
+| POST | `/crisis/message-therapist` |  User asks their assigned therapist to be notified (falls back to admins) |
+| PUT | `/crisis/:id/acknowledge` |  Acknowledge alert |
+| PUT | `/crisis/:id/resolve` |  Resolve alert |
 
 ### Safety Plan - `/api/safety-plan`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/safety-plan` | 🔒 Get my safety plan (decrypted; `{}` when none) |
-| PUT | `/safety-plan` | 🔒 Create-or-replace my plan (7 sections, ≤10 items × ≤120 chars, items encrypted at rest) |
-| GET | `/safety-plan/:userId` | 🔒 Read-only client plan for their assigned therapist (or admin); audit-logged |
+| GET | `/safety-plan` |  Get my safety plan (decrypted; `{}` when none) |
+| PUT | `/safety-plan` |  Create-or-replace my plan (7 sections, ≤10 items × ≤120 chars, items encrypted at rest) |
+| GET | `/safety-plan/:userId` |  Read-only client plan for their assigned therapist (or admin); audit-logged |
 
 ### Therry - `/api/therry`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/therry/chat` | 🔒 Send a message, get Therry's reply (auto-escalates crisis; `panic_attack` responses include `crisis.panicExercise`) |
-| GET | `/therry/messages` | 🔒 Get my Therry history (asc, max 500) |
-| PUT | `/therry/messages/:messageId` | 🔒 Edit a Therry message |
+| POST | `/therry/chat` |  Send a message, get Therry's reply (auto-escalates crisis; `panic_attack` responses include `crisis.panicExercise`) |
+| GET | `/therry/messages` |  Get my Therry history (asc, max 500) |
+| PUT | `/therry/messages/:messageId` |  Edit a Therry message |
 
 ### Audit - `/api/audit`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/audit` | 🔒 Paginated privacy audit log (admin) - filter by `action`, `actorId`, `targetId`, `from`/`to` |
+| GET | `/audit` |  Paginated privacy audit log (admin) - filter by `action`, `actorId`, `targetId`, `from`/`to` |
 
 ### Therapist - `/api/therapist`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/clients/risk-summary` | 🔒 Per-client check-in signals (mood/crisis/exercise/login) for the therapist's roster; audit-logged |
+| GET | `/clients/risk-summary` |  Per-client check-in signals (mood/crisis/exercise/login) for the therapist's roster; audit-logged |
 
 ### Push - `/api/push`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/push/vapid-public-key` | 🔒 Public VAPID key for creating a push subscription |
-| POST | `/push/subscribe` | 🔒 Register/refresh a device push subscription |
-| POST | `/push/unsubscribe` | 🔒 Remove a device push subscription (logout/unsubscribe) |
+| GET | `/push/vapid-public-key` |  Public VAPID key for creating a push subscription |
+| POST | `/push/subscribe` |  Register/refresh a device push subscription |
+| POST | `/push/unsubscribe` |  Remove a device push subscription (logout/unsubscribe) |
 
 ### Misc
 
@@ -235,12 +235,12 @@ Protected routes require a valid access token (httpOnly `token` cookie or `Autho
 - **User** - firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter, `aiDisclosureAcknowledgedAt`, `countryCode` (ISO-3166 alpha-2, default `US` - routes crisis hotlines).
 - **Message** (DM) - sender, recipient, `kind` (`message` \| `screenshot-notice`), `noticeType`, content (≤2000, encrypted at rest), read/readAt, `deletedFor`, unsent, edited/editCount/editHistory.
 - **Community** - name, owner, members, unique `inviteKey`, description, embedded messages (sender, content ≤2000 - encrypted at rest, readBy, unsent, edit history).
-- **Mood** - user, mood (`great`/`good`/`okay`/`bad`/`terrible`), emoji, note (encrypted at rest), factors, intensity (1–10), date.
+- **Mood** - user, mood (`great`/`good`/`okay`/`bad`/`terrible`), note (encrypted at rest), factors, intensity (1–10), date.
 - **Crisis** - user, alertType, `severity` (`mild`/`medium`/`severe`), description (encrypted at rest), source (`manual` \| `therry`), `therryMessageId`, status (`active`/`acknowledged`/`resolved`), acknowledgedBy, resolvedAt, resourcesShared.
 - **CrisisLog** - chronicles every crisis event (manual alert or Therry detection): user, source, category, therryMessageId, notified therapist/admins, hotlines shared, and follow-up actions recorded by therapists/admins.
 - **AuditLog** - actor, actorRole, action (`user_profile_view`, `client_roster_view`, `crisis_view`, `safety_plan_view`, `safety_plan_update`, `risk_summary_view`, `data_export`, `account_deletion`, `ai_disclosure_ack`), target, detail, ip, userAgent.
 - **SafetyPlan** - one per user (unique `user`): seven short lists (warningSigns, internalCoping, distractionPeople, distractionSettings, helpPeople, professionals, meansRestriction, reasonsForLiving), each item encrypted at rest, ≤10 items × ≤120 chars.
-- **Exercise** - title, description, duration (sec), type, steps, difficulty, emoji, color.
+- **Exercise** - title, description, duration (sec), type, steps, difficulty, color.
 - **ExerciseLog** - user, exercise, startedAt, completedAt, timeSpent, completed.
 - **Notification** - recipient, sender, type (message, community_invite, exercise_reminder, system, mood_reminder, crisis_alert, community_update, streak_milestone, mood_checkin), title/body (encrypted at rest), data, read/readAt.
 - **TherryMessage** - user, role (`user`/`assistant`), content (≤4000, encrypted at rest), category (`anxiety`/`sad`/`stress`/`lonely`/`angry`/`general`/`crisis`).
