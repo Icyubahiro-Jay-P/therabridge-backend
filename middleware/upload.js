@@ -1,24 +1,8 @@
 import multer from "multer";
-import path from "path";
-import { fileURLToPath } from "url";
-import fs from "fs";
-import { promisify } from "util";
 
-const readFile = promisify(fs.readFile);
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "..", "uploads"));
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueSuffix = `${req.user.id}_${Date.now()}`;
-    cb(null, `profile_${uniqueSuffix}${ext}`);
-  },
-});
+// Uploads are buffered in memory, validated by magic bytes, and uploaded
+// straight to Cloudinary - never written to the server's disk, which is
+// ephemeral on Render and wiped on every deploy.
 
 // Magic-byte sniffing: the browser-reported MIME type and the file extension
 // are both attacker-controlled, so we verify the actual file signature before
@@ -31,7 +15,7 @@ const IMAGE_SIGNATURES = [
   { name: "webp", bytes: [0x52, 0x49, 0x46, 0x46] }, // "RIFF" - verified further below
 ];
 
-const hasValidImageSignature = (buf) => {
+export const hasValidImageSignature = (buf) => {
   if (!buf || buf.length < 12) return false;
   const sig = IMAGE_SIGNATURES.find(({ name, bytes }) =>
     bytes.every((b, i) => buf[i] === b),
@@ -44,18 +28,11 @@ const hasValidImageSignature = (buf) => {
   return true;
 };
 
-export const sniffUpload = async (filePath) => {
-  try {
-    const buf = await readFile(filePath);
-    return hasValidImageSignature(buf);
-  } catch {
-    return false;
-  }
-};
+export const sniffUpload = async (buffer) => hasValidImageSignature(buffer);
 
 const fileFilter = (req, file, cb) => {
   const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
-  if (allowed.test(path.extname(file.originalname))) {
+  if (allowed.test(file.originalname)) {
     cb(null, true);
   } else {
     cb(
@@ -68,7 +45,7 @@ const fileFilter = (req, file, cb) => {
 const MAX_UPLOAD_SIZE = 1.4 * 1024 * 1024; // 1.4 MB
 
 export const uploadProfilePic = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter,
   limits: { fileSize: MAX_UPLOAD_SIZE },
 }).single("avatar");
