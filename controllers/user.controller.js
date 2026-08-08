@@ -616,11 +616,6 @@ export const uploadProfilePicture = async (req, res) => {
       },
     });
   } catch (error) {
-    if (req.file) {
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch {}
-    }
     throw error;
   }
 };
@@ -632,12 +627,8 @@ export const deleteAvatar = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (user.avatar && user.avatar.startsWith("/uploads/")) {
-      const resolvedPath = path.resolve(path.join(__dirname, "..", user.avatar));
-      const uploadsDir = path.resolve(path.join(__dirname, "..", "uploads"));
-      if (resolvedPath.startsWith(uploadsDir) && fs.existsSync(resolvedPath)) {
-        fs.unlinkSync(resolvedPath);
-      }
+    if (user.avatar) {
+      await deleteAvatarFromCloudinary(user.id);
     }
 
     user.avatar = null;
