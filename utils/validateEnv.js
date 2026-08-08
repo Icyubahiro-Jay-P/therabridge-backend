@@ -52,7 +52,11 @@ const warnIfWeak = (name, predicate, hint) => {
 export const validateEnv = () => {
   const isProduction = process.env.NODE_ENV === "production";
 
-  requireEnv("MONGO_URI", (v) => !!v, "must be set to your MongoDB connection string");
+  requireEnv(
+    "MONGO_URI",
+    (v) => !!v,
+    "must be set to your MongoDB connection string",
+  );
 
   requireEnv(
     "JWT_SECRET",
@@ -67,13 +71,41 @@ export const validateEnv = () => {
       isValidEncryptionKey,
       "must be a 64-char hex key (openssl rand -hex 32) - sensitive fields would otherwise be stored unencrypted",
     );
-    requireEnv("EMAIL_HOST", (v) => !!v, "must be set for password reset emails");
-    requireEnv("EMAIL_USER", (v) => !!v, "must be set for password reset emails");
-    requireEnv("EMAIL_PASS", (v) => !!v, "must be set for password reset emails");
-    requireEnv("VAPID_PUBLIC_KEY", (v) => !!v, "must be set for device notifications");
-    requireEnv("VAPID_PRIVATE_KEY", (v) => !!v, "must be set for device notifications");
-    requireEnv("VAPID_SUBJECT", (v) => !!v, "must be set for device notifications");
-    requireEnv("GEMINI_API_KEY", (v) => !!v && !isPlaceholder(v), "must be a real Gemini API key");
+    requireEnv(
+      "EMAIL_HOST",
+      (v) => !!v,
+      "must be set for password reset emails",
+    );
+    requireEnv(
+      "EMAIL_USER",
+      (v) => !!v,
+      "must be set for password reset emails",
+    );
+    requireEnv(
+      "EMAIL_PASS",
+      (v) => !!v,
+      "must be set for password reset emails",
+    );
+    requireEnv(
+      "VAPID_PUBLIC_KEY",
+      (v) => !!v,
+      "must be set for device notifications",
+    );
+    requireEnv(
+      "VAPID_PRIVATE_KEY",
+      (v) => !!v,
+      "must be set for device notifications",
+    );
+    requireEnv(
+      "VAPID_SUBJECT",
+      (v) => !!v,
+      "must be set for device notifications",
+    );
+    requireEnv(
+      "GEMINI_API_KEY",
+      (v) => !!v && !isPlaceholder(v),
+      "must be a real Gemini API key",
+    );
     requireEnv(
       "CLOUDINARY_CLOUD_NAME",
       (v) => !!v && !isPlaceholder(v),
