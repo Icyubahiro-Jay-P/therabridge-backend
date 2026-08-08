@@ -17,17 +17,9 @@ export const logMood = async (req, res) => {
     if (!validMoods.includes(mood)) {
       return res.status(400).json({ error: { message: "Invalid mood value.", code: "VALIDATION_ERROR" } });
     }
-    const moodEmojis = {
-      great: "😄",
-      good: "🙂",
-      okay: "😐",
-      bad: "😔",
-      terrible: "😢",
-    };
     const entry = new Mood({
       user: req.user.id,
       mood,
-      emoji: moodEmojis[mood] || "",
       note: encryptField(note || ""),
       factors: factors || [],
       intensity: intensity || 5,
