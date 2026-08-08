@@ -31,10 +31,6 @@ const exerciseSchema = new mongoose.Schema(
       enum: ["beginner", "intermediate", "advanced"],
       default: "beginner",
     },
-    emoji: {
-      type: String,
-      default: "🌿",
-    },
     color: {
       type: String,
       default: "#10b981",
