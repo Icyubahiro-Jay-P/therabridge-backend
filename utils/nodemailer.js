@@ -30,6 +30,52 @@ const hasSmtpCredentials = () => {
   return !!user && !!pass && !isPlaceholder(user) && !isPlaceholder(pass);
 };
 
+// Resend (https://resend.com) is the HTTP email provider. It sends over port
+// 443, so it works on hosts that block SMTP egress entirely - e.g. Render's
+// free tier, which has blocked outbound SMTP ports 25/465/587 since Sept 2025.
+const hasResendCredentials = () =>
+  process.env.EMAIL_PROVIDER === "resend" &&
+  !!process.env.RESEND_API_KEY &&
+  !isPlaceholder(process.env.RESEND_API_KEY);
+
+const buildFrom = () => {
+  if (process.env.RESEND_FROM) return process.env.RESEND_FROM;
+  return `${process.env.FROM_NAME || "Therabridge"} <${process.env.FROM_EMAIL || process.env.EMAIL_USER || "no-reply@therabridge.com"}>`;
+};
+
+const sendViaResend = async ({ email, subject, message, html }) => {
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: buildFrom(),
+      to: email,
+      subject,
+      text: message,
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const body = await res.json();
+      detail = body.message || JSON.stringify(body);
+    } catch {
+      // ignore JSON parse errors
+    }
+    const error = new Error(`Resend API error (${res.status}): ${detail}`);
+    error.code = "EMAIL_SEND_FAILED";
+    throw error;
+  }
+
+  const data = await res.json();
+  logger.info({ messageId: data.id, to: email }, "Message sent via Resend");
+};
+
 // Resolve the SMTP hostname to an IPv4 address so we connect over IPv4 only.
 // nodemailer 9 resolves both A and AAAA records and picks a random address,
 // and its `family` option is ignored (dropped in v9) - on hosts without IPv6
@@ -48,14 +94,20 @@ const resolveIPv4Host = async (host) => {
   }
 };
 
-if (!hasSmtpCredentials()) {
+if (!hasSmtpCredentials() && !hasResendCredentials()) {
   logger.warn(
-    "SMTP is not configured (EMAIL_USER / EMAIL_PASS missing or placeholder). " +
+    "SMTP is not configured (EMAIL_USER / EMAIL_PASS missing or placeholder) " +
+      "and Resend is not configured (EMAIL_PROVIDER=resend + RESEND_API_KEY). " +
       "Password reset emails will use a throwaway Ethereal account in dev and will fail with a 502 in production.",
   );
 }
 
 const sendEmail = async (options) => {
+  if (hasResendCredentials()) {
+    await sendViaResend(options);
+    return;
+  }
+
   const isProduction = process.env.NODE_ENV === "production";
 
   if (!hasSmtpCredentials() && isProduction) {
