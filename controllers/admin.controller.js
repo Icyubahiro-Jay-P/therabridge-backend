@@ -24,7 +24,9 @@ const aggregateDaily = async (Model, dateField, days, extraMatch = {}) => {
     { $match: { ...extraMatch, [dateField]: { $gte: daysAgo(days) } } },
     {
       $group: {
-        _id: { $dateToString: { format: "%Y-%m-%d", date: dateField } },
+        _id: {
+          $dateToString: { format: "%Y-%m-%d", date: "$" + dateField },
+        },
         count: { $sum: 1 },
       },
     },
