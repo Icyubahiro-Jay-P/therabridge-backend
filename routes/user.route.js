@@ -26,6 +26,8 @@ import {
   assignTherapist,
   acknowledgeAiDisclosure,
   exportMyData,
+  verifyEmail,
+  resendVerification,
 } from "../controllers/user.controller.js";
 
 import { authMiddleware } from "../middleware/auth.middleware.js";
@@ -40,6 +42,7 @@ import {
   changePasswordSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  verifyEmailSchema,
   privacySettingsSchema,
   inviteMemberSchema,
   assignTherapistSchema,
@@ -57,6 +60,8 @@ router.post("/logout", logout);
 router.post("/refresh", refresh);
 router.post("/forgot-password", validate(forgotPasswordSchema), forgotPassword);
 router.post("/reset-password/:token", validate(resetPasswordSchema), resetPassword);
+router.post("/verify-email", authMiddleware, validate(verifyEmailSchema), verifyEmail);
+router.post("/resend-verification", authMiddleware, resendVerification);
 
 // ====================== PROTECTED ROUTES ======================
 router.get("/profile", authMiddleware, profile);
