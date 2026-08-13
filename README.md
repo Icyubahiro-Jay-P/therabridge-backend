@@ -10,7 +10,7 @@ Express 5 + MongoDB API server for Therabridge, a mental wellness platform.
 - **Bcrypt** - Password hashing (10 rounds) with old-password rotation
 - **Zod** - Request body validation (`utils/validation.js`)
 - **Per-route JSON body limits** - each router mounts a route-tuned `express.json` limit (`middleware/jsonBody.js`); oversized bodies return `413 PAYLOAD_TOO_LARGE`
-- **Nodemailer** - Transactional emails (password reset, nodemailer-ethereal in dev)
+- **Nodemailer** - Transactional emails (verification codes, password reset); nodemailer-ethereal in dev
 - **Multer** + **Sharp** - Profile picture upload + image optimization
 - **Helmet**, **express-rate-limit**, **CORS** - Security
 - **Pino** - Structured logging (`utils/logger.js`)
@@ -47,8 +47,9 @@ Copy `backend/.env.example` to `.env`:
 | `CLIENT_URL` | Allowed CORS origin (default: `http://localhost:5173`; production: `https://therabridge.vercel.app`) |
 | `MONGO_URI` | MongoDB connection string |
 | `JWT_SECRET` | Secret for JWT signing |
-| `EMAIL_HOST` / `EMAIL_PORT` | SMTP host and port (Gmail SMTP) |
+| `EMAIL_HOST` / `EMAIL_PORT` | SMTP host and port (Gmail SMTP). The hostname is resolved to an IPv4 literal before connecting (see Email below) |
 | `EMAIL_USER` / `EMAIL_PASS` | SMTP credentials (Gmail app password) |
+| `EMAIL_SECURE` | Set to `true` to use implicit TLS (`secure: true`), e.g. Gmail port 465 when 587 is blocked |
 | `FROM_NAME` / `FROM_EMAIL` | Outbound email sender identity |
 | `GEMINI_API_KEY` | Google Gemini API key (Therry AI companion) |
 | `FIELD_ENCRYPTION_KEY` | 32-byte hex (or raw 32-byte string) key for AES-256-GCM field encryption. **Required in production** - without it `encryptField` throws. Non-production falls back to plaintext with a warning. |
@@ -82,6 +83,8 @@ All endpoints below are mounted under `/api` and require the JWT cookie.
 | POST | `/users/refresh` | Rotate refresh token, issue new access token |
 | POST | `/users/forgot-password` | Request reset email |
 | POST | `/users/reset-password/:token` | Reset password |
+| POST | `/users/verify-email` |  Verify email with a 6-digit code (30-min TTL, hashed at rest) |
+| POST | `/users/resend-verification` |  Re-issue + email a fresh verification code (60-s cooldown; 502 `EMAIL_FAILED` on SMTP failure in production) |
 | GET | `/users/profile` |  Get own profile |
 | PUT | `/users/profile` |  Update profile fields |
 | DELETE | `/users/profile` |  Delete account (cascades to all owned data) |
@@ -207,6 +210,12 @@ All endpoints below are mounted under `/api` and require the JWT cookie.
 |--------|------|-------------|
 | GET | `/audit` |  Paginated privacy audit log (admin) - filter by `action`, `actorId`, `targetId`, `from`/`to` |
 
+### Admin - `/api/admin`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/admin/dashboard` |  Admin platform overview: KPI totals (incl. unverified/disabled users), 7/30-day trends, a 14-day daily activity series, 30-day mood distribution, and recent signups / active crises / top communities / audit feeds |
+
 ### Therapist - `/api/therapist`
 
 | Method | Path | Description |
@@ -230,9 +239,20 @@ All endpoints below are mounted under `/api` and require the JWT cookie.
 
 Protected routes require a valid access token (httpOnly `token` cookie or `Authorization: Bearer` header, 15-min expiry). When the access token expires, the client calls `/users/refresh` with the httpOnly `refreshToken` cookie (7-day expiry); the refresh token is rotated on every use and stored hashed (`sha256` of the `jti`) in `user.refreshTokens` so sessions can be revoked (logout, password change/reset). Both cookies use `secure: true` and `sameSite: "none"` in production. Rate limiting is applied globally (500 req/15min, with long-poll `*/updates` endpoints exempt) and on auth endpoints (50 req/15min). Idempotency keys are honored via the `Idempotency-Key` header.
 
+## Email Verification
+
+Every account starts unverified. Registration (`POST /api/users/register`) mints a **6-digit code** (`crypto.randomInt`, zero-padded, **30-minute TTL**), stores only its **SHA-256 hash** in `user.verificationCode` + `verificationCodeExpire`, and emails the plaintext. Sending is **best-effort** — an SMTP failure at registration is logged, not surfaced, so the account still works and the user can resend later.
+
+- `POST /api/users/verify-email` (`{ code }`): validates `ALREADY_VERIFIED` / `NO_CODE` / `CODE_EXPIRED` / `INVALID_CODE` (400s), then sets `isAccountVerified = true` and clears the code fields.
+- `POST /api/users/resend-verification`: replaces the stored code with a fresh one and re-emails it. Mounted under the auth rate limiter. On SMTP failure returns `502 { code: "EMAIL_FAILED" }` with a generic message in production (SMTP internals stay hidden). Response includes `resendCooldownSeconds: 60`.
+
+### SMTP connectivity (production)
+
+`utils/nodemailer.js` resolves the SMTP hostname to an **IPv4 literal** before building the transport. Nodemailer 9 resolves both A and AAAA records and picks a random address (its `family` option is ignored), so on hosts **without IPv6 egress** — e.g. Render — it can fail with `connect ENETUNREACH <ipv6>:587`. The IPv4 literal is passed as `host` with the original hostname as `servername` so TLS still validates against `smtp.gmail.com`. If Gmail's port 587 is blocked (symptom: `Connection timeout` on the IPv4 address), set `EMAIL_PORT=465` and `EMAIL_SECURE=true` for implicit TLS. Sends are logged with the resolved host/port.
+
 ## Models
 
-- **User** - firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter, `aiDisclosureAcknowledgedAt`, `countryCode` (ISO-3166 alpha-2, default `US` - routes crisis hotlines).
+- **User** - firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, `isAccountVerified` + hashed 6-digit `verificationCode`/`verificationCodeExpire` (email verification), wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter, `aiDisclosureAcknowledgedAt`, `countryCode` (ISO-3166 alpha-2, default `US` - routes crisis hotlines).
 - **Message** (DM) - sender, recipient, `kind` (`message` \| `screenshot-notice`), `noticeType`, content (≤2000, encrypted at rest), read/readAt, `deletedFor`, unsent, edited/editCount/editHistory.
 - **Community** - name, owner, members, unique `inviteKey`, description, embedded messages (sender, content ≤2000 - encrypted at rest, readBy, unsent, edit history).
 - **Mood** - user, mood (`great`/`good`/`okay`/`bad`/`terrible`), note (encrypted at rest), factors, intensity (1–10), date.
