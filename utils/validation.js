@@ -163,6 +163,12 @@ export const forgotPasswordSchema = z.object({
   email: z.string().email("Valid email is required"),
 })
 
+export const verifyEmailSchema = z.object({
+  code: z
+    .string()
+    .regex(/^\d{6}$/, "Enter the 6-digit verification code from your email"),
+})
+
 export const resetPasswordSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password is too long"),
 })
