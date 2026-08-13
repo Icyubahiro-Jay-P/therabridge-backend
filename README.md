@@ -51,6 +51,7 @@ Copy `backend/.env.example` to `.env`:
 | `EMAIL_USER` / `EMAIL_PASS` | SMTP credentials (Gmail app password) |
 | `EMAIL_SECURE` | Set to `true` to use implicit TLS (`secure: true`), e.g. Gmail port 465 when 587 is blocked |
 | `FROM_NAME` / `FROM_EMAIL` | Outbound email sender identity |
+| `EMAIL_PROVIDER` / `RESEND_API_KEY` / `RESEND_FROM` | **Resend HTTP API** (recommended on Render free tier - sends over port 443): set `EMAIL_PROVIDER=resend`, add the API key, and optionally `RESEND_FROM` (the sender must be verified in Resend) |
 | `GEMINI_API_KEY` | Google Gemini API key (Therry AI companion) |
 | `FIELD_ENCRYPTION_KEY` | 32-byte hex (or raw 32-byte string) key for AES-256-GCM field encryption. **Required in production** - without it `encryptField` throws. Non-production falls back to plaintext with a warning. |
 | `AI_SERVICE_URL` | Optional Python ML microservice for spam/crisis/sentiment hints (falls back gracefully when unavailable) |
@@ -246,9 +247,12 @@ Every account starts unverified. Registration (`POST /api/users/register`) mints
 - `POST /api/users/verify-email` (`{ code }`): validates `ALREADY_VERIFIED` / `NO_CODE` / `CODE_EXPIRED` / `INVALID_CODE` (400s), then sets `isAccountVerified = true` and clears the code fields.
 - `POST /api/users/resend-verification`: replaces the stored code with a fresh one and re-emails it. Mounted under the auth rate limiter. On SMTP failure returns `502 { code: "EMAIL_FAILED" }` with a generic message in production (SMTP internals stay hidden). Response includes `resendCooldownSeconds: 60`.
 
-### SMTP connectivity (production)
+### Email delivery (production)
 
-`utils/nodemailer.js` resolves the SMTP hostname to an **IPv4 literal** before building the transport. Nodemailer 9 resolves both A and AAAA records and picks a random address (its `family` option is ignored), so on hosts **without IPv6 egress** — e.g. Render — it can fail with `connect ENETUNREACH <ipv6>:587`. The IPv4 literal is passed as `host` with the original hostname as `servername` so TLS still validates against `smtp.gmail.com`. If Gmail's port 587 is blocked (symptom: `Connection timeout` on the IPv4 address), set `EMAIL_PORT=465` and `EMAIL_SECURE=true` for implicit TLS. Sends are logged with the resolved host/port.
+`utils/nodemailer.js` dispatches on provider:
+
+- **Resend (HTTP API)** — used when `EMAIL_PROVIDER=resend` and `RESEND_API_KEY` is set. Sends `POST https://api.resend.com/emails` over **port 443**, so it works on hosts that block SMTP entirely — **Render's free tier has blocked outbound SMTP ports 25/465/587 since Sept 2025** (upgrading to a paid instance re-enables SMTP). The From address must be a sender verified in Resend (your own domain, or `onboarding@resend.dev`, which can only deliver to your own inbox). Non-2xx responses throw `EMAIL_SEND_FAILED`.
+- **SMTP (nodemailer)** — the default. The hostname is resolved to an **IPv4 literal** before building the transport because nodemailer 9 resolves both A and AAAA records and picks a random address (its `family` option is ignored), so on hosts without IPv6 egress it can fail with `connect ENETUNREACH <ipv6>:587`. The literal is passed as `host` with the original hostname as `servername` so TLS still validates against `smtp.gmail.com`. If Gmail's port 587 is blocked (symptom: `Connection timeout` on the IPv4 address), set `EMAIL_PORT=465` and `EMAIL_SECURE=true` for implicit TLS. Sends are logged with the resolved host/port.
 
 ## Models
 
