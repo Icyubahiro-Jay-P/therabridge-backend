@@ -62,6 +62,7 @@ const sendEmail = async (options) => {
       host: "smtp.ethereal.email",
       port: 587,
       secure: false,
+      family: 4,
       auth: {
         user: testAccount.user,
         pass: testAccount.pass,
@@ -75,6 +76,7 @@ const sendEmail = async (options) => {
       host: process.env.EMAIL_HOST || "smtp.gmail.com",
       port: Number(process.env.EMAIL_PORT) || 587,
       secure: false, // Use TLS for port 587
+      family: 4, // Hosts without IPv6 egress (e.g. Render) fail with ENETUNREACH otherwise
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
