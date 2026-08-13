@@ -93,15 +93,19 @@ const sendEmail = async (options) => {
   } else {
     const smtpHost = process.env.EMAIL_HOST || "smtp.gmail.com";
     const host = await resolveIPv4Host(smtpHost);
+    const port = Number(process.env.EMAIL_PORT) || 587;
+    const secure = process.env.EMAIL_SECURE === "true";
     // Keep the original hostname as the TLS servername: the transport connects
     // to an IPv4 literal, so without it the certificate would be checked
     // against the IP and the handshake would fail.
     const servername = host !== smtpHost ? smtpHost : undefined;
 
+    logger.info({ smtpHost, host, port, secure }, "Connecting via SMTP");
+
     transporter = nodemailer.createTransport({
       host,
-      port: Number(process.env.EMAIL_PORT) || 587,
-      secure: false, // Use TLS for port 587
+      port,
+      secure, // EMAIL_SECURE=true uses implicit TLS (e.g. Gmail port 465)
       servername,
       auth: {
         user: process.env.EMAIL_USER,
