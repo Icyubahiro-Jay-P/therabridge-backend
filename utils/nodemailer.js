@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import dns from "node:dns/promises";
+import net from "node:net";
 import logger from "./logger.js";
 
 // Credentials that were never configured - copy-pasted from .env.example.
@@ -26,6 +28,24 @@ const hasSmtpCredentials = () => {
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
   return !!user && !!pass && !isPlaceholder(user) && !isPlaceholder(pass);
+};
+
+// Resolve the SMTP hostname to an IPv4 address so we connect over IPv4 only.
+// nodemailer 9 resolves both A and AAAA records and picks a random address,
+// and its `family` option is ignored (dropped in v9) - on hosts without IPv6
+// egress (e.g. Render) an IPv6 pick fails with `connect ENETUNREACH`.
+const resolveIPv4Host = async (host) => {
+  if (!host || net.isIP(host)) return host;
+  try {
+    const { address } = await dns.lookup(host, { family: 4 });
+    return address;
+  } catch (error) {
+    logger.warn(
+      { error, host },
+      "Failed to resolve SMTP host to IPv4, falling back to hostname",
+    );
+    return host;
+  }
 };
 
 if (!hasSmtpCredentials()) {
@@ -62,7 +82,6 @@ const sendEmail = async (options) => {
       host: "smtp.ethereal.email",
       port: 587,
       secure: false,
-      family: 4,
       auth: {
         user: testAccount.user,
         pass: testAccount.pass,
@@ -72,11 +91,18 @@ const sendEmail = async (options) => {
       socketTimeout: 20000,
     });
   } else {
+    const smtpHost = process.env.EMAIL_HOST || "smtp.gmail.com";
+    const host = await resolveIPv4Host(smtpHost);
+    // Keep the original hostname as the TLS servername: the transport connects
+    // to an IPv4 literal, so without it the certificate would be checked
+    // against the IP and the handshake would fail.
+    const servername = host !== smtpHost ? smtpHost : undefined;
+
     transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || "smtp.gmail.com",
+      host,
       port: Number(process.env.EMAIL_PORT) || 587,
       secure: false, // Use TLS for port 587
-      family: 4, // Hosts without IPv6 egress (e.g. Render) fail with ENETUNREACH otherwise
+      servername,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
