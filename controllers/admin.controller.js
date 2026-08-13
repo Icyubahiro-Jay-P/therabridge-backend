@@ -32,6 +32,25 @@ const aggregateDaily = async (Model, dateField, days, extraMatch = {}) => {
   return new Map(rows.map((r) => [r._id, r.count]));
 };
 
+// Community messages are embedded subdocuments on the Community document, so
+// daily counting requires an unwind. Returns a Map keyed by day string.
+const aggregateCommunityMessagesDaily = async (days) => {
+  const rows = await Community.aggregate([
+    { $match: { "messages.createdAt": { $gte: daysAgo(days) } } },
+    { $unwind: "$messages" },
+    { $match: { "messages.createdAt": { $gte: daysAgo(days) } } },
+    {
+      $group: {
+        _id: {
+          $dateToString: { format: "%Y-%m-%d", date: "$messages.createdAt" },
+        },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+  return new Map(rows.map((r) => [r._id, r.count]));
+};
+
 const buildDailySeries = (maps, days) => {
   const labels = [];
   for (let i = days - 1; i >= 0; i--) {
