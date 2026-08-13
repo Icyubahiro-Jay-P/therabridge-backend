@@ -39,6 +39,88 @@ import {
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
 
+// Email verification: 6-digit code, valid for 30 minutes, hashed at rest.
+const VERIFICATION_CODE_TTL_MS = 30 * 60 * 1000;
+
+const generateVerificationCode = () =>
+  crypto.randomInt(0, 1000000).toString().padStart(6, "0");
+
+const hashVerificationCode = (code) =>
+  crypto.createHash("sha256").update(code).digest("hex");
+
+const sendVerificationEmail = async (user, code) => {
+  const message = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { margin:0; padding:0; background:#f8fafc; font-family:'Inter',system-ui,sans-serif; color: #1f2937; }
+        .email-container { max-width: 620px; margin: 40px auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.07); }
+        .header { background: linear-gradient(135deg, #10b981, #059669); padding: 50px 40px; text-align: center; color: white; }
+        .header h1 { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }
+        .header p { margin: 12px 0 0; font-size: 17px; opacity: 0.95; }
+        .content { padding: 45px 40px; }
+        .greeting { font-size: 20px; font-weight: 600; color: #111827; margin: 0 0 12px 0; }
+        .message { color: #374151; line-height: 1.75; font-size: 16.5px; margin-bottom: 25px; }
+        .code-box { text-align: center; margin: 35px 0; }
+        .code { display: inline-block; background: #ecfdf5; border: 2px dashed #10b981; color: #065f46; padding: 20px 45px; font-size: 42px; font-weight: 700; letter-spacing: 12px; border-radius: 16px; }
+        .warning { background: #fefce8; border-left: 5px solid #eab308; padding: 20px; border-radius: 12px; margin: 30px 0; color: #854d0e; font-size: 15px; line-height: 1.6; }
+        .footer { background: #f1f5f9; padding: 35px 40px; text-align: center; color: #64748b; font-size: 14px; border-top: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>Therabridge</h1>
+            <p>Verify your email</p>
+        </div>
+        <div class="content">
+            <p class="greeting">Hey ${user.firstName || "there"},</p>
+            <p class="message">
+                Thanks for joining Therabridge. Enter the code below in the app to verify your email address and activate your account.
+            </p>
+            <div class="code-box">
+                <span class="code">${code}</span>
+            </div>
+            <p class="message" style="text-align:center; color:#6b7280; font-size:14px;">
+                This code expires in <strong>30 minutes</strong>.
+            </p>
+            <div class="warning">
+                <strong>Didn't request this?</strong><br>
+                If you didn't create an account with this email, you can safely ignore this message.
+            </div>
+        </div>
+        <div class="footer">
+            <p><strong>Therabridge</strong> • Your mental wellness companion</p>
+            <p>© ${new Date().getFullYear()} Therabridge. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+  await sendEmail({
+    email: user.email,
+    subject: "Verify Your Email - Therabridge",
+    message: `Your Therabridge verification code is ${code}. It expires in 30 minutes.`,
+    html: message,
+  });
+};
+
+// Generates a fresh 6-digit code, stores its hash on the user, and emails it.
+// Returns the plaintext code only for immediate use (register) - the hashed
+// copy is what gets stored and later compared.
+const issueVerificationCode = async (user) => {
+  const code = generateVerificationCode();
+  user.verificationCode = hashVerificationCode(code);
+  user.verificationCodeExpire = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
+  await user.save();
+  await sendVerificationEmail(user, code);
+};
+
 const updateLoginStreak = async (user) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -142,6 +224,10 @@ export const register = async (req, res) => {
     // Hash & create user
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Issue a 6-digit email verification code. The account starts unverified
+    // until the code is submitted via POST /verify-email.
+    const verificationCode = generateVerificationCode();
+
     const user = new User({
       username,
       email,
@@ -149,6 +235,8 @@ export const register = async (req, res) => {
       firstName,
       lastName,
       dateOfBirth,
+      verificationCode: hashVerificationCode(verificationCode),
+      verificationCodeExpire: new Date(Date.now() + VERIFICATION_CODE_TTL_MS),
     });
 
     await user.save();
@@ -161,6 +249,15 @@ export const register = async (req, res) => {
     setAuthCookies(res, { accessToken, refreshToken });
 
     await updateLoginStreak(user);
+
+    // Email the verification code. Best-effort: if SMTP fails, the account
+    // still exists and is logged in, and the user can get a fresh code via
+    // POST /resend-verification.
+    try {
+      await sendVerificationEmail(user, verificationCode);
+    } catch (err) {
+      logger.error({ err, userId: user._id }, "Failed to send verification email");
+    }
 
     res.status(201).json({
       message: "User registered successfully",
@@ -179,6 +276,7 @@ export const register = async (req, res) => {
         exerciseStreak: user.exerciseStreak,
         longestLoginStreak: user.longestLoginStreak,
         longestExerciseStreak: user.longestExerciseStreak,
+        isAccountVerified: user.isAccountVerified,
       },
     });
   } catch (error) {
@@ -289,6 +387,7 @@ export const login = async (req, res) => {
         exerciseStreak: user.exerciseStreak,
         longestLoginStreak: user.longestLoginStreak,
         longestExerciseStreak: user.longestExerciseStreak,
+        isAccountVerified: user.isAccountVerified,
       },
     });
   } catch (error) {
@@ -314,6 +413,68 @@ export const logout = async (req, res) => {
   }
   clearAuthCookies(res);
   res.status(200).json({ message: "Logout successful" });
+};
+
+// Confirms the 6-digit code emailed at registration. On success the account
+// is marked verified (isAccountVerified = true) and the stored code is cleared.
+export const verifyEmail = async (req, res) => {
+  try {
+    const { code } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND" } });
+    }
+    if (user.isAccountVerified) {
+      return res.status(400).json({ error: { message: "Your email is already verified.", code: "ALREADY_VERIFIED" } });
+    }
+    if (!user.verificationCode || !user.verificationCodeExpire) {
+      return res.status(400).json({ error: { message: "No verification code was issued. Request a new one.", code: "NO_CODE" } });
+    }
+    if (new Date(user.verificationCodeExpire).getTime() < Date.now()) {
+      return res.status(400).json({ error: { message: "This code has expired. Request a new one.", code: "CODE_EXPIRED" } });
+    }
+    if (hashVerificationCode(code.trim()) !== user.verificationCode) {
+      return res.status(400).json({ error: { message: "Incorrect code. Please check the email we sent you.", code: "INVALID_CODE" } });
+    }
+    user.isAccountVerified = true;
+    user.verificationCode = undefined;
+    user.verificationCodeExpire = undefined;
+    await user.save();
+    res.status(200).json({ message: "Email verified successfully.", isAccountVerified: true });
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Generates a brand-new verification code and emails it. Used when the
+// original email is lost, expired, or never arrived.
+export const resendVerification = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND" } });
+    }
+    if (user.isAccountVerified) {
+      return res.status(400).json({ error: { message: "Your email is already verified.", code: "ALREADY_VERIFIED" } });
+    }
+    try {
+      await issueVerificationCode(user);
+    } catch (err) {
+      logger.error({ err, userId: user._id }, "Failed to resend verification email");
+      return res.status(502).json({
+        error: {
+          message:
+            process.env.NODE_ENV === "production"
+              ? "We couldn't send the verification email right now. Please try again in a few minutes."
+              : `We couldn't send the verification email: ${err.message}`,
+          code: "EMAIL_FAILED",
+        },
+      });
+    }
+    res.status(200).json({ message: "Verification code sent.", resendCooldownSeconds: 60 });
+  } catch (error) {
+    throw error;
+  }
 };
 
 export const refresh = async (req, res) => {
@@ -369,7 +530,7 @@ export const refresh = async (req, res) => {
 export const profile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select(
-      "-password -oldPasswords -refreshTokens -resetPasswordToken -resetPasswordExpire",
+      "-password -oldPasswords -refreshTokens -resetPasswordToken -resetPasswordExpire -verificationCode -verificationCodeExpire",
     );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -384,7 +545,7 @@ export const profile = async (req, res) => {
 export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username }).select(
-      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens",
+      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens -verificationCode -verificationCodeExpire",
     );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -429,7 +590,7 @@ export const getUserProfile = async (req, res) => {
 export const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select(
-      "-password -oldPasswords -refreshTokens",
+      "-password -oldPasswords -refreshTokens -verificationCode -verificationCodeExpire",
     );
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -537,7 +698,7 @@ export const updateProfile = async (req, res) => {
       { $set: updates },
       { new: true },
     ).select(
-      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens",
+      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens -verificationCode -verificationCodeExpire",
     );
 
     if (!user) {
@@ -741,7 +902,7 @@ export const getTherapists = async (req, res) => {
 
     const total = await User.countDocuments(filter);
     const therapists = await User.find(filter)
-      .select("-password -oldPasswords -refreshTokens")
+      .select("-password -oldPasswords -refreshTokens -verificationCode -verificationCodeExpire")
       .sort(sort)
       .limit(limit)
       .skip(offset);
@@ -771,7 +932,7 @@ export const getAllUsers = async (req, res) => {
     ]);
 
     const users = await User.find(filter)
-      .select("-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens")
+      .select("-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens -verificationCode -verificationCodeExpire")
       .populate("therapist", "firstName lastName username")
       .sort(sort)
       .limit(limit)
@@ -962,7 +1123,7 @@ export const updatePrivacy = async (req, res) => {
       req.user.id,
       { $set: updates },
       { new: true },
-    ).select("-password -oldPasswords -refreshTokens");
+    ).select("-password -oldPasswords -refreshTokens -verificationCode -verificationCodeExpire");
 
     res.status(200).json({
       message: "Privacy settings updated",
@@ -1055,7 +1216,7 @@ export const getFullUserData = async (req, res) => {
     const { id } = req.params;
     const currentUser = req.user;
     const user = await User.findById(id).select(
-      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens",
+      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens -verificationCode -verificationCodeExpire",
     );
     if (!user) {
       return res.status(404).json({ message: "User not found." });
@@ -1138,7 +1299,7 @@ export const exportMyData = async (req, res) => {
       safetyPlan,
     ] = await Promise.all([
       User.findById(userId).select(
-        "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens",
+        "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens -verificationCode -verificationCodeExpire",
       ),
       Mood.find({ user: userId }).sort({ createdAt: 1 }).lean(),
       Crisis.find({ user: userId }).sort({ createdAt: 1 }).lean(),
