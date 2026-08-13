@@ -116,7 +116,13 @@ export const getDashboard = async (req, res) => {
       countSince(Crisis, {}, week),
       countSince(Crisis, {}, month),
       countSince(Message, { kind: "message" }, week),
-      countSince(Community, {}, week),
+      // Community messages are embedded subdocs, so they need an unwind.
+      await Community.aggregate([
+        { $match: { "messages.createdAt": { $gte: week } } },
+        { $unwind: "$messages" },
+        { $match: { "messages.createdAt": { $gte: week } } },
+        { $count: "count" },
+      ]).then((rows) => rows[0]?.count ?? 0),
       countSince(Mood, {}, week),
       countSince(ExerciseLog, { completed: true }, week),
       Notification.countDocuments(),
@@ -136,7 +142,7 @@ export const getDashboard = async (req, res) => {
       topCommunities,
     ] = await Promise.all([
       aggregateDaily(Message, "createdAt", 14, { kind: "message" }),
-      aggregateDaily(Community, "createdAt", 14),
+      aggregateCommunityMessagesDaily(14),
       aggregateDaily(Mood, "createdAt", 14),
       aggregateDaily(ExerciseLog, "createdAt", 14, { completed: true }),
       aggregateDaily(Crisis, "createdAt", 14),
