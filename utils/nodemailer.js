@@ -40,7 +40,12 @@ const hasResendCredentials = () =>
 
 const buildFrom = () => {
   if (process.env.RESEND_FROM) return process.env.RESEND_FROM;
-  return `${process.env.FROM_NAME || "Therabridge"} <${process.env.FROM_EMAIL || process.env.EMAIL_USER || "no-reply@therabridge.com"}>`;
+  // Resend only accepts senders it knows about. onboarding@resend.dev is
+  // Resend's built-in test sender - it works without any domain setup but
+  // only delivers to the email address the Resend account was registered
+  // with. Set RESEND_FROM to a sender on a domain you've verified in Resend
+  // (e.g. "Therabridge <noreply@yourdomain.com>") for real user-facing mail.
+  return `${process.env.FROM_NAME || "Therabridge"} <onboarding@resend.dev>`;
 };
 
 const sendViaResend = async ({ email, subject, message, html }) => {
@@ -67,6 +72,10 @@ const sendViaResend = async ({ email, subject, message, html }) => {
     } catch {
       // ignore JSON parse errors
     }
+    logger.error(
+      { status: res.status, from: buildFrom(), to: email },
+      "Resend API rejected the email",
+    );
     const error = new Error(`Resend API error (${res.status}): ${detail}`);
     error.code = "EMAIL_SEND_FAILED";
     throw error;
@@ -170,7 +179,7 @@ const sendEmail = async (options) => {
   }
 
   const message = {
-    from: `${process.env.FROM_NAME || "Therabridge"} <${process.env.FROM_EMAIL || process.env.EMAIL_USER || "no-reply@therabridge.com"}>`,
+    from: `${process.env.FROM_NAME || "Therabridge"} <${process.env.FROM_EMAIL || process.env.EMAIL_USER || "no-reply@therabridge.vercel.app"}>`,
     to: options.email,
     subject: options.subject,
     text: options.message,
