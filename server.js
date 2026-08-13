@@ -23,6 +23,7 @@ import safetyPlanRoutes from "./routes/safetyPlan.route.js";
 import therapistRoutes from "./routes/therapist.route.js";
 import pushRoutes from "./routes/push.route.js";
 import auditRoutes from "./routes/audit.route.js";
+import adminRoutes from "./routes/admin.route.js";
 import {
   errorHandler,
   notFoundHandler,
@@ -142,6 +143,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // it actually matches (middleware runs in registration order).
 app.use("/api/users/login", authLimiter);
 app.use("/api/users/register", authLimiter);
+app.use("/api/users/resend-verification", authLimiter);
 app.use("/api/users/forgot-password", passwordResetLimiter);
 app.use("/api/users/reset-password", passwordResetLimiter);
 
@@ -157,6 +159,7 @@ app.use("/api/push", pushRoutes);
 app.use("/api/audit", auditRoutes);
 app.use("/api/safety-plan", safetyPlanRoutes);
 app.use("/api/therapist", therapistRoutes);
+app.use("/api/admin", adminRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
