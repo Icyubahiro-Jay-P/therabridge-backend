@@ -45,6 +45,16 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Hashed 6-digit email verification code + expiry. Cleared once the
+    // account is verified (isAccountVerified === true).
+    verificationCode: {
+      type: String,
+      default: null,
+    },
+    verificationCodeExpire: {
+      type: Date,
+      default: null,
+    },
     // Fields used by forgotPassword / resetPassword controller
     resetPasswordToken: {
       type: String,
