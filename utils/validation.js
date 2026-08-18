@@ -58,6 +58,7 @@ export const changePasswordSchema = z.object({
 export const sendMessageSchema = z.object({
   recipientId: z.string().min(1, "Recipient is required"),
   content: z.string().min(1, "Message cannot be empty").max(2000),
+  replyToMessageId: z.string().optional(),
 })
 
 export const createCommunitySchema = z.object({
@@ -187,6 +188,7 @@ export const joinCommunitySchema = z.object({
 
 export const sendCommunityMessageSchema = z.object({
   content: z.string().min(1, "Message cannot be empty").max(2000),
+  replyToMessageId: z.string().optional(),
 })
 
 export const editCommunityMessageSchema = z.object({
