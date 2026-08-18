@@ -15,7 +15,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import sharp from "sharp";
 import { uploadAvatarToCloudinary, deleteAvatarFromCloudinary } from "../utils/cloudinary.js";
-import sendEmail from "../utils/nodemailer.js";
+// import sendEmail from "../utils/nodemailer.js"; // MAIL DISABLED — unused while mailing is offline
 import getClientOrigin from "../utils/clientOrigin.js";
 import logger from "../utils/logger.js";
 import {
@@ -48,7 +48,10 @@ const generateVerificationCode = () =>
 const hashVerificationCode = (code) =>
   crypto.createHash("sha256").update(code).digest("hex");
 
+// MAIL DISABLED — template preserved for when mailing is re-enabled.
+// The code is still generated and stored; only the email dispatch is skipped.
 const sendVerificationEmail = async (user, code) => {
+  // eslint-disable-next-line no-unused-vars
   const message = `
 <!DOCTYPE html>
 <html lang="en">
@@ -102,12 +105,10 @@ const sendVerificationEmail = async (user, code) => {
 </body>
 </html>`;
 
-  await sendEmail({
-    email: user.email,
-    subject: "Verify Your Email - Therabridge",
-    message: `Your Therabridge verification code is ${code}. It expires in 30 minutes.`,
-    html: message,
-  });
+  logger.warn(
+    { userId: user._id, email: user.email },
+    "[MAIL DISABLED] Verification email would have been sent. Code skipped.",
+  );
 };
 
 // Generates a fresh 6-digit code, stores its hash on the user, and emails it.
@@ -250,14 +251,14 @@ export const register = async (req, res) => {
 
     await updateLoginStreak(user);
 
-    // Email the verification code. Best-effort: if SMTP fails, the account
-    // still exists and is logged in, and the user can get a fresh code via
-    // POST /resend-verification.
-    try {
-      await sendVerificationEmail(user, verificationCode);
-    } catch (err) {
-      logger.error({ err, userId: user._id }, "Failed to send verification email");
-    }
+    // MAIL DISABLED — verification code is generated and stored above,
+    // but the email is not dispatched. Re-enable when a stable mail service
+    // is configured. The frontend verify-email flow still works if the user
+    // manually enters the code.
+    logger.warn(
+      { userId: user._id },
+      "[MAIL DISABLED] Skipping verification email dispatch.",
+    );
 
     res.status(201).json({
       message: "User registered successfully",
@@ -1024,28 +1025,35 @@ export const forgotPassword = async (req, res) => {
 </body>
 </html>`;
 
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: "Password Reset - Therabridge",
-        message,
-        html: message,
-      });
-    } catch (err) {
-      logger.error({ err }, "Failed to send password reset email");
-      user.resetPasswordToken = undefined;
-      user.resetPasswordExpire = undefined;
-      await user.save({ validateBeforeSave: false });
-      return res.status(502).json({
-        error: {
-          message:
-            process.env.NODE_ENV === "production"
-              ? "We couldn't send the password reset email right now. Please try again in a few minutes."
-              : `We couldn't send the password reset email: ${err.message}`,
-          code: "EMAIL_FAILED",
-        },
-      });
-    }
+    // MAIL DISABLED — reset token is generated and stored, but no email is
+    // sent. Re-enable when a stable mail service is configured.
+    logger.warn(
+      { userId: user._id },
+      "[MAIL DISABLED] Skipping password reset email dispatch.",
+    );
+
+    // try {
+    //   await sendEmail({
+    //     email: user.email,
+    //     subject: "Password Reset - Therabridge",
+    //     message,
+    //     html: message,
+    //   });
+    // } catch (err) {
+    //   logger.error({ err }, "Failed to send password reset email");
+    //   user.resetPasswordToken = undefined;
+    //   user.resetPasswordExpire = undefined;
+    //   await user.save({ validateBeforeSave: false });
+    //   return res.status(502).json({
+    //     error: {
+    //       message:
+    //         process.env.NODE_ENV === "production"
+    //           ? "We couldn't send the password reset email right now. Please try again in a few minutes."
+    //           : `We couldn't send the password reset email: ${err.message}`,
+    //       code: "EMAIL_FAILED",
+    //     },
+    //   });
+    // }
 
     res
       .status(200)
