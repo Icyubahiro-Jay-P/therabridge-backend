@@ -71,21 +71,23 @@ export const validateEnv = () => {
       isValidEncryptionKey,
       "must be a 64-char hex key (openssl rand -hex 32) - sensitive fields would otherwise be stored unencrypted",
     );
-    requireEnv(
-      "EMAIL_HOST",
-      (v) => !!v,
-      "must be set for password reset emails",
-    );
-    requireEnv(
-      "EMAIL_USER",
-      (v) => !!v,
-      "must be set for password reset emails",
-    );
-    requireEnv(
-      "EMAIL_PASS",
-      (v) => !!v,
-      "must be set for password reset emails",
-    );
+    // MAIL DISABLED — email env vars are not required while the mailing
+    // system is offline. Re-enable when a stable mail service is configured.
+    // requireEnv(
+    //   "EMAIL_HOST",
+    //   (v) => !!v,
+    //   "must be set for password reset emails",
+    // );
+    // requireEnv(
+    //   "EMAIL_USER",
+    //   (v) => !!v,
+    //   "must be set for password reset emails",
+    // );
+    // requireEnv(
+    //   "EMAIL_PASS",
+    //   (v) => !!v,
+    //   "must be set for password reset emails",
+    // );
     requireEnv(
       "VAPID_PUBLIC_KEY",
       (v) => !!v,
