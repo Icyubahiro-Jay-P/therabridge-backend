@@ -42,7 +42,7 @@ const decryptCommunityMessageContent = (doc) => {
 
 export const sendMessage = async (req, res) => {
   try {
-    const { recipientId, content } = req.body;
+    const { recipientId, content, replyToMessageId } = req.body;
 
     if (!content || content.trim() === "") {
       return res
@@ -65,10 +65,28 @@ export const sendMessage = async (req, res) => {
       return res.status(403).json({ error: { message: "This user has been disabled and cannot receive messages.", code: "USER_DISABLED" } });
     }
 
+    // Build reply-to snapshot if replying to a message
+    let replyToSnapshot = undefined;
+    if (replyToMessageId) {
+      const original = await Message.findById(replyToMessageId)
+        .populate("sender", "username firstName lastName avatar");
+      if (original && !original.unsent) {
+        const origObj = original.toObject();
+        replyToSnapshot = {
+          _id: origObj._id,
+          senderUsername: origObj.sender?.username || "",
+          senderAvatar: origObj.sender?.avatar || null,
+          content: decryptField(origObj.content).slice(0, 150),
+          type: origObj.type || "text",
+        };
+      }
+    }
+
     const message = new Message({
       sender: req.user.id,
       recipient: recipientId,
       content: encryptField(content.trim()),
+      ...(replyToSnapshot && { replyTo: replyToSnapshot }),
     });
 
     // Message + Talking Points award are committed atomically so a crash can't
@@ -751,7 +769,7 @@ export const getCommunityUpdates = async (req, res) => {
 export const sendCommunityMessage = async (req, res) => {
   try {
     const { communityId } = req.params;
-    const { content } = req.body;
+    const { content, replyToMessageId } = req.body;
 
     const community = await Community.findById(communityId);
     if (!community) {
@@ -773,9 +791,26 @@ export const sendCommunityMessage = async (req, res) => {
         .json({ error: { message: "This community has been disabled. Messaging is disabled.", code: "COMMUNITY_DISABLED" } });
     }
 
+    // Build reply-to snapshot if replying to a message
+    let replyToSnapshot = undefined;
+    if (replyToMessageId) {
+      const original = community.messages.id(replyToMessageId);
+      if (original && !original.unsent) {
+        const origSender = await User.findById(original.sender).select("username avatar");
+        replyToSnapshot = {
+          _id: original._id,
+          senderUsername: origSender?.username || "",
+          senderAvatar: origSender?.avatar || null,
+          content: decryptField(original.content).slice(0, 150),
+          type: original.type || "text",
+        };
+      }
+    }
+
     community.messages.push({
       sender: req.user.id,
       content: encryptField(content.trim()),
+      ...(replyToSnapshot && { replyTo: replyToSnapshot }),
     });
 
     // Message + Talking Points award committed atomically.
