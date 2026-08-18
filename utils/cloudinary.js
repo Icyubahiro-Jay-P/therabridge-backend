@@ -39,3 +39,19 @@ export const deleteAvatarFromCloudinary = async (userId) => {
     logger.error({ err: error }, "Failed to delete avatar from Cloudinary");
   }
 };
+
+// Audio upload for voice notes. Cloudinary uses resource_type "video" for
+// audio files. The public_id includes the user + timestamp to avoid collisions.
+export const uploadAudioToCloudinary = (buffer, userId, mimetype) => {
+  const ext = mimetype?.includes("webm")
+    ? "webm"
+    : mimetype?.includes("mp4")
+      ? "mp4"
+      : "ogg";
+  return uploadStream(buffer, {
+    public_id: `voice-notes/${userId}/${Date.now()}`,
+    resource_type: "video",
+    format: ext,
+    overwrite: false,
+  });
+};
