@@ -252,7 +252,7 @@ Every account starts unverified. Registration (`POST /api/users/register`) mints
 `utils/nodemailer.js` dispatches on provider:
 
 - **Resend (HTTP API)**, used when `EMAIL_PROVIDER=resend` and `RESEND_API_KEY` is set. Sends `POST https://api.resend.com/emails` over **port 443**, so it works on hosts that block SMTP entirely. **Render's free tier has blocked outbound SMTP ports 25/465/587 since Sept 2025** (upgrading to a paid instance re-enables SMTP). The From address must be a sender verified in Resend (your own domain, or `onboarding@resend.dev`, which can only deliver to your own inbox). Non-2xx responses throw `EMAIL_SEND_FAILED`.
-- **SMTP (nodemailer)** — the default. The hostname is resolved to an **IPv4 literal** before building the transport because nodemailer 9 resolves both A and AAAA records and picks a random address (its `family` option is ignored), so on hosts without IPv6 egress it can fail with `connect ENETUNREACH <ipv6>:587`. The literal is passed as `host` with the original hostname as `servername` so TLS still validates against `smtp.gmail.com`. If Gmail's port 587 is blocked (symptom: `Connection timeout` on the IPv4 address), set `EMAIL_PORT=465` and `EMAIL_SECURE=true` for implicit TLS. Sends are logged with the resolved host/port.
+- **SMTP (nodemailer)**, the default. The hostname is resolved to an **IPv4 literal** before building the transport because nodemailer 9 resolves both A and AAAA records and picks a random address (its `family` option is ignored), so on hosts without IPv6 egress it can fail with `connect ENETUNREACH <ipv6>:587`. The literal is passed as `host` with the original hostname as `servername` so TLS still validates against `smtp.gmail.com`. If Gmail's port 587 is blocked (symptom: `Connection timeout` on the IPv4 address), set `EMAIL_PORT=465` and `EMAIL_SECURE=true` for implicit TLS. Sends are logged with the resolved host/port.
 
 ## Models
 
@@ -273,7 +273,7 @@ Every account starts unverified. Registration (`POST /api/users/register`) mints
 
 All user-entered free-text is capped at both the API and the model layer so the database is never a vector for abuse, and the limits are enforced against **plaintext** (before/independent of encryption).
 
-**Per-route body limits** (`middleware/jsonBody.js`, mounted in each router — there is no global JSON parser in `server.js`):
+**Per-route body limits** (`middleware/jsonBody.js`, mounted in each router, there is no global JSON parser in `server.js`):
 
 | Router | Body limit | Reason |
 |--------|-----------|--------|
@@ -298,7 +298,7 @@ Oversized request bodies are rejected by Express before any handler runs and sur
 | User first/last name, username, email, password | 50 / 50 / 30 / 254 / 128 |
 | Profile bio / avatar URL | 300 / 500 |
 
-Because message/mood/crisis fields are encrypted at rest, the Mongoose validators decrypt the envelope with `decryptFieldLength` (`utils/crypto.js`) before applying the cap — the ciphertext envelope is always longer than the plaintext, so validating the raw stored value would reject legitimate input.
+Because message/mood/crisis fields are encrypted at rest, the Mongoose validators decrypt the envelope with `decryptFieldLength` (`utils/crypto.js`) before applying the cap, the ciphertext envelope is always longer than the plaintext, so validating the raw stored value would reject legitimate input.
 
 ## Talking Points
 
