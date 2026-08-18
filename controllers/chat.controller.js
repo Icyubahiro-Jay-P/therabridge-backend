@@ -14,6 +14,7 @@ import {
   formatCursorPaginatedResponse,
 } from "../utils/pagination.js";
 import { encryptField, decryptField } from "../utils/crypto.js";
+import { uploadAudioToCloudinary } from "../utils/cloudinary.js";
 
 // Encrypted fields are decrypted on read so the API contract stays plaintext.
 const decryptMessageContent = (doc) => {
