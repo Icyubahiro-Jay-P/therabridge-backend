@@ -26,6 +26,12 @@ const messageSchema = new mongoose.Schema(
       enum: [null, "possible_screenshot"],
       default: null,
     },
+    // "text" = plain text, "voice" = audio note
+    type: {
+      type: String,
+      enum: ["text", "voice"],
+      default: "text",
+    },
     content: {
       type: String,
       required: true,
@@ -35,6 +41,24 @@ const messageSchema = new mongoose.Schema(
         validator: (v) => typeof v === "string" && decryptFieldLength(v) <= 2000,
         message: "Message must be at most 2000 characters",
       },
+    },
+    // Voice note fields (only set when type === "voice")
+    audioUrl: {
+      type: String,
+      default: null,
+    },
+    duration: {
+      type: Number,
+      default: null,
+    },
+    // Reply-to snapshot: stores a frozen copy of the original message so we
+    // don't need to populate/lookup at read time.
+    replyTo: {
+      _id: { type: mongoose.Schema.Types.ObjectId },
+      senderUsername: { type: String },
+      senderAvatar: { type: String, default: null },
+      content: { type: String },
+      type: { type: String, enum: ["text", "voice"], default: "text" },
     },
     read: {
       type: Boolean,
@@ -86,6 +110,12 @@ const communityMessageSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+  // "text" = plain text, "voice" = audio note
+  type: {
+    type: String,
+    enum: ["text", "voice"],
+    default: "text",
+  },
   content: {
     type: String,
     required: true,
@@ -94,6 +124,23 @@ const communityMessageSchema = new mongoose.Schema({
       validator: (v) => typeof v === "string" && decryptFieldLength(v) <= 2000,
       message: "Message must be at most 2000 characters",
     },
+  },
+  // Voice note fields (only set when type === "voice")
+  audioUrl: {
+    type: String,
+    default: null,
+  },
+  duration: {
+    type: Number,
+    default: null,
+  },
+  // Reply-to snapshot
+  replyTo: {
+    _id: { type: mongoose.Schema.Types.ObjectId },
+    senderUsername: { type: String },
+    senderAvatar: { type: String, default: null },
+    content: { type: String },
+    type: { type: String, enum: ["text", "voice"], default: "text" },
   },
   createdAt: {
     type: Date,
