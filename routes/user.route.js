@@ -28,9 +28,15 @@ import {
   exportMyData,
   verifyEmail,
   resendVerification,
+  setupTwoFactor,
+  verifyTwoFactorSetup,
+  validateTwoFactor,
+  disableTwoFactor,
+  getTwoFactorStatus,
 } from "../controllers/user.controller.js";
 
 import { authMiddleware } from "../middleware/auth.middleware.js";
+import { twoFactorAuthMiddleware } from "../middleware/auth.middleware.js";
 import { requireAdmin, requireTherapist, requireAdminOrTherapist } from "../middleware/role.middleware.js";
 import { uploadProfilePic } from "../middleware/upload.js";
 import { jsonBody } from "../middleware/jsonBody.js";
@@ -47,6 +53,9 @@ import {
   inviteMemberSchema,
   assignTherapistSchema,
   deleteProfileSchema,
+  verifyTwoFactorSetupSchema,
+  validateTwoFactorSchema,
+  disableTwoFactorSchema,
 } from "../utils/validation.js";
 
 const router = express.Router();
@@ -83,6 +92,13 @@ router.post(
 );
 router.delete("/avatar", authMiddleware, deleteAvatar);
 router.put("/privacy", authMiddleware, validate(privacySettingsSchema), updatePrivacy);
+
+// Two-Factor Authentication routes
+router.post("/2fa/setup", authMiddleware, setupTwoFactor);
+router.post("/2fa/verify-setup", authMiddleware, validate(verifyTwoFactorSetupSchema), verifyTwoFactorSetup);
+router.post("/2fa/validate", twoFactorAuthMiddleware, validate(validateTwoFactorSchema), validateTwoFactor);
+router.delete("/2fa/disable", authMiddleware, validate(disableTwoFactorSchema), disableTwoFactor);
+router.get("/2fa/status", authMiddleware, getTwoFactorStatus);
 
 // Admin routes
 router.put("/admin/disable/:id", authMiddleware, requireAdmin, disableUser);
