@@ -260,6 +260,44 @@ export const addCommentSchema = z.object({
   content: z.string().min(1, "Comment cannot be empty").max(1000),
 })
 
+export const createThoughtRecordSchema = z.object({
+  situation: z.string().min(1, "Situation is required").max(500),
+  automaticThought: z.string().min(1, "Automatic thought is required").max(500),
+  emotions: z.string().min(1, "Emotions are required").max(300),
+  emotionIntensity: z.number().int().min(1).max(10),
+  distortionType: z.enum([
+    "all_or_nothing", "overgeneralization", "mental_filter",
+    "disqualifying_positive", "mind_reading", "fortune_telling",
+    "magnification", "minimization", "emotional_reasoning",
+    "should_statements", "labeling", "personalization", "none",
+  ]).optional(),
+  evidenceFor: z.string().max(500).optional(),
+  evidenceAgainst: z.string().max(500).optional(),
+  reframe: z.string().min(1, "Reframe is required").max(500),
+  outcomeEmotion: z.string().max(300).optional(),
+  outcomeIntensity: z.number().int().min(1).max(10).optional(),
+  mood: z.enum(["great", "good", "okay", "bad", "terrible"]).optional(),
+})
+
+export const updateThoughtRecordSchema = z.object({
+  situation: z.string().min(1).max(500).optional(),
+  automaticThought: z.string().min(1).max(500).optional(),
+  emotions: z.string().min(1).max(300).optional(),
+  emotionIntensity: z.number().int().min(1).max(10).optional(),
+  distortionType: z.enum([
+    "all_or_nothing", "overgeneralization", "mental_filter",
+    "disqualifying_positive", "mind_reading", "fortune_telling",
+    "magnification", "minimization", "emotional_reasoning",
+    "should_statements", "labeling", "personalization", "none",
+  ]).optional(),
+  evidenceFor: z.string().max(500).optional(),
+  evidenceAgainst: z.string().max(500).optional(),
+  reframe: z.string().min(1).max(500).optional(),
+  outcomeEmotion: z.string().max(300).optional(),
+  outcomeIntensity: z.number().int().min(1).max(10).optional(),
+  mood: z.enum(["great", "good", "okay", "bad", "terrible"]).nullable().optional(),
+})
+
 export const validate = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body)
   if (!result.success) {
