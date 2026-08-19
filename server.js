@@ -25,6 +25,7 @@ import pushRoutes from "./routes/push.route.js";
 import auditRoutes from "./routes/audit.route.js";
 import adminRoutes from "./routes/admin.route.js";
 import journalRoutes from "./routes/journal.route.js";
+import thoughtRecordRoutes from "./routes/thoughtRecord.route.js";
 import {
   errorHandler,
   notFoundHandler,
