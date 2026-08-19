@@ -199,7 +199,104 @@ export const initChatSocket = (server) => {
       if (communityId) socket.leave(`community:${communityId}`);
     });
 
+    // ====================== WEBRTC SIGNALING ======================
+    // Active call tracking: callId -> { callerId, calleeId }
+    // Stored on the io instance so all handlers can access it.
+    if (!io._activeCalls) io._activeCalls = new Map();
+
+    socket.on("call:initiate", ({ calleeId } = {}) => {
+      if (!calleeId || calleeId === id) return;
+
+      // Reject if callee already in a call
+      for (const [, call] of io._activeCalls) {
+        if (call.callerId === calleeId || call.calleeId === calleeId) {
+          socket.emit("call:busy", { calleeId });
+          return;
+        }
+      }
+
+      // Reject if caller already in a call
+      for (const [, call] of io._activeCalls) {
+        if (call.callerId === id || call.calleeId === id) {
+          return;
+        }
+      }
+
+      const callId = `call_${id}_${calleeId}_${Date.now()}`;
+      io._activeCalls.set(callId, { callerId: id, calleeId });
+
+      io.to(`user:${calleeId}`).emit("call:incoming", {
+        callId,
+        callerId: id,
+        callerName: socket.data.user.displayName,
+        callerUsername: socket.data.user.username,
+      });
+
+      socket.emit("call:initiated", { callId, calleeId });
+    });
+
+    socket.on("call:offer", ({ callId, sdp, calleeId } = {}) => {
+      const call = io._activeCalls?.get(callId);
+      if (!call || call.callerId !== id) return;
+      io.to(`user:${calleeId}`).emit("call:offer", {
+        callId,
+        sdp,
+        callerId: id,
+      });
+    });
+
+    socket.on("call:answer", ({ callId, sdp, callerId } = {}) => {
+      const call = io._activeCalls?.get(callId);
+      if (!call || call.calleeId !== id) return;
+      io.to(`user:${callerId}`).emit("call:answer", {
+        callId,
+        sdp,
+        calleeId: id,
+      });
+    });
+
+    socket.on("call:ice-candidate", ({ callId, candidate, targetId } = {}) => {
+      io.to(`user:${targetId}`).emit("call:ice-candidate", {
+        callId,
+        candidate,
+        fromId: id,
+      });
+    });
+
+    socket.on("call:end", ({ callId } = {}) => {
+      const call = io._activeCalls?.get(callId);
+      if (!call) return;
+      const peerId =
+        call.callerId === id ? call.calleeId : call.callerId;
+      io._activeCalls.delete(callId);
+      io.to(`user:${peerId}`).emit("call:ended", { callId, endedBy: id });
+    });
+
+    socket.on("call:reject", ({ callId, callerId } = {}) => {
+      const call = io._activeCalls?.get(callId);
+      if (!call || call.calleeId !== id) return;
+      io._activeCalls.delete(callId);
+      io.to(`user:${callerId}`).emit("call:rejected", {
+        callId,
+        calleeId: id,
+      });
+    });
+
     socket.on("disconnect", () => {
+      // Clean up any active calls this socket was part of
+      if (io._activeCalls) {
+        for (const [callId, call] of io._activeCalls) {
+          if (call.callerId === id || call.calleeId === id) {
+            const peerId =
+              call.callerId === id ? call.calleeId : call.callerId;
+            io._activeCalls.delete(callId);
+            io.to(`user:${peerId}`).emit("call:ended", {
+              callId,
+              endedBy: id,
+            });
+          }
+        }
+      }
       logger.info({ userId: id }, "socket disconnected");
     });
   });
