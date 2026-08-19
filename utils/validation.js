@@ -329,6 +329,14 @@ export const completeActivitySchema = z.object({
   notes: z.string().max(500).optional(),
 })
 
+export const createCopingCardSchema = z.object({
+  text: z.string().min(1, "Card text is required").max(300),
+  category: z.enum([
+    "anxiety_coping", "self_compassion", "motivation",
+    "crisis_survival", "gratitude", "encouragement", "custom",
+  ]),
+})
+
 export const validate = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body)
   if (!result.success) {
