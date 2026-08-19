@@ -179,6 +179,7 @@ app.use("/api/activities", activityRoutes);
 app.use("/api/coping-cards", copingCardRoutes);
 app.use("/api/psychoed", psychoedRoutes);
 app.use("/api/programs", programRoutes);
+app.use("/api/sleep", sleepRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
@@ -247,6 +248,7 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 connectDB()
   .then(async () => {
     await seedPrograms();
+    await seedSleepContent();
     serverInstance.httpServer = server.listen(PORT, () => {
       logger.info({ port: PORT }, "Therabridge server started");
     });
