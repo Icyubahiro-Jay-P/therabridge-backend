@@ -15,7 +15,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import sharp from "sharp";
 import { uploadAvatarToCloudinary, deleteAvatarFromCloudinary } from "../utils/cloudinary.js";
-// import sendEmail from "../utils/nodemailer.js"; // MAIL DISABLED — unused while mailing is offline
+import sendEmail from "../utils/nodemailer.js";
 import getClientOrigin from "../utils/clientOrigin.js";
 import logger from "../utils/logger.js";
 import {
