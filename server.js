@@ -35,6 +35,7 @@ import programRoutes from "./routes/program.route.js";
 import recommendationRoutes from "./routes/recommendation.route.js";
 import sleepRoutes from "./routes/sleep.route.js";
 import medicationRoutes from "./routes/medication.route.js";
+import petRoutes from "./routes/pet.route.js";
 import { seedPrograms } from "./controllers/program.controller.js";
 import { seedSleepContent } from "./controllers/sleep.controller.js";
 import {
