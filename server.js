@@ -33,6 +33,7 @@ import copingCardRoutes from "./routes/copingCard.route.js";
 import psychoedRoutes from "./routes/psychoedModule.route.js";
 import programRoutes from "./routes/program.route.js";
 import sleepRoutes from "./routes/sleep.route.js";
+import medicationRoutes from "./routes/medication.route.js";
 import { seedPrograms } from "./controllers/program.controller.js";
 import { seedSleepContent } from "./controllers/sleep.controller.js";
 import {
@@ -180,6 +181,7 @@ app.use("/api/coping-cards", copingCardRoutes);
 app.use("/api/psychoed", psychoedRoutes);
 app.use("/api/programs", programRoutes);
 app.use("/api/sleep", sleepRoutes);
+app.use("/api/medications", medicationRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
