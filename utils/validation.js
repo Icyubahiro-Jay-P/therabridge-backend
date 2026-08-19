@@ -366,6 +366,16 @@ export const logDoseSchema = z.object({
   notes: z.string().max(200).optional(),
 })
 
+export const logSleepSchema = z.object({
+  date: z.string().optional(),
+  quality: z.number().int().min(1).max(5),
+  bedtime: z.string().max(10).optional(),
+  wakeTime: z.string().max(10).optional(),
+  hoursSlept: z.number().min(0).max(24).optional(),
+  notes: z.string().max(500).optional(),
+  dreams: z.string().max(500).optional(),
+})
+
 export const validate = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body)
   if (!result.success) {
