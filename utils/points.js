@@ -13,6 +13,12 @@ export const MESSAGE_POINTS = {
 // "Talking Points" design in the README.
 export const DAILY_POINTS_CAP = 20;
 
+export const THOUGHT_RECORD_POINTS = 5;
+
+export const awardThoughtRecordPoints = async (userId) => {
+  return awardMessagePoints(userId, THOUGHT_RECORD_POINTS);
+};
+
 export const awardMessagePoints = async (userId, points, session = null) => {
   const user = await User.findById(userId, null, session ? { session } : null);
   if (!user) return 0;
