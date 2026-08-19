@@ -181,6 +181,7 @@ app.use("/api/activities", activityRoutes);
 app.use("/api/coping-cards", copingCardRoutes);
 app.use("/api/psychoed", psychoedRoutes);
 app.use("/api/programs", programRoutes);
+app.use("/api/recommendations", recommendationRoutes);
 app.use("/api/sleep", sleepRoutes);
 app.use("/api/medications", medicationRoutes);
 
