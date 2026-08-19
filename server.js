@@ -32,7 +32,9 @@ import activityRoutes from "./routes/activity.route.js"
 import copingCardRoutes from "./routes/copingCard.route.js";
 import psychoedRoutes from "./routes/psychoedModule.route.js";
 import programRoutes from "./routes/program.route.js";
+import sleepRoutes from "./routes/sleep.route.js";
 import { seedPrograms } from "./controllers/program.controller.js";
+import { seedSleepContent } from "./controllers/sleep.controller.js";
 import {
   errorHandler,
   notFoundHandler,
