@@ -49,3 +49,39 @@ export const uploadProfilePic = multer({
   fileFilter,
   limits: { fileSize: MAX_UPLOAD_SIZE },
 }).single("avatar");
+
+const AUDIO_SIGNATURES = [
+  { name: "webm", bytes: [0x1a, 0x45, 0xdf, 0xa3] }, // EBML header
+  { name: "ogg", bytes: [0x4f, 0x67, 0x67, 0x53] }, // "OggS"
+  { name: "mp4", bytes: [0x66, 0x74, 0x79, 0x70] }, // "ftyp" (at offset 4)
+];
+
+const hasValidAudioSignature = (buf) => {
+  if (!buf || buf.length < 12) return false;
+  return AUDIO_SIGNATURES.some(({ name, bytes }) => {
+    if (name === "mp4") {
+      return bytes.every((b, i) => buf[i + 4] === b);
+    }
+    return bytes.every((b, i) => buf[i] === b);
+  });
+};
+
+export const sniffAudio = (buffer) => hasValidAudioSignature(buffer);
+
+const AUDIO_MIMES = /\.(webm|ogg|mp4|mpeg|wav|aac)$/i;
+
+const audioFileFilter = (req, file, cb) => {
+  if (AUDIO_MIMES.test(file.originalname) || file.mimetype.startsWith("audio/")) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only audio files (webm, ogg, mp4, wav) are allowed"), false);
+  }
+};
+
+const MAX_AUDIO_SIZE = 5 * 1024 * 1024; // 5 MB
+
+export const uploadVoiceNote = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: audioFileFilter,
+  limits: { fileSize: MAX_AUDIO_SIZE },
+}).single("audio");
