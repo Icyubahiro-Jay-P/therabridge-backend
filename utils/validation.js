@@ -312,6 +312,23 @@ export const createGratitudeEntrySchema = z.object({
   content: z.string().min(1, "Content is required").max(1000),
 })
 
+export const createActivitySchema = z.object({
+  title: z.string().min(1, "Title is required").max(100),
+  category: z.enum(["social", "physical", "creative", "productive", "relaxation", "outdoor", "learning", "self_care", "other"]),
+  scheduledDate: z.string().min(1, "Date is required"),
+  scheduledTime: z.string().max(10).optional(),
+  duration: z.number().min(0).optional(),
+  expectedPleasure: z.number().int().min(1).max(10),
+  moodBefore: z.enum(["great", "good", "okay", "bad", "terrible"]).optional(),
+  notes: z.string().max(500).optional(),
+})
+
+export const completeActivitySchema = z.object({
+  actualPleasure: z.number().int().min(1).max(10).optional(),
+  moodAfter: z.enum(["great", "good", "okay", "bad", "terrible"]).optional(),
+  notes: z.string().max(500).optional(),
+})
+
 export const validate = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body)
   if (!result.success) {
