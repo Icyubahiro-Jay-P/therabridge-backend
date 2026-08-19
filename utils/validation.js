@@ -306,6 +306,12 @@ export const takeAssessmentSchema = z.object({
   })).min(1),
 })
 
+export const createGratitudeEntrySchema = z.object({
+  promptId: z.string().min(1).max(10),
+  promptText: z.string().min(1).max(200),
+  content: z.string().min(1, "Content is required").max(1000),
+})
+
 export const validate = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body)
   if (!result.success) {
