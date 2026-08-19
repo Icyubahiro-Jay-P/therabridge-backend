@@ -243,7 +243,8 @@ process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 
 connectDB()
-  .then(() => {
+  .then(async () => {
+    await seedPrograms();
     serverInstance.httpServer = server.listen(PORT, () => {
       logger.info({ port: PORT }, "Therabridge server started");
     });
