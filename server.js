@@ -173,6 +173,7 @@ app.use("/api/assessments", assessmentRoutes);
 app.use("/api/gratitude", gratitudeRoutes);
 app.use("/api/activities", activityRoutes);
 app.use("/api/coping-cards", copingCardRoutes);
+app.use("/api/psychoed", psychoedRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
