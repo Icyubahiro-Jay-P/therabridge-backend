@@ -32,6 +32,7 @@ import activityRoutes from "./routes/activity.route.js"
 import copingCardRoutes from "./routes/copingCard.route.js";
 import psychoedRoutes from "./routes/psychoedModule.route.js";
 import programRoutes from "./routes/program.route.js";
+import recommendationRoutes from "./routes/recommendation.route.js";
 import sleepRoutes from "./routes/sleep.route.js";
 import medicationRoutes from "./routes/medication.route.js";
 import { seedPrograms } from "./controllers/program.controller.js";
