@@ -163,6 +163,7 @@ app.use("/api/safety-plan", safetyPlanRoutes);
 app.use("/api/therapist", therapistRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/journal", journalRoutes);
+app.use("/api/thought-records", thoughtRecordRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
