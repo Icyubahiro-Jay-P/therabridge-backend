@@ -34,7 +34,10 @@ const messageSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      required: true,
+      required: [
+        function () { return this.type !== "voice" },
+        "Content is required",
+      ],
       // Content is stored encrypted at rest, so the plaintext cap is enforced
       // against the decrypted value (the ciphertext envelope is longer).
       validate: {
@@ -118,7 +121,10 @@ const communityMessageSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true,
+    required: [
+      function () { return this.type !== "voice" },
+      "Content is required",
+    ],
     // Encrypted at rest; enforce the plaintext cap against the decrypted value.
     validate: {
       validator: (v) => typeof v === "string" && decryptFieldLength(v) <= 2000,
