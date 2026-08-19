@@ -26,6 +26,7 @@ import auditRoutes from "./routes/audit.route.js";
 import adminRoutes from "./routes/admin.route.js";
 import journalRoutes from "./routes/journal.route.js";
 import thoughtRecordRoutes from "./routes/thoughtRecord.route.js";
+import assessmentRoutes from "./routes/assessment.route.js";
 import {
   errorHandler,
   notFoundHandler,
@@ -164,6 +165,7 @@ app.use("/api/therapist", therapistRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/journal", journalRoutes);
 app.use("/api/thought-records", thoughtRecordRoutes);
+app.use("/api/assessments", assessmentRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
