@@ -35,10 +35,13 @@ import {
   updateChatSettings,
   reportPossibleScreenshot,
   generateWatermarkStamp,
+  sendVoiceMessage,
+  sendCommunityVoiceMessage,
 } from "../controllers/chat.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { spamFilter } from "../middleware/spamFilter.js";
 import { jsonBody } from "../middleware/jsonBody.js";
+import { uploadVoiceNote } from "../middleware/upload.js";
 import { validate, chatSettingsSchema, createCommunitySchema, editMessageSchema, editCommunityMessageSchema, inviteMemberSchema, moderateRequestSchema, sendMessageSchema, screenshotNoticeSchema, watermarkStampSchema, joinCommunitySchema, sendCommunityMessageSchema, updateCommunitySchema } from "../utils/validation.js";
 
 const router = express.Router();
@@ -89,5 +92,9 @@ router.delete("/messages", deleteAllMyMessages);
 router.delete("/community-messages", deleteAllMyCommunityMessages);
 router.put("/edit/:messageId", validate(editMessageSchema), editMessage);
 router.delete("/unsend/:messageId", unsendMessage);
+
+// ====================== VOICE NOTES ======================
+router.post("/voice", uploadVoiceNote, sendVoiceMessage);
+router.post("/communities/:communityId/voice", uploadVoiceNote, sendCommunityVoiceMessage);
 
 export default router;
