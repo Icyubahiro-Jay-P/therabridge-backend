@@ -44,3 +44,58 @@ export const authMiddleware = async (req, res, next) => {
     return res.status(401).json({ message: "Invalid or malformed token." });
   }
 };
+
+// Middleware for the 2FA validation endpoint — accepts only "2fa-pending" tokens
+export const twoFactorAuthMiddleware = async (req, res, next) => {
+  let token = req.cookies && req.cookies.token;
+  if (
+    !token &&
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer ")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
+  if (!token) {
+    return res
+      .status(401)
+      .json({ error: { message: "Authentication required.", code: "AUTH_REQUIRED" } });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.type !== "2fa-pending") {
+      return res
+        .status(401)
+        .json({ error: { message: "Invalid token type.", code: "INVALID_TOKEN" } });
+    }
+
+    const user = await User.findById(decoded.id).select("isDisabled role twoFactorEnabled");
+    if (!user) {
+      return res
+        .status(401)
+        .json({ error: { message: "User account no longer exists.", code: "NOT_FOUND" } });
+    }
+    if (user.isDisabled) {
+      return res
+        .status(403)
+        .json({ error: { message: "Account has been disabled.", code: "ACCOUNT_DISABLED" } });
+    }
+    if (!user.twoFactorEnabled) {
+      return res
+        .status(400)
+        .json({ error: { message: "Two-factor authentication is not enabled.", code: "NOT_ENABLED" } });
+    }
+
+    req.user = { id: decoded.id, role: user.role };
+    next();
+  } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      return res
+        .status(401)
+        .json({ error: { message: "Two-factor session expired. Please log in again.", code: "TOKEN_EXPIRED" } });
+    }
+    return res.status(401).json({ error: { message: "Invalid token.", code: "INVALID_TOKEN" } });
+  }
+};
