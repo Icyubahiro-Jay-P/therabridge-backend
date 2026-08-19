@@ -216,6 +216,19 @@ export const deleteProfileSchema = z.object({
   username: z.string().min(1, "Username is required").max(30),
 })
 
+export const verifyTwoFactorSetupSchema = z.object({
+  code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code from your authenticator app"),
+})
+
+export const validateTwoFactorSchema = z.object({
+  code: z.string().min(1, "Code is required"),
+})
+
+export const disableTwoFactorSchema = z.object({
+  password: z.string().min(1, "Password is required to disable 2FA"),
+  code: z.string().regex(/^\d{6}$/, "Enter the 6-digit code from your authenticator app"),
+})
+
 export const updateCommunitySchema = z.object({
   name: z.string().min(2).max(60).optional(),
   description: z.string().max(200).optional(),
