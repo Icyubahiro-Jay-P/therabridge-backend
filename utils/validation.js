@@ -298,6 +298,14 @@ export const updateThoughtRecordSchema = z.object({
   mood: z.enum(["great", "good", "okay", "bad", "terrible"]).nullable().optional(),
 })
 
+export const takeAssessmentSchema = z.object({
+  type: z.enum(["phq9", "gad7", "pss", "k10"]),
+  responses: z.array(z.object({
+    questionIndex: z.number().int().min(0),
+    value: z.number().int().min(0).max(3),
+  })).min(1),
+})
+
 export const validate = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body)
   if (!result.success) {
