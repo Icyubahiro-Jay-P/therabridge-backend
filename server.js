@@ -185,6 +185,7 @@ app.use("/api/programs", programRoutes);
 app.use("/api/recommendations", recommendationRoutes);
 app.use("/api/sleep", sleepRoutes);
 app.use("/api/medications", medicationRoutes);
+app.use("/api/pet", petRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
