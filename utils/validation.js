@@ -240,6 +240,26 @@ export const updateCommunitySchema = z.object({
   isPrivate: z.boolean().optional(),
 })
 
+export const createJournalEntrySchema = z.object({
+  title: z.string().min(1, "Title is required").max(200),
+  content: z.string().min(1, "Content is required").max(5000),
+  mood: z.enum(["great", "good", "okay", "bad", "terrible"]).optional(),
+  tags: z.array(z.string().trim().min(1).max(30)).max(10).optional(),
+  isPublic: z.boolean().optional(),
+})
+
+export const updateJournalEntrySchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  content: z.string().min(1).max(5000).optional(),
+  mood: z.enum(["great", "good", "okay", "bad", "terrible"]).nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(30)).max(10).optional(),
+  isPublic: z.boolean().optional(),
+})
+
+export const addCommentSchema = z.object({
+  content: z.string().min(1, "Comment cannot be empty").max(1000),
+})
+
 export const validate = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body)
   if (!result.success) {
