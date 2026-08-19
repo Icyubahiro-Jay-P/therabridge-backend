@@ -337,6 +337,35 @@ export const createCopingCardSchema = z.object({
   ]),
 })
 
+export const createMedicationSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100),
+  dosage: z.string().min(1, "Dosage is required").max(50),
+  frequency: z.enum(["daily", "twice_daily", "three_times", "weekly", "as_needed"]),
+  timeOfDay: z.string().optional().nullable(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional().nullable(),
+  notes: z.string().max(200).optional().nullable(),
+})
+
+export const updateMedicationSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  dosage: z.string().min(1).max(50).optional(),
+  frequency: z.enum(["daily", "twice_daily", "three_times", "weekly", "as_needed"]).optional(),
+  timeOfDay: z.string().optional().nullable(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional().nullable(),
+  active: z.boolean().optional(),
+  notes: z.string().max(200).optional().nullable(),
+})
+
+export const logDoseSchema = z.object({
+  medicationId: z.string().min(1, "Medication is required"),
+  takenAt: z.string().optional(),
+  skipped: z.boolean().optional(),
+  sideEffects: z.array(z.string().max(100)).max(10).optional(),
+  notes: z.string().max(200).optional(),
+})
+
 export const validate = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body)
   if (!result.success) {
