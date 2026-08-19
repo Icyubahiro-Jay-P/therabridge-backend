@@ -28,7 +28,8 @@ import journalRoutes from "./routes/journal.route.js";
 import thoughtRecordRoutes from "./routes/thoughtRecord.route.js";
 import assessmentRoutes from "./routes/assessment.route.js";
 import gratitudeRoutes from "./routes/gratitude.route.js";
-import activityRoutes from "./routes/activity.route.js";
+import activityRoutes from "./routes/activity.route.js"
+import copingCardRoutes from "./routes/copingCard.route.js";
 import {
   errorHandler,
   notFoundHandler,
@@ -170,6 +171,7 @@ app.use("/api/thought-records", thoughtRecordRoutes);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/gratitude", gratitudeRoutes);
 app.use("/api/activities", activityRoutes);
+app.use("/api/coping-cards", copingCardRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
