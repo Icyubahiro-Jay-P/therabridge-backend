@@ -30,6 +30,7 @@ import assessmentRoutes from "./routes/assessment.route.js";
 import gratitudeRoutes from "./routes/gratitude.route.js";
 import activityRoutes from "./routes/activity.route.js"
 import copingCardRoutes from "./routes/copingCard.route.js";
+import psychoedRoutes from "./routes/psychoedModule.route.js";
 import {
   errorHandler,
   notFoundHandler,
