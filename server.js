@@ -24,6 +24,7 @@ import therapistRoutes from "./routes/therapist.route.js";
 import pushRoutes from "./routes/push.route.js";
 import auditRoutes from "./routes/audit.route.js";
 import adminRoutes from "./routes/admin.route.js";
+import journalRoutes from "./routes/journal.route.js";
 import {
   errorHandler,
   notFoundHandler,
@@ -160,6 +161,7 @@ app.use("/api/audit", auditRoutes);
 app.use("/api/safety-plan", safetyPlanRoutes);
 app.use("/api/therapist", therapistRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/journal", journalRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
