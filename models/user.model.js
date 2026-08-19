@@ -171,6 +171,19 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Two-factor authentication (TOTP)
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    twoFactorSecret: {
+      type: String,
+      default: null,
+    },
+    twoFactorBackupCodes: {
+      type: [String],
+      default: [],
+    },
     // ISO-3166 alpha-2 country code used to route crisis hotline resources
     countryCode: {
       type: String,
