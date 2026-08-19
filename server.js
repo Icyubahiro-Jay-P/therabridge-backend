@@ -31,6 +31,8 @@ import gratitudeRoutes from "./routes/gratitude.route.js";
 import activityRoutes from "./routes/activity.route.js"
 import copingCardRoutes from "./routes/copingCard.route.js";
 import psychoedRoutes from "./routes/psychoedModule.route.js";
+import programRoutes from "./routes/program.route.js";
+import { seedPrograms } from "./controllers/program.controller.js";
 import {
   errorHandler,
   notFoundHandler,
@@ -174,6 +176,7 @@ app.use("/api/gratitude", gratitudeRoutes);
 app.use("/api/activities", activityRoutes);
 app.use("/api/coping-cards", copingCardRoutes);
 app.use("/api/psychoed", psychoedRoutes);
+app.use("/api/programs", programRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
