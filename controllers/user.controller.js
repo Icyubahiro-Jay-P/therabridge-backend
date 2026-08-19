@@ -1567,7 +1567,7 @@ export const verifyTwoFactorSetup = async (req, res) => {
     );
     await user.save();
 
-    res.status(200). {
+    res.status(200).json({
       message: "Two-factor authentication enabled successfully.",
       backupCodes,
     });
