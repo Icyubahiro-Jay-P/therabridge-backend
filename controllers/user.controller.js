@@ -1034,35 +1034,27 @@ export const forgotPassword = async (req, res) => {
 </body>
 </html>`;
 
-    // MAIL DISABLED — reset token is generated and stored, but no email is
-    // sent. Re-enable when a stable mail service is configured.
-    logger.warn(
-      { userId: user._id },
-      "[MAIL DISABLED] Skipping password reset email dispatch.",
-    );
-
-    // try {
-    //   await sendEmail({
-    //     email: user.email,
-    //     subject: "Password Reset - Therabridge",
-    //     message,
-    //     html: message,
-    //   });
-    // } catch (err) {
-    //   logger.error({ err }, "Failed to send password reset email");
-    //   user.resetPasswordToken = undefined;
-    //   user.resetPasswordExpire = undefined;
-    //   await user.save({ validateBeforeSave: false });
-    //   return res.status(502).json({
-    //     error: {
-    //       message:
-    //         process.env.NODE_ENV === "production"
-    //           ? "We couldn't send the password reset email right now. Please try again in a few minutes."
-    //           : `We couldn't send the password reset email: ${err.message}`,
-    //       code: "EMAIL_FAILED",
-    //     },
-    //   });
-    // }
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "Password Reset - Therabridge",
+        html: message,
+      });
+    } catch (err) {
+      logger.error({ err }, "Failed to send password reset email");
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+      return res.status(502).json({
+        error: {
+          message:
+            process.env.NODE_ENV === "production"
+              ? "We couldn't send the password reset email right now. Please try again in a few minutes."
+              : `We couldn't send the password reset email: ${err.message}`,
+          code: "EMAIL_FAILED",
+        },
+      });
+    }
 
     res
       .status(200)
