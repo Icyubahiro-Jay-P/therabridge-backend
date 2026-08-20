@@ -189,3 +189,168 @@ export const getFullUserData = async (req, res) => {
     throw error;
   }
 };
+
+// Admin-only platform overview.
+export const getDashboard = async (req, res) => {
+  try {
+    const week = daysAgo(7);
+    const month = daysAgo(30);
+
+    const [
+      totalUsers,
+      totalTherapists,
+      totalAdmins,
+      unverifiedUsers,
+      disabledUsers,
+      signupsWeek,
+      signupsMonth,
+      signupsToday,
+      totalCommunities,
+      communitiesWeek,
+      activeCrisis,
+      crisesWeek,
+      crisesMonth,
+      messagesWeek,
+      communityMessagesWeek,
+      moodsWeek,
+      exercisesWeek,
+      totalNotifications,
+    ] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ role: "therapist" }),
+      User.countDocuments({ role: "admin" }),
+      User.countDocuments({ isAccountVerified: false }),
+      User.countDocuments({ isDisabled: true }),
+      countSince(User, {}, week),
+      countSince(User, {}, month),
+      countSince(User, {}, startOfToday()),
+      Community.countDocuments(),
+      countSince(Community, {}, week),
+      Crisis.countDocuments({ status: "active" }),
+      countSince(Crisis, {}, week),
+      countSince(Crisis, {}, month),
+      countSince(Message, { kind: "message" }, week),
+      await Community.aggregate([
+        { $match: { "messages.createdAt": { $gte: week } } },
+        { $unwind: "$messages" },
+        { $match: { "messages.createdAt": { $gte: week } } },
+        { $count: "count" },
+      ]).then((rows) => rows[0]?.count ?? 0),
+      countSince(Mood, {}, week),
+      countSince(ExerciseLog, { completed: true }, week),
+      Notification.countDocuments(),
+    ]);
+
+    const [
+      dailyMessages,
+      dailyCommunityMessages,
+      dailyMoods,
+      dailyExercises,
+      dailyCrises,
+      dailySignups,
+      moodDistribution,
+      recentSignups,
+      activeCrises,
+      recentAudit,
+      topCommunities,
+    ] = await Promise.all([
+      aggregateDaily(Message, "createdAt", 14, { kind: "message" }),
+      aggregateCommunityMessagesDaily(14),
+      aggregateDaily(Mood, "createdAt", 14),
+      aggregateDaily(ExerciseLog, "createdAt", 14, { completed: true }),
+      aggregateDaily(Crisis, "createdAt", 14),
+      aggregateDaily(User, "createdAt", 14),
+      Mood.aggregate([
+        { $match: { date: { $gte: month } } },
+        { $group: { _id: "$mood", count: { $sum: 1 } } },
+      ]),
+      User.find()
+        .sort({ createdAt: -1 })
+        .limit(7)
+        .select(
+          "firstName lastName username email avatar role isAccountVerified isDisabled createdAt",
+        )
+        .lean(),
+      Crisis.find({ status: "active" })
+        .populate("user", "username firstName lastName avatar")
+        .sort({ createdAt: -1 })
+        .limit(6)
+        .lean(),
+      AuditLog.find()
+        .sort({ createdAt: -1 })
+        .limit(6)
+        .populate("actor", "username firstName lastName role")
+        .populate("target", "username firstName lastName role")
+        .lean(),
+      Community.aggregate([
+        {
+          $addFields: {
+            memberCount: { $size: { $ifNull: ["$members", []] } },
+            messageCount: { $size: { $ifNull: ["$messages", []] } },
+          },
+        },
+        { $sort: { memberCount: -1, messageCount: -1 } },
+        { $limit: 5 },
+        {
+          $project: {
+            name: 1,
+            inviteKey: 1,
+            category: 1,
+            isPrivate: 1,
+            createdAt: 1,
+            memberCount: 1,
+            messageCount: 1,
+          },
+        },
+      ]),
+    ]);
+
+    const moodDist = { great: 0, good: 0, okay: 0, bad: 0, terrible: 0 };
+    moodDistribution.forEach((row) => {
+      if (moodDist[row._id] !== undefined) moodDist[row._id] = row.count;
+    });
+
+    res.status(200).json({
+      totals: {
+        users: totalUsers,
+        therapists: totalTherapists,
+        admins: totalAdmins,
+        communities: totalCommunities,
+        activeCrisis: activeCrisis,
+        unverifiedUsers: unverifiedUsers,
+        disabledUsers: disabledUsers,
+        notifications: totalNotifications,
+      },
+      trends: {
+        signupsToday,
+        signupsWeek,
+        signupsMonth,
+        communitiesWeek,
+        crisesWeek,
+        crisesMonth,
+        messagesWeek,
+        communityMessagesWeek,
+        moodsWeek,
+        exercisesWeek,
+      },
+      activity: buildDailySeries(
+        {
+          messages: dailyMessages,
+          communityMessages: dailyCommunityMessages,
+          moods: dailyMoods,
+          exercises: dailyExercises,
+          crises: dailyCrises,
+          signups: dailySignups,
+        },
+        14,
+      ),
+      moodDistribution: moodDist,
+      recentSignups,
+      activeCrises,
+      recentAudit,
+      topCommunities,
+    });
+  } catch (error) {
+    throw error;
+  }
+};
