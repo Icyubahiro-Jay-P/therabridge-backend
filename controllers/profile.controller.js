@@ -1,0 +1,252 @@
+import User from "../models/user.model.js";
+import {
+  getPaginationParams,
+  formatPaginatedResponse,
+  parseSortParams,
+  parseFilterParams,
+} from "../utils/pagination.js";
+import { logAccess, ipFromReq, uaFromReq } from "../services/audit.service.js";
+
+export const profile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select(
+      "-password -oldPasswords -refreshTokens -resetPasswordToken -resetPasswordExpire -verificationCode -verificationCodeExpire",
+    );
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    throw error;
+  }
+};
+
+// get other user profile by username (privacy-filtered)
+export const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username }).select(
+      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens -verificationCode -verificationCodeExpire",
+    );
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // If requesting own profile, return everything
+    if (req.user && user._id.toString() === req.user.id) {
+      return res.status(200).json(user);
+    }
+
+    // Filter based on privacy settings
+    const privacy = user.privacySettings || {};
+    const filtered = user.toObject();
+
+    for (const field of [
+      "firstName",
+      "lastName",
+      "email",
+      "dateOfBirth",
+      "bio",
+    ]) {
+      if (privacy[field] === "private") {
+        filtered[field] = null;
+      }
+    }
+
+    // Always include these regardless
+    filtered.username = user.username;
+    filtered.role = user.role;
+    filtered.avatar = user.avatar;
+    filtered._id = user._id;
+    filtered.createdAt = user.createdAt;
+    filtered.privacySettings = undefined;
+
+    res.status(200).json(filtered);
+  } catch (error) {
+    throw error;
+  }
+};
+
+// get user by ID (admin / chat lookup)
+export const getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select(
+      "-password -oldPasswords -refreshTokens -verificationCode -verificationCodeExpire",
+    );
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // If requesting own profile, return everything
+    if (req.user && user._id.toString() === req.user.id) {
+      return res.status(200).json(user);
+    }
+
+    // Filter based on privacy settings
+    const privacy = user.privacySettings || {};
+    const filtered = user.toObject();
+
+    for (const field of [
+      "firstName",
+      "lastName",
+      "email",
+      "dateOfBirth",
+      "bio",
+    ]) {
+      if (privacy[field] === "private") {
+        filtered[field] = null;
+      }
+    }
+
+    filtered.username = user.username;
+    filtered.role = user.role;
+    filtered.avatar = user.avatar;
+    filtered._id = user._id;
+    filtered.createdAt = user.createdAt;
+    filtered.privacySettings = undefined;
+
+    // Only privileged roles viewing another user are audited (normal public
+    // profile browsing is not a privacy-sensitive event).
+    if (
+      req.user.role !== "user" &&
+      user._id.toString() !== req.user.id
+    ) {
+      await logAccess({
+        actor: req.user.id,
+        actorRole: req.user.role,
+        action: "user_profile_view",
+        targetType: "user",
+        target: user._id,
+        detail: { scope: "filtered" },
+        ip: ipFromReq(req),
+        userAgent: uaFromReq(req),
+      });
+    }
+
+    res.status(200).json(filtered);
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const { firstName, lastName, dateOfBirth, bio } = req.body;
+
+    const updates = {};
+
+    if (firstName) {
+      if (firstName.length < 2) {
+        return res
+          .status(400)
+          .json({ message: "First name must be at least 2 characters long." });
+      }
+      updates.firstName = firstName;
+    }
+
+    if (lastName) {
+      if (lastName.length < 2) {
+        return res
+          .status(400)
+          .json({ message: "Last name must be at least 2 characters long." });
+      }
+      updates.lastName = lastName;
+    }
+
+    if (dateOfBirth) {
+      const today = new Date();
+      const birthDate = new Date(dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && today.getDate() < birthDate.getDate())
+      ) {
+        age--;
+      }
+      if (age < 18 || age > 120) {
+        return res
+          .status(400)
+          .json({ message: "Invalid age. Must be between 18 and 120." });
+      }
+      updates.dateOfBirth = dateOfBirth;
+    }
+
+    if (bio !== undefined) updates.bio = bio;
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updates },
+      { new: true },
+    ).select(
+      "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens -verificationCode -verificationCodeExpire",
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    res.status(200).json({
+      message: "Profile updated successfully",
+      user,
+    });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getTherapists = async (req, res) => {
+  try {
+    const { page, limit, offset } = getPaginationParams(req.query, 50);
+    const sort = parseSortParams(req.query, [
+      "firstName",
+      "lastName",
+      "createdAt",
+    ]);
+    const filter = parseFilterParams(req.query, ["firstName", "lastName"]);
+
+    // Add role filter
+    filter.role = "therapist";
+
+    const total = await User.countDocuments(filter);
+    const therapists = await User.find(filter)
+      .select("-password -oldPasswords -refreshTokens -verificationCode -verificationCodeExpire")
+      .sort(sort)
+      .limit(limit)
+      .skip(offset);
+
+    res
+      .status(200)
+      .json(formatPaginatedResponse(therapists, total, page, limit));
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const { limit, offset } = getPaginationParams(req.query, 500);
+    const sort = parseSortParams(req.query, [
+      "firstName",
+      "lastName",
+      "email",
+      "createdAt",
+    ]);
+    const filter = parseFilterParams(req.query, [
+      "firstName",
+      "lastName",
+      "email",
+      "role",
+    ]);
+
+    const users = await User.find(filter)
+      .select("-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens -verificationCode -verificationCodeExpire")
+      .populate("therapist", "firstName lastName username")
+      .sort(sort)
+      .limit(limit)
+      .skip(offset);
+
+    res.status(200).json(users);
+  } catch (error) {
+    throw error;
+  }
+};
