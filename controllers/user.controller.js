@@ -49,10 +49,7 @@ const generateVerificationCode = () =>
 const hashVerificationCode = (code) =>
   crypto.createHash("sha256").update(code).digest("hex");
 
-// MAIL DISABLED — template preserved for when mailing is re-enabled.
-// The code is still generated and stored; only the email dispatch is skipped.
 const sendVerificationEmail = async (user, code) => {
-  // eslint-disable-next-line no-unused-vars
   const message = `
 <!DOCTYPE html>
 <html lang="en">
@@ -100,16 +97,17 @@ const sendVerificationEmail = async (user, code) => {
         </div>
         <div class="footer">
             <p><strong>Therabridge</strong> • Your mental wellness companion</p>
-            <p>© ${new Date().getFullYear()} Therabridge. All rights reserved.</p>
+            <p>&copy; ${new Date().getFullYear()} Therabridge. All rights reserved.</p>
         </div>
     </div>
 </body>
 </html>`;
 
-  logger.warn(
-    { userId: user._id, email: user.email },
-    "[MAIL DISABLED] Verification email would have been sent. Code skipped.",
-  );
+  await sendEmail({
+    email: user.email,
+    subject: "Verify Your Email - Therabridge",
+    html: message,
+  });
 };
 
 // Generates a fresh 6-digit code, stores its hash on the user, and emails it.
