@@ -1,4 +1,4 @@
-import { decryptField } from "./crypto.js";
+import { decryptField } from "../utils/crypto.js";
 
 export const LONG_POLL_INTERVAL_MS = 1000;
 export const LONG_POLL_TIMEOUT_MS = 30000;
