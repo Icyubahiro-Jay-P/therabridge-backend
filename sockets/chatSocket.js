@@ -200,9 +200,63 @@ export const initChatSocket = (server) => {
     });
 
     // ====================== WEBRTC SIGNALING ======================
-    // Active call tracking: callId -> { callerId, calleeId }
+    // Active call tracking: callId -> { callerId, calleeId, timer }
     // Stored on the io instance so all handlers can access it.
     if (!io._activeCalls) io._activeCalls = new Map();
+
+    const RING_TIMEOUT_MS = 30_000;
+
+    function clearCallTimeout(callId) {
+      const call = io._activeCalls?.get(callId);
+      if (call?.timer) {
+        clearTimeout(call.timer);
+        call.timer = null;
+      }
+    }
+
+    async function createMissedCallMessage(callerId, calleeId) {
+      try {
+        const caller = await User.findById(callerId).select("firstName username");
+        const callee = await User.findById(calleeId).select("_id");
+        if (!caller || !callee) return;
+
+        const message = new Message({
+          sender: callerId,
+          recipient: calleeId,
+          kind: "missed-call",
+          content: encryptField("Missed call"),
+        });
+        await message.save();
+
+        const senderObj = {
+          _id: caller._id.toString(),
+          username: caller.username,
+          firstName: caller.firstName,
+          lastName: "",
+        };
+        const recipientObj = {
+          _id: callee._id.toString(),
+          username: "",
+          firstName: "",
+          lastName: "",
+        };
+
+        const payload = {
+          _id: message._id.toString(),
+          sender: senderObj,
+          recipient: recipientObj,
+          content: "Missed call",
+          read: false,
+          createdAt: message.createdAt.toISOString(),
+          kind: "missed-call",
+        };
+
+        io.to(`user:${callerId}`).emit("dm_message", payload);
+        io.to(`user:${calleeId}`).emit("dm_message", payload);
+      } catch (err) {
+        logger.error({ err }, "failed to create missed call message");
+      }
+    }
 
     socket.on("call:initiate", ({ calleeId } = {}) => {
       if (!calleeId || calleeId === id) return;
@@ -223,7 +277,15 @@ export const initChatSocket = (server) => {
       }
 
       const callId = `call_${id}_${calleeId}_${Date.now()}`;
-      io._activeCalls.set(callId, { callerId: id, calleeId });
+
+      const timer = setTimeout(async () => {
+        io._activeCalls.delete(callId);
+        io.to(`user:${id}`).emit("call:missed", { callId });
+        io.to(`user:${calleeId}`).emit("call:ended", { callId, endedBy: id });
+        await createMissedCallMessage(id, calleeId);
+      }, RING_TIMEOUT_MS);
+
+      io._activeCalls.set(callId, { callerId: id, calleeId, timer });
 
       io.to(`user:${calleeId}`).emit("call:incoming", {
         callId,
@@ -248,6 +310,7 @@ export const initChatSocket = (server) => {
     socket.on("call:answer", ({ callId, sdp, callerId } = {}) => {
       const call = io._activeCalls?.get(callId);
       if (!call || call.calleeId !== id) return;
+      clearCallTimeout(callId);
       io.to(`user:${callerId}`).emit("call:answer", {
         callId,
         sdp,
@@ -266,6 +329,7 @@ export const initChatSocket = (server) => {
     socket.on("call:end", ({ callId } = {}) => {
       const call = io._activeCalls?.get(callId);
       if (!call) return;
+      clearCallTimeout(callId);
       const peerId =
         call.callerId === id ? call.calleeId : call.callerId;
       io._activeCalls.delete(callId);
@@ -275,6 +339,7 @@ export const initChatSocket = (server) => {
     socket.on("call:reject", ({ callId, callerId } = {}) => {
       const call = io._activeCalls?.get(callId);
       if (!call || call.calleeId !== id) return;
+      clearCallTimeout(callId);
       io._activeCalls.delete(callId);
       io.to(`user:${callerId}`).emit("call:rejected", {
         callId,
@@ -287,6 +352,7 @@ export const initChatSocket = (server) => {
       if (io._activeCalls) {
         for (const [callId, call] of io._activeCalls) {
           if (call.callerId === id || call.calleeId === id) {
+            clearCallTimeout(callId);
             const peerId =
               call.callerId === id ? call.calleeId : call.callerId;
             io._activeCalls.delete(callId);
