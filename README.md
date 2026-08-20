@@ -10,7 +10,7 @@ Express 5 + MongoDB API server for Therabridge, a mental wellness platform.
 - **Bcrypt** - Password hashing (10 rounds) with old-password rotation
 - **Zod** - Request body validation (`utils/validation.js`)
 - **Per-route JSON body limits** - each router mounts a route-tuned `express.json` limit (`middleware/jsonBody.js`); oversized bodies return `413 PAYLOAD_TOO_LARGE`
-- **Nodemailer** - Transactional emails (verification codes, password reset); nodemailer-ethereal in dev
+- **Google Apps Script** - Transactional emails (verification codes, password reset) via a GAS Web App; emails sent through Gmail server-side with no SMTP dependency
 - **Multer** + **Sharp** - Profile picture upload + image optimization
 - **Helmet**, **express-rate-limit**, **CORS** - Security
 - **Pino** - Structured logging (`utils/logger.js`)
@@ -26,6 +26,7 @@ Express 5 + MongoDB API server for Therabridge, a mental wellness platform.
 - Node.js 18+
 - MongoDB (local or Atlas)
 - Google Gemini API key (for the Therry AI companion)
+- Google Apps Script Web App URL (for email delivery)
 
 ### Setup
 
@@ -41,23 +42,24 @@ npm run migrate:encrypt # backfill-encrypt existing plaintext fields (once, befo
 
 Copy `backend/.env.example` to `.env`:
 
-| Variable | Description |
-|----------|-------------|
-| `PORT` | Server port (default: 5000) |
-| `CLIENT_URL` | Allowed CORS origin (default: `http://localhost:5173`; production: `https://therabridge.vercel.app`) |
-| `MONGO_URI` | MongoDB connection string |
-| `JWT_SECRET` | Secret for JWT signing |
-| `EMAIL_HOST` / `EMAIL_PORT` | SMTP host and port (Gmail SMTP). The hostname is resolved to an IPv4 literal before connecting (see Email below) |
-| `EMAIL_USER` / `EMAIL_PASS` | SMTP credentials (Gmail app password) |
-| `EMAIL_SECURE` | Set to `true` to use implicit TLS (`secure: true`), e.g. Gmail port 465 when 587 is blocked |
-| `FROM_NAME` / `FROM_EMAIL` | Outbound email sender identity |
-| `EMAIL_PROVIDER` / `RESEND_API_KEY` / `RESEND_FROM` | **Resend HTTP API** (recommended on Render free tier - sends over port 443): set `EMAIL_PROVIDER=resend`, add the API key, and optionally `RESEND_FROM` (the sender must be verified in Resend) |
-| `GEMINI_API_KEY` | Google Gemini API key (Therry AI companion) |
-| `FIELD_ENCRYPTION_KEY` | 32-byte hex (or raw 32-byte string) key for AES-256-GCM field encryption. **Required in production** - without it `encryptField` throws. Non-production falls back to plaintext with a warning. |
-| `AI_SERVICE_URL` | Optional Python ML microservice for spam/crisis/sentiment hints (falls back gracefully when unavailable) |
-| `NODE_ENV` | `development` \| `production` |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push keys (generate with `npm run vapid`) - required for device notifications |
-| `VAPID_SUBJECT` | Contact for VAPID (e.g. `mailto:no-reply@therabridge.com`) |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PORT` | No | Server port (default: 5000) |
+| `CLIENT_URL` | Prod | Allowed CORS origin (default: `http://localhost:5173`) |
+| `MONGO_URI` | Yes | MongoDB connection string |
+| `JWT_SECRET` | Yes | Secret for JWT signing (min 32 chars; `openssl rand -hex 32`) |
+| `GOOGLE_SCRIPT_URL` | Prod | Google Apps Script Web App URL for email delivery |
+| `GEMINI_API_KEY` | Prod | Google Gemini API key (Therry AI) |
+| `FIELD_ENCRYPTION_KEY` | Prod | 32-byte hex key for AES-256-GCM field encryption |
+| `VAPID_PUBLIC_KEY` | Prod | Web Push public key (`npm run vapid`) |
+| `VAPID_PRIVATE_KEY` | Prod | Web Push private key |
+| `VAPID_SUBJECT` | Prod | Contact for VAPID (e.g. `mailto:no-reply@therabridge.com`) |
+| `CLOUDINARY_CLOUD_NAME` | Prod | Cloudinary cloud name for profile pictures |
+| `CLOUDINARY_API_KEY` | Prod | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Prod | Cloudinary API secret |
+| `AI_SERVICE_URL` | No | Python ML microservice (default: `http://localhost:8000`) |
+| `NODE_ENV` | No | `development` or `production` |
+| `LOG_LEVEL` | No | Pino log level (default: `info`) |
 
 **Production:** the API runs at [therabridge-backend.onrender.com](https://therabridge-backend.onrender.com); the Vercel frontend proxies `/api`, `/uploads`, and `/socket.io` to it via the rewrites in `frontend/vercel.json`.
 
@@ -72,7 +74,7 @@ Copy `backend/.env.example` to `.env`:
 
 ## API Routes
 
-All endpoints below are mounted under `/api` and require the JWT cookie.
+All endpoints below are mounted under `/api` and require the JWT cookie unless noted otherwise.
 
 ### Users - `/api/users`
 
@@ -84,152 +86,271 @@ All endpoints below are mounted under `/api` and require the JWT cookie.
 | POST | `/users/refresh` | Rotate refresh token, issue new access token |
 | POST | `/users/forgot-password` | Request reset email |
 | POST | `/users/reset-password/:token` | Reset password |
-| POST | `/users/verify-email` |  Verify email with a 6-digit code (30-min TTL, hashed at rest) |
-| POST | `/users/resend-verification` |  Re-issue + email a fresh verification code (60-s cooldown; 502 `EMAIL_FAILED` on SMTP failure in production) |
-| GET | `/users/profile` |  Get own profile |
-| PUT | `/users/profile` |  Update profile fields |
-| DELETE | `/users/profile` |  Delete account (cascades to all owned data) |
-| GET | `/users/export` |  Download all personal data as JSON (decrypted) |
-| POST | `/users/ai-disclosure` |  Acknowledge the AI companion disclosure (persists `aiDisclosureAcknowledgedAt`) |
-| POST | `/users/change-password` |  Change password |
-| POST | `/users/upload-avatar` |  Upload profile picture (multipart) |
-| DELETE | `/users/avatar` |  Remove profile picture |
-| PUT | `/users/privacy` |  Update per-field privacy settings |
-| GET | `/users/users` |  List users (admin) |
-| GET | `/users/therapists` |  List therapists |
-| GET | `/users/users/:id` |  Get user by id |
-| PUT | `/users/admin/disable/:id` |  Disable user (admin) |
-| PUT | `/users/admin/role/:id` |  Change role (admin) |
-| DELETE | `/users/admin/user/:id` |  Delete user (admin) |
-| PUT | `/users/admin/therapist` |  Assign a therapist to a user (admin) |
-| GET | `/users/therapist/user/:id` |  Full user data (therapist) |
-| GET | `/users/therapist/clients` |  List my clients (therapist) |
-| POST | `/users/therapist/clients` |  Add a client to my roster (therapist) |
+| POST | `/users/verify-email` | Verify email with 6-digit code (30-min TTL) |
+| POST | `/users/resend-verification` | Re-issue verification code (60-s cooldown) |
+| GET | `/users/profile` | Get own profile |
+| PUT | `/users/profile` | Update profile fields |
+| DELETE | `/users/profile` | Delete account (cascades to all owned data) |
+| GET | `/users/export` | Download all personal data as JSON (decrypted) |
+| POST | `/users/ai-disclosure` | Acknowledge the AI companion disclosure |
+| POST | `/users/change-password` | Change password |
+| POST | `/users/upload-avatar` | Upload profile picture (multipart) |
+| DELETE | `/users/avatar` | Remove profile picture |
+| PUT | `/users/privacy` | Update per-field privacy settings |
+| GET | `/users/users` | List users (admin) |
+| GET | `/users/therapists` | List therapists |
+| GET | `/users/users/:id` | Get user by id |
+| PUT | `/users/admin/disable/:id` | Disable user (admin) |
+| PUT | `/users/admin/role/:id` | Change role (admin) |
+| DELETE | `/users/admin/user/:id` | Delete user (admin) |
+| PUT | `/users/admin/therapist` | Assign a therapist to a user (admin) |
+| GET | `/users/therapist/user/:id` | Full user data (therapist) |
+| GET | `/users/therapist/clients` | List my clients (therapist) |
+| POST | `/users/therapist/clients` | Add a client to my roster (therapist) |
 | GET | `/users/:username` | Public profile |
 
 ### Chat - `/api/chat`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/chat/conversations` |  List DM conversations |
-| GET | `/chat/conversation/:userId` |  Get DM thread |
-| PUT | `/chat/conversation/:userId/read` |  Mark DM thread read (honors read-receipts setting; clears the reader's notification bell) |
-| GET | `/chat/conversation/:userId/updates` |  Long-poll DM updates (since `?since=`) |
-| POST | `/chat/send` |  Send DM (spam-filtered) |
-| GET | `/chat/search` |  Search users by query |
-| GET | `/chat/settings` |  Get chat settings |
-| PUT | `/chat/settings` |  Update chat settings |
-| PUT | `/chat/edit/:messageId` |  Edit message (tracks history) |
-| DELETE | `/chat/unsend/:messageId` |  Unsend message |
-| DELETE | `/chat/messages` |  Delete all my DMs |
-| POST | `/chat/screenshot-notice` |  REST fallback for possible-screenshot notices (rate-limited) |
-| POST | `/chat/watermark-stamp` |  Render text to a PNG with a tiled per-viewer watermark (Sharp) |
-| GET | `/chat/communities` |  List my communities |
-| POST | `/chat/communities` |  Create community |
-| POST | `/chat/communities/join` |  Join by invite key |
-| GET | `/chat/communities/by-key/:inviteKey` |  Look up community by key |
-| GET | `/chat/communities/:id` |  Get community + messages |
-| GET | `/chat/communities/:id/updates` |  Long-poll community updates |
-| PUT | `/chat/communities/:id` |  Update community |
-| POST | `/chat/communities/:id/messages` |  Send community message (spam-filtered) |
-| PUT | `/chat/communities/:id/messages/:msgId` |  Edit community message |
-| DELETE | `/chat/communities/:id/messages/:msgId` |  Unsend community message |
-| POST | `/chat/communities/:id/read` |  Mark community messages read |
-| POST | `/chat/communities/:id/members/remove` |  Remove a member |
-| DELETE | `/chat/communities/:id` |  Delete community |
-| DELETE | `/chat/community-messages` |  Delete all my community messages |
+| GET | `/chat/conversations` | List DM conversations |
+| GET | `/chat/conversation/:userId` | Get DM thread |
+| PUT | `/chat/conversation/:userId/read` | Mark DM thread read |
+| GET | `/chat/conversation/:userId/updates` | Long-poll DM updates |
+| POST | `/chat/send` | Send DM (spam-filtered) |
+| GET | `/chat/search` | Search users by query |
+| GET | `/chat/settings` | Get chat settings |
+| PUT | `/chat/settings` | Update chat settings |
+| PUT | `/chat/edit/:messageId` | Edit message |
+| DELETE | `/chat/unsend/:messageId` | Unsend message |
+| DELETE | `/chat/messages` | Delete all my DMs |
+| POST | `/chat/screenshot-notice` | Possible-screenshot notice (rate-limited) |
+| POST | `/chat/watermark-stamp` | Watermark stamp to PNG |
+| GET | `/chat/communities` | List my communities |
+| POST | `/chat/communities` | Create community |
+| POST | `/chat/communities/join` | Join by invite key |
+| GET | `/chat/communities/by-key/:inviteKey` | Look up community by key |
+| GET | `/chat/communities/:id` | Get community + messages |
+| GET | `/chat/communities/:id/updates` | Long-poll community updates |
+| PUT | `/chat/communities/:id` | Update community |
+| POST | `/chat/communities/:id/messages` | Send community message |
+| PUT | `/chat/communities/:id/messages/:msgId` | Edit community message |
+| DELETE | `/chat/communities/:id/messages/:msgId` | Unsend community message |
+| POST | `/chat/communities/:id/read` | Mark community messages read |
+| POST | `/chat/communities/:id/members/remove` | Remove a member |
+| DELETE | `/chat/communities/:id` | Delete community |
+| DELETE | `/chat/community-messages` | Delete all my community messages |
 
 ### Exercises - `/api/exercises`
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/exercises` | List all exercises (public) |
-| GET | `/exercises/:id` | Get exercise (public) |
-| POST | `/exercises` |  Create exercise (admin) |
-| GET | `/exercises/logs/mine` |  My exercise logs |
-| GET | `/exercises/stats` |  Exercise/login streak & score stats |
-| POST | `/exercises/:id/start` |  Start exercise |
-| POST | `/exercises/:id/complete` |  Complete exercise (awards points/streaks) |
+| GET | `/exercises/:id` | Get exercise |
+| POST | `/exercises` | Create exercise (admin) |
+| GET | `/exercises/logs/mine` | My exercise logs |
+| GET | `/exercises/stats` | Exercise/login streak & score stats |
+| POST | `/exercises/:id/start` | Start exercise |
+| POST | `/exercises/:id/complete` | Complete exercise (awards points/streaks) |
 
 ### Mood - `/api/mood`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/mood` |  Log mood entry |
-| GET | `/mood` |  Get my mood history |
-| GET | `/mood/stats` |  30-day mood stats (incl. streak) |
-| DELETE | `/mood/:id` |  Delete a mood entry |
+| POST | `/mood` | Log mood entry |
+| GET | `/mood` | Get my mood history |
+| GET | `/mood/stats` | 30-day mood stats (incl. streak) |
+| DELETE | `/mood/:id` | Delete a mood entry |
 
 ### Notifications - `/api/notifications`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/notifications` |  Get my notifications |
-| GET | `/notifications/unread-count` |  Unread count |
-| PUT | `/notifications/:id/read` |  Mark one read |
-| PUT | `/notifications/read-all` |  Mark all read |
-| DELETE | `/notifications/:id` |  Delete one |
-| DELETE | `/notifications` |  Delete all |
-
-### Mood check-ins (proactive)
-
-`services/moodCheckin.service.js` fires after `POST /api/mood`: when the 3 most recent mood entries are all strictly below the user's 14-day baseline, it creates a `mood_checkin` notification (max one per 3 days) and a Therry assistant message (category `checkin`). Never blocks or fails the mood log request.
+| GET | `/notifications` | Get my notifications |
+| GET | `/notifications/unread-count` | Unread count |
+| PUT | `/notifications/:id/read` | Mark one read |
+| PUT | `/notifications/read-all` | Mark all read |
+| DELETE | `/notifications/:id` | Delete one |
+| DELETE | `/notifications` | Delete all |
 
 ### Crisis - `/api/crisis`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/crisis` |  Create crisis alert (severity escalation: severe → urgent notify, medium → non-urgent, mild → log only unless `requestContact`; `panic_attack` also returns a `panicExercise` for first-response) |
-| GET | `/crisis/mine` |  Get my alerts |
-| GET | `/crisis/active` |  All active alerts (therapist/admin) |
-| GET | `/crisis/hotlines` |  Region-appropriate crisis hotlines (by `User.countryCode`) |
-| GET | `/crisis/logs` |  Crisis escalation log (therapist/admin) |
-| POST | `/crisis/logs/:logId/action` |  Record follow-up action on a crisis log (therapist/admin) |
-| POST | `/crisis/message-therapist` |  User asks their assigned therapist to be notified (falls back to admins) |
-| PUT | `/crisis/:id/acknowledge` |  Acknowledge alert |
-| PUT | `/crisis/:id/resolve` |  Resolve alert |
+| POST | `/crisis` | Create crisis alert (severity escalation) |
+| GET | `/crisis/mine` | Get my alerts |
+| GET | `/crisis/active` | All active alerts (therapist/admin) |
+| GET | `/crisis/hotlines` | Region-appropriate crisis hotlines |
+| GET | `/crisis/logs` | Crisis escalation log (therapist/admin) |
+| POST | `/crisis/logs/:logId/action` | Record follow-up action (therapist/admin) |
+| POST | `/crisis/message-therapist` | Notify assigned therapist |
+| PUT | `/crisis/:id/acknowledge` | Acknowledge alert |
+| PUT | `/crisis/:id/resolve` | Resolve alert |
 
 ### Safety Plan - `/api/safety-plan`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/safety-plan` |  Get my safety plan (decrypted; `{}` when none) |
-| PUT | `/safety-plan` |  Create-or-replace my plan (7 sections, ≤10 items × ≤120 chars, items encrypted at rest) |
-| GET | `/safety-plan/:userId` |  Read-only client plan for their assigned therapist (or admin); audit-logged |
+| GET | `/safety-plan` | Get my safety plan (decrypted) |
+| PUT | `/safety-plan` | Create-or-replace my plan (7 sections) |
+| GET | `/safety-plan/:userId` | Read-only client plan (therapist/admin) |
 
-### Therry - `/api/therry`
+### Therry (AI Companion) - `/api/therry`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/therry/chat` |  Send a message, get Therry's reply (auto-escalates crisis; `panic_attack` responses include `crisis.panicExercise`) |
-| GET | `/therry/messages` |  Get my Therry history (asc, max 500) |
-| PUT | `/therry/messages/:messageId` |  Edit a Therry message |
+| POST | `/therry/chat` | Send a message, get Therry's reply |
+| GET | `/therry/messages` | Get my Therry history |
+| PUT | `/therry/messages/:messageId` | Edit a Therry message |
+
+### Journal - `/api/journal`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/journal` | Create journal entry |
+| GET | `/journal` | My journal entries |
+| GET | `/journal/public` | Public journal entries |
+| GET | `/journal/:id` | Get journal entry |
+| PUT | `/journal/:id` | Update journal entry |
+| DELETE | `/journal/:id` | Delete journal entry |
+| POST | `/journal/:id/comments` | Add comment |
+| DELETE | `/journal/:id/comments/:commentId` | Delete comment |
+
+### Thought Records (CBT) - `/api/thought-records`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/thought-records` | Create thought record (6-step guided CBT) |
+| GET | `/thought-records` | My thought records |
+| GET | `/thought-records/stats` | Distortion type stats |
+| GET | `/thought-records/:id` | Get thought record |
+| PUT | `/thought-records/:id` | Update thought record |
+| DELETE | `/thought-records/:id` | Delete thought record |
+
+### Clinical Assessments - `/api/assessments`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/assessments` | Take assessment (PHQ-9, GAD-7, PSS-10, K10) |
+| GET | `/assessments` | My assessments |
+| GET | `/assessments/trend` | 6-month score trend |
+| GET | `/assessments/:id` | Get assessment |
+| DELETE | `/assessments/:id` | Delete assessment |
+
+### Gratitude Journaling - `/api/gratitude`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/gratitude/prompt` | Daily rotating prompt |
+| POST | `/gratitude` | Create gratitude entry |
+| GET | `/gratitude` | My gratitude entries |
+| GET | `/gratitude/streak` | Current streak |
+| DELETE | `/gratitude/:id` | Delete entry |
+
+### Behavioral Activation - `/api/activities`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/activities` | Create activity |
+| GET | `/activities` | My activities |
+| GET | `/activities/stats` | Activity stats |
+| GET | `/activities/:id` | Get activity |
+| PUT | `/activities/:id` | Update activity |
+| POST | `/activities/:id/complete` | Complete activity (mood before/after) |
+| DELETE | `/activities/:id` | Delete activity |
+
+### Coping Cards - `/api/coping-cards`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/coping-cards` | Create coping card |
+| GET | `/coping-cards` | My cards (+ 18 pre-made templates) |
+| PATCH | `/coping-cards/:id/favorite` | Toggle favorite |
+| DELETE | `/coping-cards/:id` | Delete card |
+
+### Psychoeducation - `/api/psychoed`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/psychoed` | List modules |
+| GET | `/psychoed/progress` | My progress |
+| GET | `/psychoed/:id` | Get module with steps |
+| POST | `/psychoed/:id/start` | Start module |
+| POST | `/psychoed/:id/complete-step` | Complete a step |
+
+### Multi-Week Programs - `/api/programs`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/programs` | List programs |
+| GET | `/programs/mine` | My enrolled programs |
+| GET | `/programs/:id` | Get program with weeks/activities |
+| POST | `/programs/:id/start` | Start program |
+| POST | `/programs/:id/complete` | Complete activity in program |
+
+### Sleep Tools - `/api/sleep`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/sleep` | Log sleep quality |
+| GET | `/sleep` | My sleep logs |
+| GET | `/sleep/stats` | Sleep trend stats |
+| GET | `/sleep/content` | Curated sleep content |
+| DELETE | `/sleep/:id` | Delete sleep log |
+
+### Medication Tracking - `/api/medications`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/medications` | Create medication |
+| GET | `/medications` | My medications |
+| GET | `/medications/logs` | My dose logs |
+| GET | `/medications/stats` | Adherence stats |
+| PUT | `/medications/:id` | Update medication |
+| DELETE | `/medications/:id` | Delete medication |
+| POST | `/medications/log` | Log a dose (with optional side effects) |
+
+### Recommendations - `/api/recommendations`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/recommendations` | Personalized AI recommendations |
+
+### Virtual Pet - `/api/pet`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/pet` | Get my pet |
+| POST | `/pet/feed` | Feed pet |
+| PUT | `/pet/rename` | Rename pet |
+| GET | `/pet/adventures` | Get adventure log |
+| POST | `/pet/activity` | Log activity (triggers pet events) |
 
 ### Audit - `/api/audit`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/audit` |  Paginated privacy audit log (admin) - filter by `action`, `actorId`, `targetId`, `from`/`to` |
+| GET | `/audit` | Paginated privacy audit log (admin) |
 
 ### Admin - `/api/admin`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/admin/dashboard` |  Admin platform overview: KPI totals (incl. unverified/disabled users), 7/30-day trends, a 14-day daily activity series, 30-day mood distribution, and recent signups / active crises / top communities / audit feeds |
+| GET | `/admin/dashboard` | Admin platform overview (KPIs, trends, feeds) |
 
 ### Therapist - `/api/therapist`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/clients/risk-summary` |  Per-client check-in signals (mood/crisis/exercise/login) for the therapist's roster; audit-logged |
+| GET | `/therapist/clients/risk-summary` | Per-client check-in signals |
 
 ### Push - `/api/push`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/push/vapid-public-key` |  Public VAPID key for creating a push subscription |
-| POST | `/push/subscribe` |  Register/refresh a device push subscription |
-| POST | `/push/unsubscribe` |  Remove a device push subscription (logout/unsubscribe) |
+| GET | `/push/vapid-public-key` | Public VAPID key |
+| POST | `/push/subscribe` | Register device push subscription |
+| POST | `/push/unsubscribe` | Remove device push subscription |
 
 ### Misc
 
@@ -242,32 +363,46 @@ Protected routes require a valid access token (httpOnly `token` cookie or `Autho
 
 ## Email Verification
 
-Every account starts unverified. Registration (`POST /api/users/register`) mints a **6-digit code** (`crypto.randomInt`, zero-padded, **30-minute TTL**), stores only its **SHA-256 hash** in `user.verificationCode` + `verificationCodeExpire`, and emails the plaintext. Sending is **best-effort**, an SMTP failure at registration is logged, not surfaced, so the account still works and the user can resend later.
+Every account starts unverified. Registration (`POST /api/users/register`) mints a **6-digit code** (`crypto.randomInt`, zero-padded, **30-minute TTL**), stores only its **SHA-256 hash** in `user.verificationCode` + `verificationCodeExpire`, and emails the plaintext via Google Apps Script. Sending is **best-effort** - a failure at registration is logged, not surfaced, so the account still works and the user can resend later.
 
 - `POST /api/users/verify-email` (`{ code }`): validates `ALREADY_VERIFIED` / `NO_CODE` / `CODE_EXPIRED` / `INVALID_CODE` (400s), then sets `isAccountVerified = true` and clears the code fields.
-- `POST /api/users/resend-verification`: replaces the stored code with a fresh one and re-emails it. Mounted under the auth rate limiter. On SMTP failure returns `502 { code: "EMAIL_FAILED" }` with a generic message in production (SMTP internals stay hidden). Response includes `resendCooldownSeconds: 60`.
+- `POST /api/users/resend-verification`: replaces the stored code with a fresh one and re-emails it. Mounted under the auth rate limiter. On failure returns `502 { code: "EMAIL_FAILED" }` with a generic message in production. Response includes `resendCooldownSeconds: 60`.
 
 ### Email delivery (production)
 
-`utils/nodemailer.js` dispatches on provider:
+`utils/nodemailer.js` sends emails via a **Google Apps Script Web App**. The function POSTs a JSON payload `{ to, subject, html }` to `process.env.GOOGLE_SCRIPT_URL` over HTTPS (port 443). The GAS web app calls `MailApp.sendEmail()` using the deployer's Gmail account, so no SMTP ports or custom domain are needed.
 
-- **Resend (HTTP API)**, used when `EMAIL_PROVIDER=resend` and `RESEND_API_KEY` is set. Sends `POST https://api.resend.com/emails` over **port 443**, so it works on hosts that block SMTP entirely. **Render's free tier has blocked outbound SMTP ports 25/465/587 since Sept 2025** (upgrading to a paid instance re-enables SMTP). The From address must be a sender verified in Resend (your own domain, or `onboarding@resend.dev`, which can only deliver to your own inbox). Non-2xx responses throw `EMAIL_SEND_FAILED`.
-- **SMTP (nodemailer)**, the default. The hostname is resolved to an **IPv4 literal** before building the transport because nodemailer 9 resolves both A and AAAA records and picks a random address (its `family` option is ignored), so on hosts without IPv6 egress it can fail with `connect ENETUNREACH <ipv6>:587`. The literal is passed as `host` with the original hostname as `servername` so TLS still validates against `smtp.gmail.com`. If Gmail's port 587 is blocked (symptom: `Connection timeout` on the IPv4 address), set `EMAIL_PORT=465` and `EMAIL_SECURE=true` for implicit TLS. Sends are logged with the resolved host/port.
+**Setup:** deploy the script from `google-apps-script.js` in the project root as a Google Apps Script Web App (Execute as: Me, Access: Anyone). Paste the resulting URL into the `GOOGLE_SCRIPT_URL` env var.
 
 ## Models
 
-- **User** - firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, `isAccountVerified` + hashed 6-digit `verificationCode`/`verificationCodeExpire` (email verification), wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter, `aiDisclosureAcknowledgedAt`, `countryCode` (ISO-3166 alpha-2, default `US` - routes crisis hotlines).
-- **Message** (DM) - sender, recipient, `kind` (`message` \| `screenshot-notice`), `noticeType`, content (≤2000, encrypted at rest), read/readAt, `deletedFor`, unsent, edited/editCount/editHistory.
-- **Community** - name, owner, members, unique `inviteKey`, description, embedded messages (sender, content ≤2000 - encrypted at rest, readBy, unsent, edit history).
-- **Mood** - user, mood (`great`/`good`/`okay`/`bad`/`terrible`), note (encrypted at rest), factors, intensity (1–10), date.
-- **Crisis** - user, alertType, `severity` (`mild`/`medium`/`severe`), description (encrypted at rest), source (`manual` \| `therry`), `therryMessageId`, status (`active`/`acknowledged`/`resolved`), acknowledgedBy, resolvedAt, resourcesShared.
-- **CrisisLog** - chronicles every crisis event (manual alert or Therry detection): user, source, category, therryMessageId, notified therapist/admins, hotlines shared, and follow-up actions recorded by therapists/admins.
-- **AuditLog** - actor, actorRole, action (`user_profile_view`, `client_roster_view`, `crisis_view`, `safety_plan_view`, `safety_plan_update`, `risk_summary_view`, `data_export`, `account_deletion`, `ai_disclosure_ack`), target, detail, ip, userAgent.
-- **SafetyPlan** - one per user (unique `user`): seven short lists (warningSigns, internalCoping, distractionPeople, distractionSettings, helpPeople, professionals, meansRestriction, reasonsForLiving), each item encrypted at rest, ≤10 items × ≤120 chars.
+- **User** - firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, `isAccountVerified` + hashed 6-digit `verificationCode`/`verificationCodeExpire` (email verification), wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter, `aiDisclosureAcknowledgedAt`, `countryCode`.
+- **Message** (DM) - sender, recipient, `kind` (`message` | `screenshot-notice`), `noticeType`, content (<=2000, encrypted at rest), read/readAt, `deletedFor`, unsent, edited/editCount/editHistory.
+- **Community** - name, owner, members, unique `inviteKey`, description, embedded messages (sender, content <=2000 - encrypted at rest, readBy, unsent, edit history).
+- **Mood** - user, mood (`great`/`good`/`okay`/`bad`/`terrible`), note (encrypted at rest), factors, intensity (1-10), date.
+- **Crisis** - user, alertType, `severity` (`mild`/`medium`/`severe`), description (encrypted at rest), source (`manual` | `therry`), status (`active`/`acknowledged`/`resolved`), acknowledgedBy, resolvedAt, resourcesShared.
+- **CrisisLog** - chronicles every crisis event: user, source, category, therryMessageId, notified therapist/admins, hotlines shared, follow-up actions.
+- **AuditLog** - actor, actorRole, action, target, detail, ip, userAgent.
+- **SafetyPlan** - one per user: seven short lists (warningSigns, internalCoping, distractionPeople, distractionSettings, helpPeople, professionals, meansRestriction, reasonsForLiving), each item encrypted at rest.
 - **Exercise** - title, description, duration (sec), type, steps, difficulty, color.
 - **ExerciseLog** - user, exercise, startedAt, completedAt, timeSpent, completed.
-- **Notification** - recipient, sender, type (message, community_invite, exercise_reminder, system, mood_reminder, crisis_alert, community_update, streak_milestone, mood_checkin), title/body (encrypted at rest), data, read/readAt.
-- **TherryMessage** - user, role (`user`/`assistant`), content (≤4000, encrypted at rest), category (`anxiety`/`sad`/`stress`/`lonely`/`angry`/`general`/`crisis`).
+- **Notification** - recipient, sender, type, title/body (encrypted at rest), data, read/readAt.
+- **TherryMessage** - user, role (`user`/`assistant`), content (<=4000, encrypted at rest), category.
+- **JournalEntry** - user, title, content (encrypted), mood, tags, comments, isPublic.
+- **ThoughtRecord** - user, situation, automaticThought, emotions, distortionType, evidenceFor, evidenceAgainst, reframe, distressLevel, outcomeEmotion.
+- **Assessment** - user, type (PHQ-9/GAD-7/PSS-10/K10), responses, score, severity, takenAt.
+- **GratitudeEntry** - user, content (encrypted), promptText, date.
+- **Activity** - user, title, category, expectedPleasure, actualPleasure, moodBefore, moodAfter, notes, completedAt.
+- **PsychoedModule** - title, description, category, steps (title, content, duration).
+- **PsychoedProgress** - user, module, startedAt, completedSteps, isCompleted.
+- **CopingCard** - user, title, text (encrypted), category, isFavorite, isTemplate.
+- **Program** - title, description, durationWeeks, weeks (activities with title, description, type, duration).
+- **UserProgress** - user, program, startedAt, completedActivities, currentWeek, isCompleted.
+- **SleepLog** - user, quality (1-5), notes (encrypted), dreams (encrypted), duration, date.
+- **SleepContent** - title, description, type (sound/meditation/story), duration, url.
+- **Medication** - user, name (encrypted), dosage (encrypted), frequency, notes (encrypted), isActive.
+- **MedicationLog** - medication, user, takenAt, dosage, sideEffects, notes (encrypted).
+- **Pet** - user, name, level, experience, mood, hunger, lastFed, accessories, adventureLog.
 
 ## Input Limits & Validation
 
@@ -277,133 +412,140 @@ All user-entered free-text is capped at both the API and the model layer so the 
 
 | Router | Body limit | Reason |
 |--------|-----------|--------|
-| `/api/chat` | `16kb` | DM/community messages ≤2000 chars (worst-case JSON escaping ≈ 12kb) |
-| `/api/therry` | `32kb` | Therry messages ≤4000 chars |
-| `/api/crisis` | `16kb` | crisis descriptions ≤1000 chars |
-| `/api/exercises` | `16kb` | exercise catalog create/update bodies (steps, instructions) |
-| `/api/users`, `/api/mood`, `/api/notifications`, `/api/push`, `/api/audit` | `10kb` | profile/mood/notification payloads |
+| `/api/chat` | `16kb` | DM/community messages <=2000 chars |
+| `/api/therry` | `32kb` | Therry messages <=4000 chars |
+| `/api/crisis` | `16kb` | Crisis descriptions <=1000 chars |
+| `/api/exercises` | `16kb` | Exercise catalog create/update bodies |
+| All other routers | `10kb` | Profile, mood, notification, and new feature payloads |
 
-Oversized request bodies are rejected by Express before any handler runs and surface as `413 { error: { code: "PAYLOAD_TOO_LARGE" } }` from the error handler.
+Oversized request bodies are rejected by Express before any handler runs and surface as `413 { error: { code: "PAYLOAD_TOO_LARGE" } }`.
 
-**Character caps** (Zod `utils/validation.js` + Mongoose validators, must stay in sync with the frontend `frontend/src/lib/limits.ts`):
+**Character caps** (Zod `utils/validation.js` + Mongoose validators, must stay in sync with `frontend/src/lib/limits.ts`):
 
 | Field | Cap |
 |-------|-----|
 | DM / community message content | 2000 |
-| Therry user messages (send + edit) | 4000 |
+| Therry user messages | 4000 |
 | Crisis description | 1000 |
 | Mood note | 500 |
-| Mood factors | ≤20 items, ≤40 chars each |
+| Mood factors | <=20 items, <=40 chars each |
 | Community name / description / rules | 60 / 200 / 500 |
 | User first/last name, username, email, password | 50 / 50 / 30 / 254 / 128 |
 | Profile bio / avatar URL | 300 / 500 |
+| Journal title / content | 200 / 5000 |
+| Journal comment | 1000 |
+| Thought record fields (situation, thoughts, evidence, reframe) | 500 each |
+| Thought record emotions | 300 each |
+| Gratitude entry / prompt text | 1000 / 200 |
+| Activity title / notes | 100 / 500 |
+| Coping card text | 300 |
+| Medication name / dosage / notes | 100 / 50 / 200 |
+| Medication log notes | 200 |
+| Sleep log notes / dreams | 500 each |
 
-Because message/mood/crisis fields are encrypted at rest, the Mongoose validators decrypt the envelope with `decryptFieldLength` (`utils/crypto.js`) before applying the cap, the ciphertext envelope is always longer than the plaintext, so validating the raw stored value would reject legitimate input.
+Because message/mood/crisis fields are encrypted at rest, the Mongoose validators decrypt the envelope with `decryptFieldLength` (`utils/crypto.js`) before applying the cap, since the ciphertext envelope is always longer than the plaintext.
 
 ## Talking Points
 
-"Reaching out is cardio for the heart." Sending a DM or community message earns **+2 Wellness points**; messaging Therry earns **+5** (opening up = bonus self-care). Points feed the same wellness score as completing exercises and are capped at **20/day** per user so chat can't outpace real self-care. Awarded points are returned as `pointsEarned` on the send/chat endpoints and surfaced as `talkingPointsToday` in `GET /api/exercises/stats`. (The mechanics are intentionally undisclosed in the UI - discovery is part of the fun.)
+Sending a DM or community message earns **+2 Wellness points**; messaging Therry earns **+5**. Points feed the same wellness score as completing exercises and are capped at **20/day** per user. Awarded points are returned as `pointsEarned` on the send/chat endpoints and surfaced as `talkingPointsToday` in `GET /api/exercises/stats`.
 
 ## Real-time (Socket.io)
 
-The server exposes a Socket.io endpoint on the same port as the API (`sockets/chatSocket.js`). The client connects with the same JWT used for the API (via `auth.token` in the handshake, or the `token` cookie / `Authorization` header); unauthorized and disabled users are rejected. The REST long-poll endpoints are kept for backwards compatibility but the client no longer uses them.
+The server exposes a Socket.io endpoint on the same port as the API (`sockets/chatSocket.js`). The client connects with the same JWT used for the API (via `auth.token` in the handshake, or the `token` cookie / `Authorization` header); unauthorized and disabled users are rejected.
 
-**Rooms:** every authenticated socket joins `user:<id>`. Clients subscribe to `community:<id>` while viewing a community via the `join_community` / `leave_community` events (re-joined automatically on reconnect).
+**Rooms:** every authenticated socket joins `user:<id>`. Clients subscribe to `community:<id>` while viewing a community via the `join_community` / `leave_community` events.
 
-**Server → client events** (delivered to the `user:<id>` / `community:<id>` rooms):
+**Server -> client events** (delivered to the `user:<id>` / `community:<id>` rooms):
 
 | Event | Payload | Emitted when |
 |-------|---------|--------------|
-| `dm_message` | populated message | a DM is sent - to the recipient (`chat.controller.js`) |
-| `conversations_updated` | `{ partnerId }` | a DM is sent - to both parties (conversation list + unread refresh) |
+| `dm_message` | populated message | a DM is sent - to the recipient |
+| `conversations_updated` | `{ partnerId }` | a DM is sent - to both parties |
 | `dm_message_updated` | message | a DM is edited |
 | `dm_message_unsent` | `{ messageId }` | a DM is unsent |
-| `community_message` | `{ communityId, message }` | a community message is sent - to the community room |
-| `community_message_updated` / `community_message_unsent` | `{ communityId, message }` | a community message is edited / unsent |
-| `notification` | notification doc | a notification is created (`services/notification.service.js`) |
+| `community_message` | `{ communityId, message }` | a community message is sent |
+| `community_message_updated` / `community_message_unsent` | `{ communityId, message }` | edited / unsent |
+| `notification` | notification doc | a notification is created |
 | `possible_screenshot` | `{ conversationId }` | a peer reports a possible screenshot |
 
-**Client → server events:**
+**Client -> server events:**
 
 | Event | Payload | Purpose |
 |-------|---------|---------|
-| `join_community` / `leave_community` | `{ communityId }` | subscribe/unsubscribe a socket to a community room |
-| `possible_screenshot` | `{ conversationId }` | possible-screenshot notice (REST fallback: `POST /api/chat/screenshot-notice`) |
+| `join_community` / `leave_community` | `{ communityId }` | subscribe/unsubscribe to a community room |
+| `possible_screenshot` | `{ conversationId }` | possible-screenshot notice |
 
 ## Device Notifications (Web Push)
 
 The same events that create in-app notifications also trigger device notifications via the Web Push API (`services/push.service.js`).
 
-- **Setup:** generate keys with `npm run vapid` and set `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` in `.env` (and the production environment). Without them, pushes are skipped (logged) and the API returns an empty public key.
-- **Subscriptions:** the client registers the browser via `POST /api/push/subscribe` (`models/pushSubscription.model.js` - one row per user/endpoint). Logout unregisters the device.
-- **Delivery:** `createNotification` (`services/notification.service.js`) sends the same title/body to the device with a type-based deep link (`data.url`) so tapping the notification opens the right page (chat thread, community, crisis, mood, …).
-- **Skip-while-online:** chat notifications (DMs, community messages) are pushed with `skipIfOnline`, so a user actively connected via Socket.io gets the in-app update instead of a duplicate device notification. Stale subscriptions (HTTP 404/410) are pruned automatically.
+- **Setup:** generate keys with `npm run vapid` and set `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` in `.env`. Without them, pushes are skipped (logged).
+- **Subscriptions:** the client registers via `POST /api/push/subscribe`. Logout unregisters the device.
+- **Delivery:** `createNotification` sends the same title/body to the device with a type-based deep link (`data.url`).
+- **Skip-while-online:** chat notifications are pushed with `skipIfOnline`. Stale subscriptions (HTTP 404/410) are pruned automatically.
 
 ## Privacy Shield
 
 A "privacy shield" feature set that raises the bar and creates a paper trail for screenshots - it does **not** and cannot prevent someone from capturing content.
 
-- **Socket.io** (`sockets/chatSocket.js`): the client connects with the same JWT used for the API (sent via `auth.token` in the handshake, or the `token` cookie / `Authorization` header). Every authenticated socket joins a `user:<id>` room.
-- **Possible-screenshot notices**: when the client detects a screenshot attempt (PrintScreen / `Cmd+Shift+S/3/4/5` or the tab losing focus) it emits `possible_screenshot` with `{ conversationId }` (or falls back to `POST /api/chat/screenshot-notice`). The server:
-  1. rate-limits per user to **1 notice / 10 s** (in-memory cooldown);
-  2. persists a `Message` with `kind: "screenshot-notice"` (in-thread system message both sides see, surviving reloads);
-  3. pushes `possible_screenshot` to the peer's `user:<id>` room in real time.
-- **Server-side watermark stamp**: `POST /api/chat/watermark-stamp` renders supplied text to a PNG with a tiled low-opacity `<viewerId> · <timestamp>` watermark using Sharp. Intended as a deterrent for flagged content only; content still reaches the screen in plain form.
-- **Rate limiting** is deliberately aggressive because tab-switching is a noisy signal. Notices are "possible" captures - the server never asserts a screenshot actually happened.
+- **Socket.io** (`sockets/chatSocket.js`): the client connects with the same JWT used for the API. Every authenticated socket joins a `user:<id>` room.
+- **Possible-screenshot notices**: when the client detects a screenshot attempt it emits `possible_screenshot` with `{ conversationId }`. The server rate-limits per user to **1 notice / 10 s**, persists a `Message` with `kind: "screenshot-notice"`, and pushes `possible_screenshot` to the peer in real time.
+- **Server-side watermark stamp**: `POST /api/chat/watermark-stamp` renders text to a PNG with a tiled low-opacity watermark using Sharp.
 
-**Honest limitation:** blur/blackout, notices, and watermarks discourage casual copying and leave an audit trail, but anyone determined to record content (another device, OS-level capture, developer tools) can still do so. Do not design features that assume content cannot be recorded.
+**Honest limitation:** blur/blackout, notices, and watermarks discourage casual copying and leave an audit trail, but anyone determined to record content can still do so.
 
 ## Field-Level Encryption
 
-Sensitive fields are encrypted at rest with **AES-256-GCM** (`utils/crypto.js`): DM and community message content (including edit history), mood notes, crisis descriptions, Therry messages, and notification bodies. Each value is stored as a base64url envelope `<iv>:<authTag>:<ciphertext>` with a fresh random 12-byte IV and the auth tag, so ciphertexts are tamper-evident. `decryptField` passes through legacy plaintext and leaves tampered envelopes untouched rather than failing reads.
+Sensitive fields are encrypted at rest with **AES-256-GCM** (`utils/crypto.js`): DM and community message content (including edit history), mood notes, crisis descriptions, Therry messages, notification bodies, journal entries, thought records, gratitude entries, activity notes, coping card text, sleep log notes/dreams, and medication names/dosages/notes. Each value is stored as a base64url envelope `<iv>:<authTag>:<ciphertext>` with a fresh random 12-byte IV.
 
-- **Key:** `FIELD_ENCRYPTION_KEY` (32-byte hex or a raw 32-byte string). In production a missing key makes `encryptField` throw (fail-closed); in non-production it warns and stores plaintext so tests/dev keep working.
-- **Backfill:** run `npm run migrate:encrypt` (idempotent) **before** shipping decrypt-on-read code so existing records are encrypted first.
-- **API boundary:** controllers decrypt fields before returning them, so clients are unaffected. See `docs/key-management.md` for key handling, rotation, and migration notes.
+- **Key:** `FIELD_ENCRYPTION_KEY` (32-byte hex or raw 32-byte string). In production a missing key makes `encryptField` throw (fail-closed); in non-production it warns and stores plaintext.
+- **Backfill:** run `npm run migrate:encrypt` (idempotent) **before** shipping.
+- **API boundary:** controllers decrypt fields before returning them, so clients are unaffected. See `docs/key-management.md` for key handling and rotation notes.
 
 ## Data Privacy & Retention
 
-- **Data export:** `GET /api/users/export` returns a decrypted JSON dump of everything the platform holds about the user (profile, chats, communities, moods, crisis records, Therry history, notifications, exercise logs).
-- **Account deletion:** `DELETE /api/users/profile` (self) and `DELETE /api/users/admin/user/:id` (admin) run a permanent cascade (`services/deletion.service.js`) covering the user record, avatar file, owned communities, community messages/memberships, DMs on both sides, moods, crises, crisis logs, Therry messages, notifications, exercise logs, and push subscriptions. Audit-log rows are kept but actor/target references are nulled so history is not falsified.
+- **Data export:** `GET /api/users/export` returns a decrypted JSON dump of everything the platform holds about the user (profile, chats, communities, moods, crisis records, Therry history, notifications, exercise logs, journal entries, thought records, assessments, gratitude entries, activities, psychoeducation progress, program progress, sleep logs, medications, and pet data).
+- **Account deletion:** `DELETE /api/users/profile` (self) and `DELETE /api/users/admin/user/:id` (admin) run a permanent cascade (`services/deletion.service.js`) covering the user record, avatar file, owned communities, community messages/memberships, DMs on both sides, moods, crises, crisis logs, Therry messages, notifications, exercise logs, and push subscriptions.
 - **Retention:** crisis and audit logs are retained for **6 months**, after which identity fields are nulled (`docs/retention-policy.md`).
-- **Audit trail:** privacy-sensitive reads (profile views by therapists, client-roster views, crisis views, data exports, account deletions, AI-disclosure acknowledgments) are recorded through `services/audit.service.js` (fire-and-forget, never blocks the request) and surfaced to admins via `GET /api/audit`.
+- **Audit trail:** privacy-sensitive reads are recorded through `services/audit.service.js` and surfaced to admins via `GET /api/audit`.
 
 ## Crisis Escalation
 
 Crisis handling is automatic, not just manual:
 
 1. **Manual:** `POST /api/crisis` creates an alert + crisis log and notifies therapists/admins.
-2. **Therry-detected:** `POST /api/therry/chat` runs crisis classification. On detection it creates a `Crisis` (source `therry`) + `CrisisLog`, notifies the user's **assigned therapist** (falling back to admins when unassigned) via `services/notification.service.js`, includes region-appropriate hotlines (from `utils/hotlines.js` keyed by `User.countryCode`) and sets `crisis: { detected, alertType, hotlines, therapistNotified }` on the response.
-3. **User-initiated:** `POST /api/crisis/message-therapist` lets a user notify their assigned therapist directly from the Therry crisis card (400 if they have no therapist).
+2. **Therry-detected:** `POST /api/therry/chat` runs crisis classification. On detection it creates a `Crisis` (source `therry`) + `CrisisLog`, notifies the user's assigned therapist (falling back to admins when unassigned) via `services/notification.service.js`, includes region-appropriate hotlines and sets `crisis: { detected, alertType, hotlines, therapistNotified }` on the response.
+3. **User-initiated:** `POST /api/crisis/message-therapist` lets a user notify their assigned therapist directly.
 
 ## Therry (AI Companion)
 
-`POST /api/therry/chat` generates replies with Google Gemini (`gemini-3.5-flash`, system prompt enforces a supportive, non-diagnostic tone). Keyword heuristics classify the message into a category; if an ML microservice is reachable, its crisis/sentiment/spam hints refine the category and spam can be rejected. Crisis messages always return a helpline response, are auto-escalated (see Crisis Escalation above), and the response includes `isCrisis: true` plus the `crisis` payload. Both user and assistant turns are persisted to `TherryMessage` (encrypted content, ≤4000 chars) and replayed through `GET /api/therry/messages`.
+`POST /api/therry/chat` generates replies with Google Gemini (`gemini-3.5-flash`, system prompt enforces a supportive, non-diagnostic tone). Keyword heuristics classify the message into a category; if an ML microservice is reachable, its crisis/sentiment/spam hints refine the category. Crisis messages always return a helpline response and are auto-escalated. Both user and assistant turns are persisted to `TherryMessage` (encrypted content, <=4000 chars).
 
 ## Architecture Notes
 
-- **Auth:** short-lived access tokens + rotating refresh tokens stored in httpOnly cookies (see Auth above).
-- **Role-based access control:** three roles - `user`, `therapist`, `admin` - enforced by dedicated middleware (`middleware/auth.middleware.js` + `middleware/role.middleware.js`).
-- **Notification service:** all notifications are created through `services/notification.service.js`, which also pushes the `notification` Socket.io event in real time (and encrypts notification bodies).
+- **Auth:** short-lived access tokens + rotating refresh tokens stored in httpOnly cookies.
+- **Role-based access control:** three roles - `user`, `therapist`, `admin` - enforced by dedicated middleware.
+- **Notification service:** all notifications are created through `services/notification.service.js`, which also pushes the `notification` Socket.io event in real time.
 - **Audit service:** privacy-sensitive access is logged through `services/audit.service.js` (fire-and-forget).
 - **Deletion service:** account deletion cascades through `services/deletion.service.js`.
-- **Privacy shield:** client-side blur/blackout on tab switch, screenshot-shortcut detection, and server-side watermark stamping (see Privacy Shield above).
-- **Encryption:** AES-256-GCM field-level encryption via `utils/crypto.js`, backfilled by `scripts/migrate-encrypt.js` (see Field-Level Encryption above).
+- **Mood check-in service:** `services/moodCheckin.service.js` fires after `POST /api/mood`: when the 3 most recent mood entries are all strictly below the user's 14-day baseline, it creates a `mood_checkin` notification (max one per 3 days) and a Therry assistant message.
+- **ML client:** `services/mlClient.js` calls a Python ML microservice for spam/crisis/sentiment hints (falls back gracefully when unavailable).
+- **Encryption:** AES-256-GCM field-level encryption via `utils/crypto.js`, backfilled by `scripts/migrate-encrypt.js`.
 
 ## Project Layout
 
 ```
 ├── server.js              # App setup, middleware, route mounting, health
-├── routes/                # Express routers per resource (incl. audit)
+├── routes/                # Express routers per resource (24 route files)
 ├── controllers/           # Request handlers
-├── models/                # Mongoose schemas (incl. AuditLog, CrisisLog)
+├── models/                # Mongoose schemas (23 model files)
 ├── middleware/            # auth, upload (multer+sharp), spamFilter, idempotency, jsonBody, error handlers
-├── services/              # notification, push, audit, deletion, mlClient, email
+├── services/              # notification, push, audit, deletion, mlClient, moodCheckin
 ├── scripts/               # migrate-encrypt.js, generateVapidKeys.js
 ├── docs/                  # key-management.md, retention-policy.md
-├── utils/                 # logger (pino), nodemailer, pagination, validation (zod), crypto, hotlines
+├── utils/                 # email (Google Apps Script), logger (pino), pagination, validation (zod), crypto, hotlines, cloudinary, tokens, points
 ├── db/connectDB.js        # Mongo connection
-└── __tests__/             # Vitest tests (auth, mood, chat, crypto, validation)
+└── __tests__/             # Vitest tests (auth, mood, chat, crypto, validation, points, admin, crisis, therapist)
 ```
 
 ## License
