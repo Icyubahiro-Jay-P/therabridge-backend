@@ -250,14 +250,7 @@ export const register = async (req, res) => {
 
     await updateLoginStreak(user);
 
-    // MAIL DISABLED — verification code is generated and stored above,
-    // but the email is not dispatched. Re-enable when a stable mail service
-    // is configured. The frontend verify-email flow still works if the user
-    // manually enters the code.
-    logger.warn(
-      { userId: user._id },
-      "[MAIL DISABLED] Skipping verification email dispatch.",
-    );
+    await sendVerificationEmail(user, verificationCode);
 
     res.status(201).json({
       message: "User registered successfully",
