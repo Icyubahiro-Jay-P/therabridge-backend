@@ -1,6 +1,79 @@
 import User from "../models/user.model.js";
+import { Message, Community } from "../models/chat.model.js";
+import Mood from "../models/mood.model.js";
+import Crisis from "../models/crisis.model.js";
+import ExerciseLog from "../models/exerciseLog.model.js";
+import Notification from "../models/notification.model.js";
+import AuditLog from "../models/auditLog.model.js";
 import { deleteUserAndData } from "../services/deletion.service.js";
 import { logAccess, ipFromReq, uaFromReq } from "../services/audit.service.js";
+
+const daysAgo = (days) => {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d;
+};
+
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const aggregateDaily = async (Model, dateField, days, extraMatch = {}) => {
+  const rows = await Model.aggregate([
+    { $match: { ...extraMatch, [dateField]: { $gte: daysAgo(days) } } },
+    {
+      $group: {
+        _id: {
+          $dateToString: { format: "%Y-%m-%d", date: "$" + dateField },
+        },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+  return new Map(rows.map((r) => [r._id, r.count]));
+};
+
+const aggregateCommunityMessagesDaily = async (days) => {
+  const rows = await Community.aggregate([
+    { $match: { "messages.createdAt": { $gte: daysAgo(days) } } },
+    { $unwind: "$messages" },
+    { $match: { "messages.createdAt": { $gte: daysAgo(days) } } },
+    {
+      $group: {
+        _id: {
+          $dateToString: { format: "%Y-%m-%d", date: "$messages.createdAt" },
+        },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+  return new Map(rows.map((r) => [r._id, r.count]));
+};
+
+const buildDailySeries = (maps, days) => {
+  const labels = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    labels.push({
+      date: key,
+      label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      messages: maps.messages?.get(key) ?? 0,
+      communityMessages: maps.communityMessages?.get(key) ?? 0,
+      moods: maps.moods?.get(key) ?? 0,
+      exercises: maps.exercises?.get(key) ?? 0,
+      crises: maps.crises?.get(key) ?? 0,
+      signups: maps.signups?.get(key) ?? 0,
+    });
+  }
+  return labels;
+};
+
+const countSince = (Model, filter, since) =>
+  Model.countDocuments({ ...filter, createdAt: { $gte: since } });
 
 // ====================== ADMIN & THERAPIST FEATURES ======================
 
