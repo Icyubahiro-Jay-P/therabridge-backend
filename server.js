@@ -53,6 +53,10 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === "production";
 
+// Trust proxy: required behind Render's reverse proxy so
+// express-rate-limit can read the real client IP from X-Forwarded-For.
+if (isProduction) app.set("trust proxy", 1);
+
 // ====================== SOCKET.IO (real-time notices) ======================
 // Wired up before routes so the shared socket reference is ready for any
 // controller that needs to push a real-time event.
