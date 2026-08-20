@@ -9,6 +9,7 @@ import PushSubscription from "../models/pushSubscription.model.js";
 import SafetyPlan from "../models/safetyPlan.model.js";
 import { deleteUserAndData } from "../services/deletion.service.js";
 import { decryptField } from "../utils/crypto.js";
+import { clearAuthCookies } from "../utils/tokens.js";
 import { logAccess, ipFromReq, uaFromReq } from "../services/audit.service.js";
 
 export const deleteProfile = async (req, res) => {
