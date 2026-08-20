@@ -15,10 +15,10 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
     // "message" = normal DM, "screenshot-notice" = possible-screenshot system
-    // notice (paper trail + in-thread display, mirrors Snapchat behavior)
+    // notice, "missed-call" = unanswered call system notice
     kind: {
       type: String,
-      enum: ["message", "screenshot-notice"],
+      enum: ["message", "screenshot-notice", "missed-call"],
       default: "message",
     },
     noticeType: {
