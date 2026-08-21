@@ -71,7 +71,7 @@ router.post("/refresh", refresh);
 router.post("/forgot-password", validate(forgotPasswordSchema), forgotPassword);
 router.post("/reset-password/:token", validate(resetPasswordSchema), resetPassword);
 router.post("/verify-email", validate(verifyEmailSchema), verifyEmail);
-router.post("/resend-verification", resendVerification);
+router.post("/resend-verification", validate(resendVerificationSchema), resendVerification);
 
 // ====================== PROTECTED ROUTES ======================
 router.get("/profile", authMiddleware, profile);
