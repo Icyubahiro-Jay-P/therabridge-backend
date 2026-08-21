@@ -49,6 +49,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   verifyEmailSchema,
+  resendVerificationSchema,
   privacySettingsSchema,
   inviteMemberSchema,
   assignTherapistSchema,
