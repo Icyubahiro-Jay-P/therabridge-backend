@@ -50,7 +50,15 @@ const warnIfWeak = (name, predicate, hint) => {
 };
 
 export const validateEnv = () => {
-  const isProduction = process.env.NODE_ENV === "production";
+  // NODE_ENV drives the entire error taxonomy (dev = verbose errors for
+  // developers, production = sanitized errors for end users), so an unknown
+  // value is treated as a misconfiguration, not silently as "development".
+  const nodeEnv = process.env.NODE_ENV || "development";
+  if (!["development", "production", "test"].includes(nodeEnv)) {
+    failures.push(`NODE_ENV: must be one of "development", "production", or "test" (got "${nodeEnv}")`);
+  }
+  process.env.NODE_ENV = nodeEnv;
+  const isProduction = nodeEnv === "production";
 
   requireEnv(
     "MONGO_URI",
