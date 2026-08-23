@@ -8,7 +8,7 @@ const modules = [
   {
     title: "CBT Basics: Understanding Your Thoughts",
     description:
-      "Learn the fundamentals of Cognitive Behavioral Therapy — how thoughts, feelings, and behaviors connect, and how to challenge unhelpful thinking patterns.",
+      "Learn the fundamentals of Cognitive Behavioral Therapy, how thoughts, feelings, and behaviors connect, and how to challenge unhelpful thinking patterns.",
     category: "cbt",
     order: 1,
     steps: [
@@ -16,9 +16,9 @@ const modules = [
         title: "What Is CBT?",
         content: `Cognitive Behavioral Therapy (CBT) is one of the most researched and effective forms of therapy. At its core, CBT is based on a simple but powerful idea: **our thoughts, feelings, and behaviors are all connected**.
 
-When we change one element of this triangle, the others shift too. Unlike some approaches that focus mainly on the past, CBT is practical and present-focused — it gives you tools you can use right away.
+When we change one element of this triangle, the others shift too. Unlike some approaches that focus mainly on the past, CBT is practical and present-focused, it gives you tools you can use right away.
 
-CBT doesn't mean "positive thinking." It means **accurate thinking** — learning to see situations as they really are, rather than through the distortion of stress or low mood.`,
+CBT doesn't mean "positive thinking." It means **accurate thinking**, learning to see situations as they really are, rather than through the distortion of stress or low mood.`,
         duration: 5,
       },
       {
@@ -35,18 +35,18 @@ Now consider a different thought about the same situation:
 **Feeling:** Mild curiosity, patience.
 **Behavior:** You go about your day normally.
 
-The situation didn't change — only the **interpretation** changed. And that changed everything else.
+The situation didn't change, only the **interpretation** changed. And that changed everything else.
 
 This cycle runs constantly, often below our awareness. CBT teaches you to **catch** these automatic thoughts and examine them critically.`,
         duration: 7,
       },
       {
         title: "Common Thinking Traps",
-        content: `Our brains evolved to detect threats quickly — but that speed comes at a cost. We develop habitual distortions that feel true but aren't accurate. Common ones include:
+        content: `Our brains evolved to detect threats quickly, but that speed comes at a cost. We develop habitual distortions that feel true but aren't accurate. Common ones include:
 
 **All-or-Nothing Thinking:** "If I'm not perfect, I'm a failure." Things are rarely 0% or 100%.
 
-**Catastrophizing:** "I made a mistake at work — I'm going to get fired." One error rarely means the worst outcome.
+**Catastrophizing:** "I made a mistake at work, I'm going to get fired." One error rarely means the worst outcome.
 
 **Mind Reading:** "Everyone thinks I'm boring." You can't actually know what others think.
 
@@ -54,7 +54,7 @@ This cycle runs constantly, often below our awareness. CBT teaches you to **catc
 
 **Overgeneralizing:** "This always happens to me." One event becomes a pattern.
 
-**Discounting the Positive:** "That compliment doesn't count — they were just being nice."
+**Discounting the Positive:** "That compliment doesn't count, they were just being nice."
 
 Recognizing these patterns is the first step. You don't have to believe every thought you have.`,
         duration: 7,
@@ -63,15 +63,15 @@ Recognizing these patterns is the first step. You don't have to believe every th
         title: "The Thought Record",
         content: `A thought record is CBT's core tool. It slows down the automatic cycle and lets you examine it with curiosity instead of reactivity.
 
-**Step 1 — Situation:** What actually happened? (Just the facts.)
-**Step 2 — Emotion:** What did you feel? Rate intensity 0–100.
-**Step 3 — Automatic Thought:** What went through your mind?
-**Step 4 — Evidence For:** What supports this thought?
-**Step 5 — Evidence Against:** What contradicts it?
-**Step 6 — Balanced Thought:** What's a more accurate perspective?
-**Step 7 — Re-rate Emotion:** How do you feel now? 0–100.
+**Step 1, Situation:** What actually happened? (Just the facts.)
+**Step 2, Emotion:** What did you feel? Rate intensity 0–100.
+**Step 3, Automatic Thought:** What went through your mind?
+**Step 4, Evidence For:** What supports this thought?
+**Step 5, Evidence Against:** What contradicts it?
+**Step 6, Balanced Thought:** What's a more accurate perspective?
+**Step 7, Re-rate Emotion:** How do you feel now? 0–100.
 
-You don't need to fill this out perfectly. Even pausing to ask "What's the evidence?" can shift a thought from feeling like a fact to feeling like a hypothesis — because that's what it is.`,
+You don't need to fill this out perfectly. Even pausing to ask "What's the evidence?" can shift a thought from feeling like a fact to feeling like a hypothesis, because that's what it is.`,
         duration: 8,
       },
       {
@@ -84,7 +84,7 @@ You don't need to fill this out perfectly. Even pausing to ask "What's the evide
 4. **Check it.** Is this thought a fact or an interpretation? What would I say to a friend in this situation?
 5. **Reframe.** Not to force positivity, but to find accuracy.
 
-Start with one thought per day. Over time, this process becomes more automatic — not because the thoughts stop, but because you stop believing all of them unquestioningly.
+Start with one thought per day. Over time, this process becomes more automatic, not because the thoughts stop, but because you stop believing all of them unquestioningly.
 
 Remember: The goal isn't to never have negative thoughts. The goal is to **respond** to them instead of **reacting**.`,
         duration: 6,
@@ -100,11 +100,11 @@ Remember: The goal isn't to never have negative thoughts. The goal is to **respo
     steps: [
       {
         title: "What Anxiety Really Is",
-        content: `Anxiety is not a malfunction. It's your brain's **threat detection system** doing exactly what it was designed to do — alerting you to potential danger so you can prepare.
+        content: `Anxiety is not a malfunction. It's your brain's **threat detection system** doing exactly what it was designed to do, alerting you to potential danger so you can prepare.
 
 The problem isn't that anxiety exists. The problem is when it fires in the absence of real danger, or when the intensity doesn't match the actual threat. That's when anxiety shifts from helpful to harmful.
 
-Anxiety lives in the **amygdala**, a small structure deep in the brain that processes fear. It's faster than your rational brain (the prefrontal cortex) — which is why anxious thoughts can feel overwhelming before you have a chance to think them through.
+Anxiety lives in the **amygdala**, a small structure deep in the brain that processes fear. It's faster than your rational brain (the prefrontal cortex), which is why anxious thoughts can feel overwhelming before you have a chance to think them through.
 
 Understanding this biology isn't just academic. It means anxiety is **not a character flaw**. It's a system that's working too hard.`,
         duration: 5,
@@ -113,11 +113,11 @@ Understanding this biology isn't just academic. It means anxiety is **not a char
         title: "The Fight-Flight-Freeze Response",
         content: `When your brain detects a threat (real or perceived), it triggers the **fight-flight-freeze** response:
 
-**Heart rate increases** — pumping blood to muscles so you can run or fight.
-**Breathing quickens** — getting more oxygen in.
-**Digestion stops** — energy is diverted away from non-essential functions.
-**Muscles tense** — preparing for action.
-**Attention narrows** — you focus only on the threat.
+**Heart rate increases**, pumping blood to muscles so you can run or fight.
+**Breathing quickens**, getting more oxygen in.
+**Digestion stops**, energy is diverted away from non-essential functions.
+**Muscles tense**, preparing for action.
+**Attention narrows**, you focus only on the threat.
 
 This response is incredibly useful if you're actually in danger. It's less useful when the "threat" is a work email, a social situation, or an uncertain future.
 
@@ -128,9 +128,9 @@ The key insight: **the physical sensations of anxiety are not dangerous.** They'
         title: "Types of Anxiety",
         content: `Anxiety shows up in many forms. Understanding which one you're experiencing helps you choose the right response:
 
-**Generalized Anxiety Disorder (GAD):** Persistent, excessive worry about everyday things — health, finances, relationships, work — that feels hard to control. Often accompanied by muscle tension, restlessness, and difficulty sleeping.
+**Generalized Anxiety Disorder (GAD):** Persistent, excessive worry about everyday things, health, finances, relationships, work, that feels hard to control. Often accompanied by muscle tension, restlessness, and difficulty sleeping.
 
-**Social Anxiety:** Intense fear of being judged, embarrassed, or humiliated in social situations. This goes beyond shyness — it can make everyday interactions feel threatening.
+**Social Anxiety:** Intense fear of being judged, embarrassed, or humiliated in social situations. This goes beyond shyness, it can make everyday interactions feel threatening.
 
 **Panic Disorder:** Sudden, intense episodes of fear that peak within minutes. Symptoms include chest pain, dizziness, tingling, and a feeling of losing control or dying. Despite how terrifying they are, panic attacks are not physically harmful.
 
@@ -143,7 +143,7 @@ All of these share a common thread: the brain's alarm system is **overestimating
       },
       {
         title: "Grounding Techniques",
-        content: `When anxiety spikes, grounding brings you back to the present moment — where you're actually safe.
+        content: `When anxiety spikes, grounding brings you back to the present moment, where you're actually safe.
 
 **5-4-3-2-1 Technique:**
 Name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, 1 you can taste. This activates your senses and pulls attention away from anxious thoughts.
@@ -157,12 +157,12 @@ Splash cold water on your face or hold ice cubes. The **dive reflex** instantly 
 **Progressive Muscle Relaxation:**
 Tense each muscle group for 5 seconds, then release. Start with your toes and work up. The contrast between tension and release teaches your body what "relaxed" actually feels like.
 
-These aren't avoidance strategies — they're **regulation** tools. They don't solve the problem, but they bring your arousal level down enough to think clearly about it.`,
+These aren't avoidance strategies, they're **regulation** tools. They don't solve the problem, but they bring your arousal level down enough to think clearly about it.`,
         duration: 7,
       },
       {
         title: "Exposure: Facing What You Avoid",
-        content: `Avoidance is anxiety's best friend. Every time you avoid something that makes you anxious, you get short-term relief — but you reinforce the message that the situation was genuinely dangerous.
+        content: `Avoidance is anxiety's best friend. Every time you avoid something that makes you anxious, you get short-term relief, but you reinforce the message that the situation was genuinely dangerous.
 
 **Exposure** is the process of gradually and deliberately facing feared situations, staying long enough for the anxiety to naturally decrease. This teaches your brain that the situation is not as dangerous as it predicted.
 
@@ -188,9 +188,9 @@ Exposure is uncomfortable by design. But discomfort is not danger. Working with 
     steps: [
       {
         title: "Understanding Stress",
-        content: `Stress is your body's response to any demand placed on it. Like anxiety, stress isn't inherently bad — short bursts of stress can improve focus and performance (this is called **eustress**).
+        content: `Stress is your body's response to any demand placed on it. Like anxiety, stress isn't inherently bad, short bursts of stress can improve focus and performance (this is called **eustress**).
 
-The problem is **chronic stress** — when demands pile up without adequate recovery. Over days, weeks, and months, this wears down your body and mind.
+The problem is **chronic stress**, when demands pile up without adequate recovery. Over days, weeks, and months, this wears down your body and mind.
 
 Chronic stress is linked to:
 - Weakened immune function
@@ -200,12 +200,12 @@ Chronic stress is linked to:
 - Digestive issues
 - Increased risk of anxiety and depression
 
-The first step in managing stress isn't eliminating it — it's **recognizing what's actually stressing you** and distinguishing between what you can change and what you can't.`,
+The first step in managing stress isn't eliminating it, it's **recognizing what's actually stressing you** and distinguishing between what you can change and what you can't.`,
         duration: 5,
       },
       {
         title: "Your Stress Signature",
-        content: `Everyone carries stress differently. Learning your personal **stress signature** — the early warning signs that stress is building — lets you intervene before you reach burnout.
+        content: `Everyone carries stress differently. Learning your personal **stress signature**, the early warning signs that stress is building, lets you intervene before you reach burnout.
 
 **Physical signals:** Tension headaches, tight shoulders, jaw clenching, stomach issues, fatigue, changes in appetite.
 
@@ -215,7 +215,7 @@ The first step in managing stress isn't eliminating it — it's **recognizing wh
 
 **Cognitive signals:** Difficulty concentrating, forgetfulness, negative self-talk, indecisiveness, racing thoughts.
 
-Take a moment to identify your top 3–5 signals. These are your **early warning system** — the sooner you catch them, the easier they are to address.`,
+Take a moment to identify your top 3–5 signals. These are your **early warning system**, the sooner you catch them, the easier they are to address.`,
         duration: 6,
       },
       {
@@ -232,12 +232,12 @@ The trap is spending your energy on the Circle of Concern while neglecting the C
 
 **Exercise:** Write down your top 10 stressors. For each one, ask: "Is this within my control?" If yes, what's one small action I can take? If no, can I accept this and redirect my energy?
 
-This isn't about ignoring real problems — it's about being honest about where your effort actually makes a difference.`,
+This isn't about ignoring real problems, it's about being honest about where your effort actually makes a difference.`,
         duration: 7,
       },
       {
         title: "Building Your Stress Toolkit",
-        content: `There is no single stress solution — effective stress management is a **toolkit** of strategies you can draw from depending on the situation.
+        content: `There is no single stress solution, effective stress management is a **toolkit** of strategies you can draw from depending on the situation.
 
 **Immediate Relief (in the moment):**
 - Box breathing (4-4-4-4)
@@ -281,7 +281,7 @@ This doesn't mean pretending stress doesn't exist. It means reframing what it's 
 **Instead of:** "I should be able to handle this without feeling stressed."
 **Try:** "Feeling stressed means I care about this. What do I need to sustain my effort?"
 
-Stress also activates a **challenge response** — different from the threat response — that increases cardiovascular efficiency and releases hormones that help you perform. This is the stress response that helped humans accomplish extraordinary things.
+Stress also activates a **challenge response**, different from the threat response, that increases cardiovascular efficiency and releases hormones that help you perform. This is the stress response that helped humans accomplish extraordinary things.
 
 The goal isn't to eliminate stress. It's to **change your relationship with it** so it becomes information, not an identity.`,
         duration: 7,
@@ -331,14 +331,14 @@ If several of these signs have been present for more than two weeks, it's worth 
 
 This cycle is why "just snap out of it" doesn't work. Depression removes the energy and motivation needed to fight it.
 
-The way out isn't a single burst of willpower — it's **small, sustainable actions** that gradually break the cycle:
+The way out isn't a single burst of willpower, it's **small, sustainable actions** that gradually break the cycle:
 
 - You don't need to exercise for an hour. Walk for 5 minutes.
 - You don't need to socialize deeply. Send one text.
 - You don't need to clean the whole house. Put one thing away.
 - You don't need to feel motivated first. Action often comes before motivation, not after.
 
-This is called **behavioral activation** — one of the most effective components of CBT for depression. You don't wait until you feel better to do things. You do things, and gradually, you feel better.`,
+This is called **behavioral activation**, one of the most effective components of CBT for depression. You don't wait until you feel better to do things. You do things, and gradually, you feel better.`,
         duration: 7,
       },
       {
@@ -347,7 +347,7 @@ This is called **behavioral activation** — one of the most effective component
 
 **Therapy:** Cognitive Behavioral Therapy (CBT) and Behavioral Activation have strong evidence for depression. Interpersonal Therapy (IPT) and other approaches also work. Most people see improvement within 8–12 sessions.
 
-**Medication:** Antidepressants (SSRIs, SNRIs, etc.) can help restore chemical balance. They often take 4–6 weeks to reach full effect. Finding the right medication may take some trial — this is normal, not failure.
+**Medication:** Antidepressants (SSRIs, SNRIs, etc.) can help restore chemical balance. They often take 4–6 weeks to reach full effect. Finding the right medication may take some trial, this is normal, not failure.
 
 **Combined:** For moderate to severe depression, therapy + medication together tend to be more effective than either alone.
 
@@ -372,7 +372,7 @@ This is called **behavioral activation** — one of the most effective component
     steps: [
       {
         title: "Why Sleep Matters More Than You Think",
-        content: `Sleep isn't passive downtime — it's when your brain consolidates memories, processes emotions, repairs cells, and clears metabolic waste. Chronic sleep deprivation affects every system in your body.
+        content: `Sleep isn't passive downtime, it's when your brain consolidates memories, processes emotions, repairs cells, and clears metabolic waste. Chronic sleep deprivation affects every system in your body.
 
 After just one night of poor sleep:
 - Emotional reactivity increases by up to 60%
@@ -393,22 +393,22 @@ The average adult needs **7–9 hours** per night. "I function fine on 6" often 
         title: "Your Circadian Rhythm",
         content: `Your body runs on a roughly 24-hour internal clock called the **circadian rhythm**, primarily governed by light exposure.
 
-**Morning:** Light (especially sunlight) signals your brain to stop producing melatonin and start producing cortisol and serotonin — waking you up.
+**Morning:** Light (especially sunlight) signals your brain to stop producing melatonin and start producing cortisol and serotonin, waking you up.
 
 **Evening:** As light fades, melatonin production increases, preparing your body for sleep.
 
-**Disrupting this rhythm** — through late-night screens, irregular schedules, or inconsistent wake times — confuses your internal clock and makes both falling asleep and waking up harder.
+**Disrupting this rhythm**, through late-night screens, irregular schedules, or inconsistent wake times, confuses your internal clock and makes both falling asleep and waking up harder.
 
 **Key lever:** Get bright light within 30 minutes of waking (ideally sunlight). This sets your entire circadian rhythm for the day and makes it easier to fall asleep 14–16 hours later.
 
-Your body also has a **sleep pressure** system (adenosine). The longer you're awake, the more adenosine builds up, increasing sleepiness. Caffeine blocks adenosine receptors — which is why it disrupts sleep even when you think you can handle it.`,
+Your body also has a **sleep pressure** system (adenosine). The longer you're awake, the more adenosine builds up, increasing sleepiness. Caffeine blocks adenosine receptors, which is why it disrupts sleep even when you think you can handle it.`,
         duration: 6,
       },
       {
         title: "Sleep Hygiene Fundamentals",
         content: `These are evidence-based habits that support consistent, quality sleep:
 
-**Consistent schedule:** Go to bed and wake up at the same time every day — including weekends. This is the single most powerful sleep habit.
+**Consistent schedule:** Go to bed and wake up at the same time every day, including weekends. This is the single most powerful sleep habit.
 
 **Cool environment:** The ideal sleep temperature is 60–67°F (15–19°C). Your body needs to cool down to initiate sleep.
 
@@ -425,9 +425,9 @@ Your body also has a **sleep pressure** system (adenosine). The longer you're aw
       },
       {
         title: "When You Can't Sleep",
-        content: `Lying in bed unable to sleep is one of the most frustrating experiences — and trying harder to sleep makes it worse.
+        content: `Lying in bed unable to sleep is one of the most frustrating experiences, and trying harder to sleep makes it worse.
 
-**The 20-minute rule:** If you've been lying awake for about 20 minutes (don't watch the clock — estimate), get up. Go to another room and do something low-stimulation (reading, gentle stretching, quiet music). Return to bed when you feel sleepy.
+**The 20-minute rule:** If you've been lying awake for about 20 minutes (don't watch the clock, estimate), get up. Go to another room and do something low-stimulation (reading, gentle stretching, quiet music). Return to bed when you feel sleepy.
 
 Why? Staying in bed while frustrated creates an association between your bed and wakefulness. Breaking that pattern preserves the bed as a cue for sleep.
 
@@ -436,14 +436,14 @@ Why? Staying in bed while frustrated creates an association between your bed and
 **What to do if your mind races:**
 - Write down tomorrow's to-do list (externalize the worry)
 - Do a body scan meditation
-- Try "cognitive shuffling" — think of random, unrelated words (apple, bicycle, cloud...)
+- Try "cognitive shuffling", think of random, unrelated words (apple, bicycle, cloud...)
 - Practice deep breathing: 4 counts in, 7 counts hold, 8 counts out
 
 **What NOT to do:**
 - Don't check your phone
 - Don't "try harder" to sleep
 - Don't nap during the day (if you're struggling with nighttime sleep)
-- Don't stress about the lost sleep — one bad night doesn't harm you`,
+- Don't stress about the lost sleep, one bad night doesn't harm you`,
         duration: 8,
       },
     ],
@@ -457,7 +457,7 @@ Why? Staying in bed while frustrated creates an association between your bed and
     steps: [
       {
         title: "Communication Foundations",
-        content: `Most relationship conflict isn't about the topic being discussed — it's about **how** it's discussed. Good communication is a skill, not a personality trait.
+        content: `Most relationship conflict isn't about the topic being discussed, it's about **how** it's discussed. Good communication is a skill, not a personality trait.
 
 **The basics:**
 
@@ -515,7 +515,7 @@ Self-awareness is the foundation of healthier relationships.`,
       },
       {
         title: "Repair After Conflict",
-        content: `Conflict in relationships is inevitable. What determines relationship health isn't the absence of conflict — it's the ability to **repair** after it.
+        content: `Conflict in relationships is inevitable. What determines relationship health isn't the absence of conflict, it's the ability to **repair** after it.
 
 **The repair process:**
 
@@ -523,13 +523,13 @@ Self-awareness is the foundation of healthier relationships.`,
 
 2. **Take responsibility for your part.** Even if you're 10% responsible, own that 10%. "I shouldn't have raised my voice" goes further than "Well, you started it."
 
-3. **Validate their experience.** "I can see why that hurt you" doesn't mean you agree — it means you understand.
+3. **Validate their experience.** "I can see why that hurt you" doesn't mean you agree, it means you understand.
 
 4. **Express what you need going forward.** "In the future, I'd appreciate it if..." instead of "You always..." or "You never..."
 
 5. **Accept that some conflicts are ongoing.** Not every disagreement has a solution. Sometimes the goal is understanding, not resolution.
 
-Research by John Gottman shows that successful couples aren't the ones who never fight — they're the ones who **repair effectively**. A repair attempt (a joke, an apology, a touch on the arm) can defuse tension even in the middle of a heated argument.
+Research by John Gottman shows that successful couples aren't the ones who never fight, they're the ones who **repair effectively**. A repair attempt (a joke, an apology, a touch on the arm) can defuse tension even in the middle of a heated argument.
 
 The willingness to repair is more important than the desire to be right.`,
         duration: 8,
