@@ -17,7 +17,8 @@ export const verifyEmail = async (req, res) => {
       return res.status(400).json({ error: { message: "Invalid or expired verification code.", code: "INVALID_CODE" } });
     }
     if (user.isAccountVerified) {
-      return res.status(400).json({ error: { message: "Your email is already verified.", code: "ALREADY_VERIFIED" } });
+      // Already verified is a success state, not an error.
+      return res.status(200).json({ message: "Your email is already verified.", isAccountVerified: true, alreadyVerified: true });
     }
     user.isAccountVerified = true;
     user.verificationCode = undefined;
