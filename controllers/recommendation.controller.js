@@ -144,7 +144,7 @@ export const getRecommendations = async (req, res) => {
           "program",
           "Behavioral Activation Activities",
           "Scheduling enjoyable or meaningful activities is one of the most effective ways to lift persistent low mood.",
-          "Your average mood over the past two weeks has been consistently below neutral. Behavioral activation — planning small, achievable activities — is a core technique for breaking out of low-mood patterns.",
+          "Your average mood over the past two weeks has been consistently below neutral. Behavioral activation, planning small, achievable activities, is a core technique for breaking out of low-mood patterns.",
           "high",
           "/activities",
           "CalendarCheck"
@@ -258,7 +258,7 @@ export const getRecommendations = async (req, res) => {
         )
       );
     } else if (latestPhq9) {
-      // PHQ-9 question 3 is about sleep — check if they scored >= 1
+      // PHQ-9 question 3 is about sleep, check if they scored >= 1
       const sleepResponse = latestPhq9.responses?.find((r) => r.questionIndex === 2);
       if (sleepResponse && sleepResponse.value >= 2) {
         recommendations.push(
@@ -267,7 +267,7 @@ export const getRecommendations = async (req, res) => {
             "sleep",
             "Sleep Hygiene & Relaxation",
             "Difficulty with sleep is common alongside low mood. These guided practices can help you establish a calming bedtime routine.",
-            "Your PHQ-9 responses indicate significant sleep difficulties. Sleep and mood are deeply interconnected — addressing sleep can improve your overall mental health.",
+            "Your PHQ-9 responses indicate significant sleep difficulties. Sleep and mood are deeply interconnected, addressing sleep can improve your overall mental health.",
             "medium",
             "/activities",
             "Moon"
@@ -283,7 +283,7 @@ export const getRecommendations = async (req, res) => {
           ++recId,
           "thought_record",
           "Try a Thought Record",
-          "Identify and challenge negative automatic thoughts — a foundational CBT skill for improving mood.",
+          "Identify and challenge negative automatic thoughts, a foundational CBT skill for improving mood.",
           "You haven't created any thought records, and your recent mood has been low. Thought records are a powerful tool for recognizing the thinking patterns that keep you stuck.",
           "medium",
           "/thought-records",
@@ -300,7 +300,7 @@ export const getRecommendations = async (req, res) => {
           "program",
           "Schedule a Pleasant Activity",
           "Planning even one enjoyable activity this week can create momentum toward feeling better.",
-          "You haven't completed any activities recently and your mood has been low. Behavioral activation — deliberately scheduling positive experiences — is one of the most effective interventions for low mood.",
+          "You haven't completed any activities recently and your mood has been low. Behavioral activation, deliberately scheduling positive experiences, is one of the most effective interventions for low mood.",
           "medium",
           "/activities",
           "CalendarPlus"
