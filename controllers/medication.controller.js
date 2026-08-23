@@ -59,7 +59,7 @@ export const updateMedication = async (req, res) => {
       user: req.user.id,
     })
     if (!medication) {
-      return res.status(404).json({ error: { message: "Medication not found" } })
+      return res.status(404).json({ error: { message: "Medication not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     const { name, dosage, frequency, timeOfDay, startDate, endDate, active, notes } = req.body
@@ -87,7 +87,7 @@ export const deleteMedication = async (req, res) => {
       user: req.user.id,
     })
     if (!medication) {
-      return res.status(404).json({ error: { message: "Medication not found" } })
+      return res.status(404).json({ error: { message: "Medication not found", code: "NOT_FOUND", category: "USER" } })
     }
     await MedicationLog.deleteMany({ medication: medication._id })
     res.json({ message: "Medication deleted" })
@@ -105,7 +105,7 @@ export const logDose = async (req, res) => {
       user: req.user.id,
     })
     if (!medication) {
-      return res.status(404).json({ error: { message: "Medication not found" } })
+      return res.status(404).json({ error: { message: "Medication not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     const log = new MedicationLog({
