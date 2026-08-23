@@ -69,7 +69,7 @@ export const register = async (req, res) => {
           .status(400)
           .json({ message: "Email is already registered." });
       }
-      return res.status(400).json({ message: "Username is already taken." });
+      return res.status(400).json({ error: { message: "Username is already taken.", code: "DUPLICATE_ERROR", category: "USER" } });
     }
 
     // Hash & create user
@@ -280,7 +280,7 @@ export const refresh = async (req, res) => {
 
     const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
     if (decoded?.type !== "refresh" || !decoded?.jti) {
-      return res.status(401).json({ message: "Invalid refresh token." });
+      return res.status(401).json({ error: { message: "Invalid refresh token.", code: "UNAUTHORIZED", category: "USER" } });
     }
 
     const user = await User.findById(decoded.id);
@@ -298,7 +298,7 @@ export const refresh = async (req, res) => {
     // Reject unknown/revoked refresh tokens, then rotate to a fresh one
     const tokenHash = hashRefreshToken(decoded.jti);
     if (!(user.refreshTokens || []).includes(tokenHash)) {
-      return res.status(401).json({ message: "Invalid refresh token." });
+      return res.status(401).json({ error: { message: "Invalid refresh token.", code: "UNAUTHORIZED", category: "USER" } });
     }
 
     user.refreshTokens = user.refreshTokens.filter((t) => t !== tokenHash);
@@ -315,6 +315,6 @@ export const refresh = async (req, res) => {
     res.status(200).json({ ok: true });
   } catch (error) {
     clearAuthCookies(res);
-    res.status(401).json({ message: "Invalid or expired refresh token." });
+    res.status(401).json({ error: { message: "Invalid or expired refresh token.", code: "UNAUTHORIZED", category: "USER" } });
   }
 };
