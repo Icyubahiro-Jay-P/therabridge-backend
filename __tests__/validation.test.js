@@ -5,6 +5,7 @@ import { jsonBody } from "../middleware/jsonBody.js";
 import { errorHandler } from "../middleware/error.middleware.js";
 import {
   validate,
+  registerSchema,
   sendMessageSchema,
   therryChatSchema,
   therryEditSchema,
@@ -106,6 +107,65 @@ describe("validate middleware", () => {
     const next = vi.fn();
 
     validate(sendMessageSchema)(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+});
+
+describe("registerSchema (registration gate)", () => {
+  const validBody = {
+    firstName: "Test",
+    lastName: "User",
+    username: "testuser",
+    email: "test@test.com",
+    password: "password123",
+    dateOfBirth: "2000-01-01",
+  };
+
+  function runValidation(body) {
+    const req = { body };
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    };
+    const next = vi.fn();
+    validate(registerSchema)(req, res, next);
+    return { res, next };
+  }
+
+  it("rejects invalid email format with 400 before the controller runs", () => {
+    const { res, next } = runValidation({ ...validBody, email: "notanemail" });
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          code: "VALIDATION_ERROR",
+          message: expect.stringContaining("Invalid email format"),
+        }),
+      })
+    );
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("rejects underage users with 400 before the controller runs", () => {
+    const { res, next } = runValidation({ ...validBody, dateOfBirth: new Date(Date.now() - 10 * 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) });
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          code: "VALIDATION_ERROR",
+          message: expect.stringContaining("18 and 120 years old"),
+        }),
+      })
+    );
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("accepts a fully valid registration body", () => {
+    const { res, next } = runValidation(validBody);
 
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
