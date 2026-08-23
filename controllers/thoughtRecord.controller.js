@@ -43,9 +43,8 @@ export const createRecord = async (req, res) => {
     const pointsEarned = await awardThoughtRecordPoints(req.user.id)
     res.status(201).json({ ...decryptRecord(record), pointsEarned })
   } catch (err) {
-    logger.error({ err }, "failed to create thought record")
-    res.status(500).json({ error: { message: "Failed to create thought record" } })
-  }
+      throw err
+    }
 }
 
 export const getMyRecords = async (req, res) => {
@@ -78,9 +77,8 @@ export const getMyRecords = async (req, res) => {
 
     res.json({ records: results, hasMore })
   } catch (err) {
-    logger.error({ err }, "failed to get thought records")
-    res.status(500).json({ error: { message: "Failed to get thought records" } })
-  }
+      throw err
+    }
 }
 
 export const getRecord = async (req, res) => {
@@ -94,9 +92,8 @@ export const getRecord = async (req, res) => {
     }
     res.json(decryptRecord(record))
   } catch (err) {
-    logger.error({ err }, "failed to get thought record")
-    res.status(500).json({ error: { message: "Failed to get thought record" } })
-  }
+      throw err
+    }
 }
 
 export const updateRecord = async (req, res) => {
@@ -127,9 +124,8 @@ export const updateRecord = async (req, res) => {
     await record.save()
     res.json(decryptRecord(record))
   } catch (err) {
-    logger.error({ err }, "failed to update thought record")
-    res.status(500).json({ error: { message: "Failed to update thought record" } })
-  }
+      throw err
+    }
 }
 
 export const deleteRecord = async (req, res) => {
@@ -143,9 +139,8 @@ export const deleteRecord = async (req, res) => {
     }
     res.json({ message: "Thought record deleted" })
   } catch (err) {
-    logger.error({ err }, "failed to delete thought record")
-    res.status(500).json({ error: { message: "Failed to delete thought record" } })
-  }
+      throw err
+    }
 }
 
 export const getStats = async (req, res) => {
@@ -187,7 +182,6 @@ export const getStats = async (req, res) => {
       avgEmotionAfter: avgAfter[0]?.avg ? Math.round(avgAfter[0].avg * 10) / 10 : null,
     })
   } catch (err) {
-    logger.error({ err }, "failed to get thought record stats")
-    res.status(500).json({ error: { message: "Failed to get stats" } })
-  }
+      throw err
+    }
 }
