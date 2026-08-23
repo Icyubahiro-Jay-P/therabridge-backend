@@ -166,12 +166,12 @@ export const getFullUserData = async (req, res) => {
       if (user.role === "therapist" || user.role === "admin") {
         return res
           .status(403)
-          .json({ message: "Therapists can only view user profiles." });
+          .json({ error: { message: "Therapists can only view user profiles.", code: "FORBIDDEN", category: "USER" } });
       }
       if (!user.therapist || user.therapist.toString() !== currentUser.id) {
         return res
           .status(403)
-          .json({ message: "You can only view profiles of your assigned clients." });
+          .json({ error: { message: "You can only view profiles of your assigned clients.", code: "FORBIDDEN", category: "USER" } });
       }
     }
     await logAccess({
