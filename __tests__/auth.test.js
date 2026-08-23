@@ -77,7 +77,7 @@ describe("Auth Controller", () => {
       await register(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "Password must be at least 8 characters long." })
+        expect.objectContaining({ error: expect.objectContaining({ message: "Password must be at least 8 characters long." }) })
       )
     })
 
@@ -95,7 +95,7 @@ describe("Auth Controller", () => {
       await register(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: expect.stringContaining("email") })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("email") }) })
       )
     })
 
@@ -113,7 +113,7 @@ describe("Auth Controller", () => {
       await register(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: expect.stringContaining("username") })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("username") }) })
       )
     })
 
@@ -131,7 +131,7 @@ describe("Auth Controller", () => {
       await register(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: expect.stringContaining("age") })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("age") }) })
       )
     })
 
@@ -149,7 +149,7 @@ describe("Auth Controller", () => {
       await register(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: expect.stringContaining("name") })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("name") }) })
       )
     })
 
@@ -172,7 +172,7 @@ describe("Auth Controller", () => {
       await register(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "Email is already registered." })
+        expect.objectContaining({ error: expect.objectContaining({ message: "Email is already registered." }) })
       )
     })
 
@@ -195,7 +195,7 @@ describe("Auth Controller", () => {
       await register(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "Username is already taken." })
+        expect.objectContaining({ error: expect.objectContaining({ message: "Username is already taken." }) })
       )
     })
   })
@@ -206,7 +206,7 @@ describe("Auth Controller", () => {
       await login(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("required") }) })
+        expect.objectContaining({ error: expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("required") }) }) })
       )
     })
 
@@ -220,7 +220,7 @@ describe("Auth Controller", () => {
       await login(req, res)
       expect(res.status).toHaveBeenCalledWith(401)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ error: expect.objectContaining({ message: "Invalid credentials." }) })
+        expect.objectContaining({ error: expect.objectContaining({ error: expect.objectContaining({ message: "Invalid credentials." }) }) })
       )
     })
 
