@@ -315,7 +315,7 @@ export const chat = async (req, res) => {
     });
   } catch (error) {
     logger.error({ err: error }, "Therry error");
-    res.status(500).json({ message: "Failed to get response from Therry." });
+    throw error;
   }
 };
 
@@ -364,13 +364,13 @@ export const editMessage = async (req, res) => {
     }
 
     if (message.editCount >= 3) {
-      return res.status(400).json({ error: { message: "Maximum of 3 edits per message.", code: "BAD_REQUEST" } });
+      return res.status(400).json({ error: { message: "This message has reached its edit limit of 3.", code: "EDIT_LIMIT_REACHED" } });
     }
 
     const tenMinutes = 10 * 60 * 1000;
     const age = Date.now() - new Date(message.createdAt).getTime();
     if (age > tenMinutes) {
-      return res.status(400).json({ error: { message: "Can only edit messages within 10 minutes.", code: "BAD_REQUEST" } });
+      return res.status(400).json({ error: { message: "Messages can only be edited within 10 minutes of sending.", code: "EDIT_WINDOW_EXPIRED" } });
     }
 
     message.editHistory.push({
@@ -394,6 +394,6 @@ export const editMessage = async (req, res) => {
     });
   } catch (error) {
     logger.error({ err: error }, "Therry edit error");
-    res.status(500).json({ message: "Failed to edit message." });
+    throw error;
   }
 };
