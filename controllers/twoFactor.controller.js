@@ -20,7 +20,8 @@ export const setupTwoFactor = async (req, res) => {
     }
 
     if (user.twoFactorEnabled) {
-      return res.status(400).json({ error: { message: "Two-factor authentication is already enabled.", code: "ALREADY_ENABLED" } });
+      // Already enabled is the goal state - report success, not an error.
+      return res.status(200).json({ message: "Two-factor authentication is already enabled.", alreadyEnabled: true });
     }
 
     const secret = speakeasy.generateSecret({
@@ -56,7 +57,7 @@ export const verifyTwoFactorSetup = async (req, res) => {
     }
 
     if (user.twoFactorEnabled) {
-      return res.status(400).json({ error: { message: "Two-factor authentication is already enabled.", code: "ALREADY_ENABLED" } });
+      return res.status(200).json({ message: "Two-factor authentication is already enabled.", alreadyEnabled: true });
     }
 
     if (!user.twoFactorSecret) {
