@@ -95,7 +95,7 @@ export const takeAssessment = async (req, res) => {
     const { type, responses } = req.body
     const config = SCORING[type]
     if (!config) {
-      return res.status(400).json({ error: { message: "Invalid assessment type" } })
+      return res.status(400).json({ error: { message: "Invalid assessment type", code: "VALIDATION_ERROR", category: "USER" } })
     }
 
     if (responses.length !== config.questions) {
@@ -173,7 +173,7 @@ export const getAssessment = async (req, res) => {
       user: req.user.id,
     })
     if (!assessment) {
-      return res.status(404).json({ error: { message: "Assessment not found" } })
+      return res.status(404).json({ error: { message: "Assessment not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     const config = SCORING[assessment.type]
@@ -198,7 +198,7 @@ export const getAssessmentTrend = async (req, res) => {
   try {
     const { type } = req.query
     if (!type || !SCORING[type]) {
-      return res.status(400).json({ error: { message: "Valid assessment type is required" } })
+      return res.status(400).json({ error: { message: "Valid assessment type is required", code: "VALIDATION_ERROR", category: "USER" } })
     }
 
     const sixMonthsAgo = new Date()
@@ -233,7 +233,7 @@ export const deleteAssessment = async (req, res) => {
       user: req.user.id,
     })
     if (!assessment) {
-      return res.status(404).json({ error: { message: "Assessment not found" } })
+      return res.status(404).json({ error: { message: "Assessment not found", code: "NOT_FOUND", category: "USER" } })
     }
     res.json({ message: "Assessment deleted" })
   } catch (err) {
