@@ -29,9 +29,8 @@ export const createEntry = async (req, res) => {
     await entry.save()
     res.status(201).json(decryptEntry(entry))
   } catch (err) {
-    logger.error({ err }, "failed to create journal entry")
-    res.status(500).json({ error: { message: "Failed to create journal entry" } })
-  }
+      throw err
+    }
 }
 
 export const getMyEntries = async (req, res) => {
@@ -67,9 +66,8 @@ export const getMyEntries = async (req, res) => {
 
     res.json({ entries: results, hasMore })
   } catch (err) {
-    logger.error({ err }, "failed to get journal entries")
-    res.status(500).json({ error: { message: "Failed to get journal entries" } })
-  }
+      throw err
+    }
 }
 
 export const getEntry = async (req, res) => {
@@ -83,9 +81,8 @@ export const getEntry = async (req, res) => {
     }
     res.json(decryptEntry(entry))
   } catch (err) {
-    logger.error({ err }, "failed to get journal entry")
-    res.status(500).json({ error: { message: "Failed to get journal entry" } })
-  }
+      throw err
+    }
 }
 
 export const updateEntry = async (req, res) => {
@@ -108,9 +105,8 @@ export const updateEntry = async (req, res) => {
     await entry.save()
     res.json(decryptEntry(entry))
   } catch (err) {
-    logger.error({ err }, "failed to update journal entry")
-    res.status(500).json({ error: { message: "Failed to update journal entry" } })
-  }
+      throw err
+    }
 }
 
 export const deleteEntry = async (req, res) => {
@@ -124,9 +120,8 @@ export const deleteEntry = async (req, res) => {
     }
     res.json({ message: "Journal entry deleted" })
   } catch (err) {
-    logger.error({ err }, "failed to delete journal entry")
-    res.status(500).json({ error: { message: "Failed to delete journal entry" } })
-  }
+      throw err
+    }
 }
 
 export const addComment = async (req, res) => {
@@ -150,9 +145,8 @@ export const addComment = async (req, res) => {
     const comment = updated.comments[updated.comments.length - 1]
     res.status(201).json(comment)
   } catch (err) {
-    logger.error({ err }, "failed to add comment")
-    res.status(500).json({ error: { message: "Failed to add comment" } })
-  }
+      throw err
+    }
 }
 
 export const deleteComment = async (req, res) => {
@@ -183,9 +177,8 @@ export const deleteComment = async (req, res) => {
 
     res.json({ message: "Comment deleted" })
   } catch (err) {
-    logger.error({ err }, "failed to delete comment")
-    res.status(500).json({ error: { message: "Failed to delete comment" } })
-  }
+      throw err
+    }
 }
 
 export const getPublicEntries = async (req, res) => {
@@ -218,7 +211,6 @@ export const getPublicEntries = async (req, res) => {
 
     res.json({ entries: results, hasMore })
   } catch (err) {
-    logger.error({ err }, "failed to get public journal entries")
-    res.status(500).json({ error: { message: "Failed to get public journal entries" } })
-  }
+      throw err
+    }
 }
