@@ -110,7 +110,7 @@ export const toggleFavorite = async (req, res) => {
       ],
     })
     if (!card) {
-      return res.status(404).json({ error: { message: "Card not found" } })
+      return res.status(404).json({ error: { message: "Card not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     card.isFavorite = !card.isFavorite
@@ -128,10 +128,10 @@ export const deleteCard = async (req, res) => {
       user: req.user.id,
     })
     if (!card) {
-      return res.status(404).json({ error: { message: "Card not found" } })
+      return res.status(404).json({ error: { message: "Card not found", code: "NOT_FOUND", category: "USER" } })
     }
     if (card.isTemplate) {
-      return res.status(403).json({ error: { message: "Templates cannot be deleted" } })
+      return res.status(403).json({ error: { message: "Templates cannot be deleted", code: "FORBIDDEN", category: "USER" } })
     }
 
     await card.deleteOne()
