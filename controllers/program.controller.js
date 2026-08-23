@@ -432,9 +432,8 @@ export const getPrograms = async (req, res) => {
 
     res.status(200).json({ programs: result })
   } catch (error) {
-    logger.error({ err: error }, "failed to get programs")
-    res.status(500).json({ error: { message: "Failed to load programs" } })
-  }
+      throw error
+    }
 }
 
 export const getProgram = async (req, res) => {
@@ -453,9 +452,8 @@ export const getProgram = async (req, res) => {
 
     res.status(200).json({ program, progress })
   } catch (error) {
-    logger.error({ err: error }, "failed to get program")
-    res.status(500).json({ error: { message: "Failed to load program" } })
-  }
+      throw error
+    }
 }
 
 export const startProgram = async (req, res) => {
@@ -486,9 +484,8 @@ export const startProgram = async (req, res) => {
 
     res.status(201).json({ progress })
   } catch (error) {
-    logger.error({ err: error }, "failed to start program")
-    res.status(500).json({ error: { message: "Failed to start program" } })
-  }
+      throw error
+    }
 }
 
 export const completeActivity = async (req, res) => {
@@ -647,9 +644,8 @@ export const getMyPrograms = async (req, res) => {
 
     res.status(200).json({ inProgress, completed })
   } catch (error) {
-    logger.error({ err: error }, "failed to get my programs")
-    res.status(500).json({ error: { message: "Failed to load your programs" } })
-  }
+      throw error
+    }
 }
 
 export const seedPrograms = async () => {
