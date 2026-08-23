@@ -1,4 +1,4 @@
-// Barrel file — re-exports all chat-related controllers from their
+// Barrel file, re-exports all chat-related controllers from their
 // individual modules so chat.route.js (and the rest of the app) can
 // import everything from a single path.
 
