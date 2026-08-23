@@ -70,7 +70,7 @@ export const getActivity = async (req, res) => {
       user: req.user.id,
     })
     if (!activity) {
-      return res.status(404).json({ error: { message: "Activity not found" } })
+      return res.status(404).json({ error: { message: "Activity not found", code: "NOT_FOUND", category: "USER" } })
     }
     res.json(decryptActivity(activity))
   } catch (err) {
@@ -85,7 +85,7 @@ export const updateActivity = async (req, res) => {
       user: req.user.id,
     })
     if (!activity) {
-      return res.status(404).json({ error: { message: "Activity not found" } })
+      return res.status(404).json({ error: { message: "Activity not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     const plainFields = ["category", "scheduledDate", "scheduledTime", "duration", "expectedPleasure", "actualPleasure", "completed", "completedAt", "moodBefore", "moodAfter"]
@@ -117,7 +117,7 @@ export const completeActivity = async (req, res) => {
       user: req.user.id,
     })
     if (!activity) {
-      return res.status(404).json({ error: { message: "Activity not found" } })
+      return res.status(404).json({ error: { message: "Activity not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     activity.completed = true
@@ -142,7 +142,7 @@ export const deleteActivity = async (req, res) => {
       user: req.user.id,
     })
     if (!activity) {
-      return res.status(404).json({ error: { message: "Activity not found" } })
+      return res.status(404).json({ error: { message: "Activity not found", code: "NOT_FOUND", category: "USER" } })
     }
     res.json({ message: "Activity deleted" })
   } catch (err) {
