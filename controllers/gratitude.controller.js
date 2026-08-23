@@ -161,7 +161,7 @@ export const deleteEntry = async (req, res) => {
       user: req.user.id,
     })
     if (!entry) {
-      return res.status(404).json({ error: { message: "Entry not found" } })
+      return res.status(404).json({ error: { message: "Entry not found", code: "NOT_FOUND", category: "USER" } })
     }
     res.json({ message: "Entry deleted" })
   } catch (err) {
