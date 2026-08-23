@@ -13,7 +13,7 @@ export const profile = async (req, res) => {
       "-password -oldPasswords -refreshTokens -resetPasswordToken -resetPasswordExpire -verificationCode -verificationCodeExpire",
     );
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ error: { message: "User not found", code: "NOT_FOUND", category: "USER" } });
     }
     res.status(200).json(user);
   } catch (error) {
@@ -28,7 +28,7 @@ export const getUserProfile = async (req, res) => {
       "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens -verificationCode -verificationCodeExpire",
     );
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ error: { message: "User not found", code: "NOT_FOUND", category: "USER" } });
     }
 
     // If requesting own profile, return everything
@@ -73,7 +73,7 @@ export const getUserById = async (req, res) => {
       "-password -oldPasswords -refreshTokens -verificationCode -verificationCodeExpire",
     );
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ error: { message: "User not found", code: "NOT_FOUND", category: "USER" } });
     }
 
     // If requesting own profile, return everything
@@ -138,7 +138,7 @@ export const updateProfile = async (req, res) => {
       if (firstName.length < 2) {
         return res
           .status(400)
-          .json({ message: "First name must be at least 2 characters long." });
+          .json({ error: { message: "First name must be at least 2 characters long.", code: "VALIDATION_ERROR", category: "USER" } });
       }
       updates.firstName = firstName;
     }
@@ -147,7 +147,7 @@ export const updateProfile = async (req, res) => {
       if (lastName.length < 2) {
         return res
           .status(400)
-          .json({ message: "Last name must be at least 2 characters long." });
+          .json({ error: { message: "Last name must be at least 2 characters long.", code: "VALIDATION_ERROR", category: "USER" } });
       }
       updates.lastName = lastName;
     }
@@ -166,7 +166,7 @@ export const updateProfile = async (req, res) => {
       if (age < 18 || age > 120) {
         return res
           .status(400)
-          .json({ message: "Invalid age. Must be between 18 and 120." });
+          .json({ error: { message: "Invalid age. Must be between 18 and 120.", code: "VALIDATION_ERROR", category: "USER" } });
       }
       updates.dateOfBirth = dateOfBirth;
     }
@@ -182,7 +182,7 @@ export const updateProfile = async (req, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND", category: "USER" } });
     }
 
     res.status(200).json({
