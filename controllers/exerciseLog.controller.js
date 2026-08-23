@@ -34,7 +34,16 @@ export const completeExercise = async (req, res) => {
     }
 
     if (log.completed) {
-      return res.status(400).json({ error: { message: "Exercise already completed.", code: "BAD_REQUEST" } });
+      // Completing an already-completed session is an idempotent no-op, not
+      // a client mistake - acknowledge it without awarding points twice.
+      return res.status(200).json({
+        message: "This exercise was already completed.",
+        log,
+        alreadyCompleted: true,
+        pointsEarned: 0,
+        exerciseScore: 0,
+        exerciseStreak: 0,
+      });
     }
 
     const exercise = await Exercise.findById(log.exercise);
