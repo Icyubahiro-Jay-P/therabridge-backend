@@ -1,4 +1,4 @@
-// Barrel file — re-exports all split modules so route imports stay unchanged.
+// Barrel file, re-exports all split modules so route imports stay unchanged.
 export { register, login, logout, refresh } from "./auth.controller.js";
 export { forgotPassword, resetPassword, changePassword } from "./password.controller.js";
 export { verifyEmail, resendVerification } from "./emailVerification.controller.js";
