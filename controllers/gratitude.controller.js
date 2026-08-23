@@ -59,9 +59,8 @@ export const getDailyPrompt = async (req, res) => {
 
     res.json({ prompt, hasEntryToday: !!existingToday })
   } catch (err) {
-    logger.error({ err }, "failed to get daily prompt")
-    res.status(500).json({ error: { message: "Failed to get daily prompt" } })
-  }
+      throw err
+    }
 }
 
 export const createEntry = async (req, res) => {
@@ -77,7 +76,9 @@ export const createEntry = async (req, res) => {
     })
 
     if (existingToday) {
-      return res.status(409).json({ error: { message: "You've already completed today's gratitude prompt" } })
+      // Completing the daily prompt twice is a normal repeat visit, not an
+      // error - hand back the existing entry so the UI can show it.
+      return res.status(200).json({ ...decryptEntry(existingToday), alreadyCompleted: true, pointsEarned: 0 })
     }
 
     const entry = new GratitudeEntry({
@@ -92,9 +93,8 @@ export const createEntry = async (req, res) => {
     const pointsEarned = await awardMessagePoints(req.user.id, 3)
     res.status(201).json({ ...decryptEntry(entry), pointsEarned })
   } catch (err) {
-    logger.error({ err }, "failed to create gratitude entry")
-    res.status(500).json({ error: { message: "Failed to save gratitude entry" } })
-  }
+      throw err
+    }
 }
 
 export const getMyEntries = async (req, res) => {
@@ -113,9 +113,8 @@ export const getMyEntries = async (req, res) => {
     const results = entries.map(decryptEntry)
     res.json({ entries: results, hasMore })
   } catch (err) {
-    logger.error({ err }, "failed to get gratitude entries")
-    res.status(500).json({ error: { message: "Failed to get entries" } })
-  }
+      throw err
+    }
 }
 
 export const getStreak = async (req, res) => {
@@ -151,9 +150,8 @@ export const getStreak = async (req, res) => {
 
     res.json({ streak, totalEntries: await GratitudeEntry.countDocuments({ user: req.user.id }) })
   } catch (err) {
-    logger.error({ err }, "failed to get gratitude streak")
-    res.status(500).json({ error: { message: "Failed to get streak" } })
-  }
+      throw err
+    }
 }
 
 export const deleteEntry = async (req, res) => {
@@ -167,7 +165,6 @@ export const deleteEntry = async (req, res) => {
     }
     res.json({ message: "Entry deleted" })
   } catch (err) {
-    logger.error({ err }, "failed to delete gratitude entry")
-    res.status(500).json({ error: { message: "Failed to delete entry" } })
-  }
+      throw err
+    }
 }
