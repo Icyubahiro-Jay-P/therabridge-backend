@@ -14,7 +14,7 @@ export const uploadProfilePicture = async (req, res) => {
     if (!isImage) {
       return res
         .status(400)
-        .json({ message: "File is not a valid image." });
+        .json({ error: { message: "File is not a valid image.", code: "VALIDATION_ERROR", category: "USER" } });
     }
 
     const user = await User.findById(req.user.id);
