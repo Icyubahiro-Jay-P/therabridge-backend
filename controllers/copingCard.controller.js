@@ -74,9 +74,8 @@ export const createCard = async (req, res) => {
     const pointsEarned = await awardMessagePoints(req.user.id, 2)
     res.status(201).json({ ...decryptCard(card), pointsEarned })
   } catch (err) {
-    logger.error({ err }, "failed to create coping card")
-    res.status(500).json({ error: { message: "Failed to create coping card" } })
-  }
+      throw err
+    }
 }
 
 export const getMyCards = async (req, res) => {
@@ -97,9 +96,8 @@ export const getMyCards = async (req, res) => {
 
     res.json({ cards: cards.map(decryptCard) })
   } catch (err) {
-    logger.error({ err }, "failed to get coping cards")
-    res.status(500).json({ error: { message: "Failed to get coping cards" } })
-  }
+      throw err
+    }
 }
 
 export const toggleFavorite = async (req, res) => {
@@ -119,9 +117,8 @@ export const toggleFavorite = async (req, res) => {
     await card.save()
     res.json(decryptCard(card))
   } catch (err) {
-    logger.error({ err }, "failed to toggle favorite")
-    res.status(500).json({ error: { message: "Failed to toggle favorite" } })
-  }
+      throw err
+    }
 }
 
 export const deleteCard = async (req, res) => {
@@ -140,7 +137,6 @@ export const deleteCard = async (req, res) => {
     await card.deleteOne()
     res.json({ message: "Card deleted" })
   } catch (err) {
-    logger.error({ err }, "failed to delete coping card")
-    res.status(500).json({ error: { message: "Failed to delete coping card" } })
-  }
+      throw err
+    }
 }
