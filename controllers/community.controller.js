@@ -122,9 +122,14 @@ export const joinCommunity = async (req, res) => {
       (m) => m.toString() === req.user.id,
     );
     if (alreadyMember) {
+      // Joining twice is an idempotent no-op - return the community so the
+      // client can simply navigate into it.
+      await community.populate("owner", "username firstName lastName avatar");
+      await community.populate("members", "username firstName lastName avatar");
+      await community.populate("moderators", "username firstName lastName avatar");
       return res
-        .status(400)
-        .json({ error: { message: "You are already a member of this community.", code: "BAD_REQUEST" } });
+        .status(200)
+        .json({ message: "You're already a member of this community.", community, alreadyMember: true });
     }
 
     if (community.isPrivate) {
@@ -133,8 +138,8 @@ export const joinCommunity = async (req, res) => {
       );
       if (alreadyPending) {
         return res
-          .status(400)
-          .json({ error: { message: "Your join request is already pending approval.", code: "BAD_REQUEST" } });
+          .status(202)
+          .json({ message: "Your join request is already pending approval.", pending: true });
       }
       community.pendingMembers.push(req.user.id);
       await community.save();
@@ -481,7 +486,9 @@ export const inviteMember = async (req, res) => {
     }
 
     if (community.members.some((m) => m.toString() === userId)) {
-      return res.status(400).json({ error: { message: "This user is already a member.", code: "BAD_REQUEST" } });
+      // The person is already in - the goal state is reached, so report
+      // success instead of an error.
+      return res.status(200).json({ message: "This user is already a member.", alreadyMember: true });
     }
 
     community.pendingMembers = (community.pendingMembers ?? []).filter(
@@ -587,7 +594,7 @@ export const addModerator = async (req, res) => {
       return res.status(400).json({ error: { message: "User must be a member first.", code: "BAD_REQUEST" } });
     }
     if ((community.moderators ?? []).some((m) => m.toString() === userId)) {
-      return res.status(400).json({ error: { message: "This user is already a moderator.", code: "BAD_REQUEST" } });
+      return res.status(200).json({ message: "This user is already a moderator.", alreadyModerator: true });
     }
 
     community.moderators.push(userId);
