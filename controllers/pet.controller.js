@@ -60,7 +60,9 @@ export const feedPet = async (req, res) => {
     if (pet.lastFedAt) {
       const hoursSince = (now - new Date(pet.lastFedAt).getTime()) / (1000 * 60 * 60);
       if (hoursSince < 1) {
-        return res.status(400).json({ error: { message: "Sage is still full! Try again later.", code: "VALIDATION_ERROR" } });
+        // A full pet is a normal game state, not an error - tell the user
+        // warmly and let them retry later.
+        return res.status(200).json({ fed: false, pet, leveledUp: false, message: `${pet.name} is still full! Try again in a little while.` });
       }
     }
 
@@ -77,7 +79,7 @@ export const feedPet = async (req, res) => {
     }
 
     await pet.save();
-    res.status(200).json({ pet, leveledUp, message: "Sage gobbled up the treat! +5 XP" });
+    res.status(200).json({ fed: true, pet, leveledUp, message: `${pet.name} gobbled up the treat! +5 XP` });
   } catch (error) {
     throw error;
   }
