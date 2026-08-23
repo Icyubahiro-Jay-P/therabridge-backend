@@ -77,7 +77,7 @@ export const getEntry = async (req, res) => {
       user: req.user.id,
     })
     if (!entry) {
-      return res.status(404).json({ error: { message: "Journal entry not found" } })
+      return res.status(404).json({ error: { message: "Journal entry not found", code: "NOT_FOUND", category: "USER" } })
     }
     res.json(decryptEntry(entry))
   } catch (err) {
@@ -93,7 +93,7 @@ export const updateEntry = async (req, res) => {
       user: req.user.id,
     })
     if (!entry) {
-      return res.status(404).json({ error: { message: "Journal entry not found" } })
+      return res.status(404).json({ error: { message: "Journal entry not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     if (title !== undefined) entry.title = encryptField(title)
@@ -116,7 +116,7 @@ export const deleteEntry = async (req, res) => {
       user: req.user.id,
     })
     if (!entry) {
-      return res.status(404).json({ error: { message: "Journal entry not found" } })
+      return res.status(404).json({ error: { message: "Journal entry not found", code: "NOT_FOUND", category: "USER" } })
     }
     res.json({ message: "Journal entry deleted" })
   } catch (err) {
@@ -132,7 +132,7 @@ export const addComment = async (req, res) => {
       user: req.user.id,
     })
     if (!entry) {
-      return res.status(404).json({ error: { message: "Journal entry not found" } })
+      return res.status(404).json({ error: { message: "Journal entry not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     entry.comments.push({
@@ -156,12 +156,12 @@ export const deleteComment = async (req, res) => {
       user: req.user.id,
     })
     if (!entry) {
-      return res.status(404).json({ error: { message: "Journal entry not found" } })
+      return res.status(404).json({ error: { message: "Journal entry not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     const comment = entry.comments.id(req.params.commentId)
     if (!comment) {
-      return res.status(404).json({ error: { message: "Comment not found" } })
+      return res.status(404).json({ error: { message: "Comment not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     // Only the comment author or entry owner can delete
@@ -169,7 +169,7 @@ export const deleteComment = async (req, res) => {
       comment.author.toString() !== req.user.id &&
       entry.user.toString() !== req.user.id
     ) {
-      return res.status(403).json({ error: { message: "Not authorized" } })
+      return res.status(403).json({ error: { message: "Not authorized", code: "FORBIDDEN", category: "USER" } })
     }
 
     comment.deleteOne()
