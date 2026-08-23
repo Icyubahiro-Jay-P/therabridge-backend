@@ -141,7 +141,9 @@ export const acknowledgeCrisis = async (req, res) => {
       }
     }
     if (crisis.status !== "active") {
-      return res.status(400).json({ error: { message: "Crisis alert already acknowledged or resolved.", code: "BAD_REQUEST" } });
+      // Two people racing to acknowledge the same alert is expected - the
+      // second responder just sees the alert's current state, not an error.
+      return res.status(200).json({ message: "Crisis alert was already acknowledged.", crisis: decryptCrisis(crisis), alreadyAcknowledged: true });
     }
     crisis.status = "acknowledged";
     crisis.acknowledgedBy = req.user.id;
@@ -174,6 +176,10 @@ export const resolveCrisis = async (req, res) => {
       if (!client?.therapist || client.therapist.toString() !== req.user.id) {
         return res.status(403).json({ error: { message: "You can only act on alerts for your assigned clients.", code: "FORBIDDEN" } });
       }
+    }
+    if (crisis.status === "resolved") {
+      // Resolving twice is an idempotent no-op, not a mistake.
+      return res.status(200).json({ message: "Crisis alert was already resolved.", crisis: decryptCrisis(crisis), alreadyResolved: true });
     }
     crisis.status = "resolved";
     crisis.resolvedAt = new Date();
@@ -297,7 +303,7 @@ export const messageTherapist = async (req, res) => {
       req.user.id,
     );
     if (!created) {
-      return res.status(500).json({ error: { message: "Failed to notify your therapist. Please try again.", code: "INTERNAL_ERROR" } });
+      return res.status(502).json({ error: { message: "We couldn't reach your therapist right now. Please try again.", code: "NOTIFY_FAILED", category: "USER" } });
     }
 
     res.status(200).json({ message: "Your therapist has been notified." });
