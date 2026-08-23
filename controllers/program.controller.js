@@ -442,7 +442,7 @@ export const getProgram = async (req, res) => {
     if (!program) {
       return res
         .status(404)
-        .json({ error: { message: "Program not found" } })
+        .json({ error: { message: "Program not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     const progress = await UserProgress.findOne({
@@ -462,7 +462,7 @@ export const startProgram = async (req, res) => {
     if (!program) {
       return res
         .status(404)
-        .json({ error: { message: "Program not found" } })
+        .json({ error: { message: "Program not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     const existing = await UserProgress.findOne({
@@ -493,7 +493,7 @@ export const completeActivity = async (req, res) => {
     const { weekIndex, activityIndex } = req.body
     if (weekIndex === undefined || activityIndex === undefined) {
       return res.status(400).json({
-        error: { message: "weekIndex and activityIndex are required" },
+        error: { message: "weekIndex and activityIndex are required", code: "VALIDATION_ERROR", category: "USER" },
       })
     }
 
@@ -501,7 +501,7 @@ export const completeActivity = async (req, res) => {
     if (!program) {
       return res
         .status(404)
-        .json({ error: { message: "Program not found" } })
+        .json({ error: { message: "Program not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     if (
@@ -511,7 +511,7 @@ export const completeActivity = async (req, res) => {
       activityIndex >= program.weeks[weekIndex].activities.length
     ) {
       return res.status(400).json({
-        error: { message: "Invalid week or activity index" },
+        error: { message: "Invalid week or activity index", code: "VALIDATION_ERROR", category: "USER" },
       })
     }
 
