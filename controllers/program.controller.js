@@ -593,11 +593,8 @@ export const completeActivity = async (req, res) => {
           : 0,
     })
   } catch (error) {
-    logger.error({ err: error }, "failed to complete activity")
-    res
-      .status(500)
-      .json({ error: { message: "Failed to record activity completion" } })
-  }
+      throw error
+    }
 }
 
 export const getMyPrograms = async (req, res) => {
