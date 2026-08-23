@@ -473,7 +473,7 @@ export const editMessage = async (req, res) => {
     if (message.editCount >= 3) {
       return res
         .status(400)
-        .json({ error: { message: "Maximum of 3 edits per message.", code: "BAD_REQUEST" } });
+        .json({ error: { message: "This message has reached its edit limit of 3.", code: "EDIT_LIMIT_REACHED" } });
     }
 
     const tenMinutes = 10 * 60 * 1000;
@@ -481,7 +481,7 @@ export const editMessage = async (req, res) => {
     if (age > tenMinutes) {
       return res
         .status(400)
-        .json({ error: { message: "Can only edit messages within 10 minutes.", code: "BAD_REQUEST" } });
+        .json({ error: { message: "Messages can only be edited within 10 minutes of sending.", code: "EDIT_WINDOW_EXPIRED" } });
     }
 
     message.editHistory.push({
