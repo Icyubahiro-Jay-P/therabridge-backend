@@ -47,7 +47,7 @@ export const authMiddleware = async (req, res, next) => {
   }
 };
 
-// Middleware for the 2FA validation endpoint — accepts only "2fa-pending" tokens
+// Middleware for the 2FA validation endpoint, accepts only "2fa-pending" tokens
 export const twoFactorAuthMiddleware = async (req, res, next) => {
   let token = req.cookies && req.cookies.token;
   if (
