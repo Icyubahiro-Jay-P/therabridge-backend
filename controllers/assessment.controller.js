@@ -127,9 +127,8 @@ export const takeAssessment = async (req, res) => {
       createdAt: assessment.createdAt,
     })
   } catch (err) {
-    logger.error({ err }, "failed to take assessment")
-    res.status(500).json({ error: { message: "Failed to save assessment" } })
-  }
+      throw err
+    }
 }
 
 export const getMyAssessments = async (req, res) => {
@@ -163,9 +162,8 @@ export const getMyAssessments = async (req, res) => {
 
     res.json({ assessments: enriched, total })
   } catch (err) {
-    logger.error({ err }, "failed to get assessments")
-    res.status(500).json({ error: { message: "Failed to get assessments" } })
-  }
+      throw err
+    }
 }
 
 export const getAssessment = async (req, res) => {
@@ -192,9 +190,8 @@ export const getAssessment = async (req, res) => {
       createdAt: assessment.createdAt,
     })
   } catch (err) {
-    logger.error({ err }, "failed to get assessment")
-    res.status(500).json({ error: { message: "Failed to get assessment" } })
-  }
+      throw err
+    }
 }
 
 export const getAssessmentTrend = async (req, res) => {
@@ -225,9 +222,8 @@ export const getAssessmentTrend = async (req, res) => {
 
     res.json({ type, typeName: config?.name || type, trend })
   } catch (err) {
-    logger.error({ err }, "failed to get assessment trend")
-    res.status(500).json({ error: { message: "Failed to get trend data" } })
-  }
+      throw err
+    }
 }
 
 export const deleteAssessment = async (req, res) => {
@@ -241,7 +237,6 @@ export const deleteAssessment = async (req, res) => {
     }
     res.json({ message: "Assessment deleted" })
   } catch (err) {
-    logger.error({ err }, "failed to delete assessment")
-    res.status(500).json({ error: { message: "Failed to delete assessment" } })
-  }
+      throw err
+    }
 }
