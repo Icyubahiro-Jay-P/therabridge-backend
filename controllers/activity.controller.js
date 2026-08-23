@@ -29,9 +29,8 @@ export const createActivity = async (req, res) => {
     await activity.save()
     res.status(201).json(decryptActivity(activity))
   } catch (err) {
-    logger.error({ err }, "failed to create activity")
-    res.status(500).json({ error: { message: "Failed to create activity" } })
-  }
+      throw err
+    }
 }
 
 export const getMyActivities = async (req, res) => {
@@ -60,9 +59,8 @@ export const getMyActivities = async (req, res) => {
     const results = activities.map(decryptActivity)
     res.json({ activities: results })
   } catch (err) {
-    logger.error({ err }, "failed to get activities")
-    res.status(500).json({ error: { message: "Failed to get activities" } })
-  }
+      throw err
+    }
 }
 
 export const getActivity = async (req, res) => {
@@ -76,9 +74,8 @@ export const getActivity = async (req, res) => {
     }
     res.json(decryptActivity(activity))
   } catch (err) {
-    logger.error({ err }, "failed to get activity")
-    res.status(500).json({ error: { message: "Failed to get activity" } })
-  }
+      throw err
+    }
 }
 
 export const updateActivity = async (req, res) => {
@@ -108,9 +105,8 @@ export const updateActivity = async (req, res) => {
     await activity.save()
     res.json(decryptActivity(activity))
   } catch (err) {
-    logger.error({ err }, "failed to update activity")
-    res.status(500).json({ error: { message: "Failed to update activity" } })
-  }
+      throw err
+    }
 }
 
 export const completeActivity = async (req, res) => {
@@ -135,9 +131,8 @@ export const completeActivity = async (req, res) => {
     const pointsEarned = await awardMessagePoints(req.user.id, 3)
     res.json({ ...decryptActivity(activity), pointsEarned })
   } catch (err) {
-    logger.error({ err }, "failed to complete activity")
-    res.status(500).json({ error: { message: "Failed to complete activity" } })
-  }
+      throw err
+    }
 }
 
 export const deleteActivity = async (req, res) => {
@@ -151,9 +146,8 @@ export const deleteActivity = async (req, res) => {
     }
     res.json({ message: "Activity deleted" })
   } catch (err) {
-    logger.error({ err }, "failed to delete activity")
-    res.status(500).json({ error: { message: "Failed to delete activity" } })
-  }
+      throw err
+    }
 }
 
 export const getStats = async (req, res) => {
@@ -188,7 +182,6 @@ export const getStats = async (req, res) => {
       avgPleasure: avgPleasure[0]?.avg ? Math.round(avgPleasure[0].avg * 10) / 10 : null,
     })
   } catch (err) {
-    logger.error({ err }, "failed to get activity stats")
-    res.status(500).json({ error: { message: "Failed to get stats" } })
-  }
+      throw err
+    }
 }
