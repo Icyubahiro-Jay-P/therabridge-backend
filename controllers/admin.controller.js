@@ -82,10 +82,10 @@ export const disableUser = async (req, res) => {
     const { id } = req.params;
     const user = await User.findById(id);
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND", category: "USER" } });
     }
     if (user.role === "admin") {
-      return res.status(400).json({ message: "Cannot disable another admin." });
+      return res.status(400).json({ error: { message: "Cannot disable another admin.", code: "VALIDATION_ERROR", category: "USER" } });
     }
     user.isDisabled = !user.isDisabled;
     await user.save();
@@ -107,11 +107,11 @@ export const changeUserRole = async (req, res) => {
     const { id } = req.params;
     const { role } = req.body;
     if (!["user", "therapist", "admin"].includes(role)) {
-      return res.status(400).json({ message: "Invalid role." });
+      return res.status(400).json({ error: { message: "Invalid role.", code: "VALIDATION_ERROR", category: "USER" } });
     }
     const user = await User.findById(id);
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND", category: "USER" } });
     }
     user.role = role;
     await user.save();
@@ -129,10 +129,10 @@ export const deleteUserByAdmin = async (req, res) => {
     const { id } = req.params;
     const user = await User.findById(id);
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND", category: "USER" } });
     }
     if (user.role === "admin") {
-      return res.status(400).json({ message: "Cannot delete another admin." });
+      return res.status(400).json({ error: { message: "Cannot delete another admin.", code: "VALIDATION_ERROR", category: "USER" } });
     }
 
     await deleteUserAndData(id);
@@ -160,7 +160,7 @@ export const getFullUserData = async (req, res) => {
       "-password -oldPasswords -resetPasswordToken -resetPasswordExpire -refreshTokens -verificationCode -verificationCodeExpire",
     );
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND", category: "USER" } });
     }
     if (currentUser.role === "therapist") {
       if (user.role === "therapist" || user.role === "admin") {
