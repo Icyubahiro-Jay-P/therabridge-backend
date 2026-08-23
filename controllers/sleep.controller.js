@@ -294,7 +294,7 @@ export const deleteLog = async (req, res) => {
     if (!log) {
       return res
         .status(404)
-        .json({ error: { message: "Sleep log not found" } })
+        .json({ error: { message: "Sleep log not found", code: "NOT_FOUND", category: "USER" } })
     }
     res.status(200).json({ message: "Sleep log deleted" })
   } catch (err) {
