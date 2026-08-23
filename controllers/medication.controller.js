@@ -34,9 +34,8 @@ export const createMedication = async (req, res) => {
     await medication.save()
     res.status(201).json(decryptMedication(medication))
   } catch (err) {
-    logger.error({ err }, "failed to create medication")
-    res.status(500).json({ error: { message: "Failed to create medication" } })
-  }
+      throw err
+    }
 }
 
 export const getMyMedications = async (req, res) => {
@@ -49,9 +48,8 @@ export const getMyMedications = async (req, res) => {
     const medications = await Medication.find(query).sort({ active: -1, createdAt: -1 })
     res.json({ medications: medications.map(decryptMedication) })
   } catch (err) {
-    logger.error({ err }, "failed to get medications")
-    res.status(500).json({ error: { message: "Failed to get medications" } })
-  }
+      throw err
+    }
 }
 
 export const updateMedication = async (req, res) => {
@@ -78,9 +76,8 @@ export const updateMedication = async (req, res) => {
     await medication.save()
     res.json(decryptMedication(medication))
   } catch (err) {
-    logger.error({ err }, "failed to update medication")
-    res.status(500).json({ error: { message: "Failed to update medication" } })
-  }
+      throw err
+    }
 }
 
 export const deleteMedication = async (req, res) => {
@@ -95,9 +92,8 @@ export const deleteMedication = async (req, res) => {
     await MedicationLog.deleteMany({ medication: medication._id })
     res.json({ message: "Medication deleted" })
   } catch (err) {
-    logger.error({ err }, "failed to delete medication")
-    res.status(500).json({ error: { message: "Failed to delete medication" } })
-  }
+      throw err
+    }
 }
 
 export const logDose = async (req, res) => {
@@ -144,9 +140,8 @@ export const logDose = async (req, res) => {
 
     res.status(201).json(decryptLog(log))
   } catch (err) {
-    logger.error({ err }, "failed to log dose")
-    res.status(500).json({ error: { message: "Failed to log dose" } })
-  }
+      throw err
+    }
 }
 
 export const getMyLogs = async (req, res) => {
@@ -167,9 +162,8 @@ export const getMyLogs = async (req, res) => {
 
     res.json({ logs: logs.map(decryptLog), hasMore })
   } catch (err) {
-    logger.error({ err }, "failed to get medication logs")
-    res.status(500).json({ error: { message: "Failed to get logs" } })
-  }
+      throw err
+    }
 }
 
 export const getAdherenceStats = async (req, res) => {
@@ -251,7 +245,6 @@ export const getAdherenceStats = async (req, res) => {
       takenDaysMap,
     })
   } catch (err) {
-    logger.error({ err }, "failed to get adherence stats")
-    res.status(500).json({ error: { message: "Failed to get adherence stats" } })
-  }
+      throw err
+    }
 }
