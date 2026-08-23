@@ -37,13 +37,13 @@ export const register = async (req, res) => {
     if (!username || !email || !password || !firstName || !lastName) {
       return res
         .status(400)
-        .json({ message: "All fields are required." });
+        .json({ error: { message: "All fields are required.", code: "VALIDATION_ERROR", category: "USER" } });
     }
 
     if (password.length < 8) {
       return res
         .status(400)
-        .json({ message: "Password must be at least 8 characters long." });
+        .json({ error: { message: "Password must be at least 8 characters long.", code: "VALIDATION_ERROR", category: "USER" } });
     }
 
     // Username format
@@ -67,7 +67,7 @@ export const register = async (req, res) => {
       if (existingUser.email === email) {
         return res
           .status(400)
-          .json({ message: "Email is already registered." });
+          .json({ error: { message: "Email is already registered.", code: "DUPLICATE_ERROR", category: "USER" } });
       }
       return res.status(400).json({ error: { message: "Username is already taken.", code: "DUPLICATE_ERROR", category: "USER" } });
     }
@@ -275,7 +275,7 @@ export const refresh = async (req, res) => {
     if (!refreshToken) {
       return res
         .status(401)
-        .json({ message: "Session expired. Please log in again." });
+        .json({ error: { message: "Session expired. Please log in again.", code: "UNAUTHORIZED", category: "USER" } });
     }
 
     const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
@@ -287,12 +287,12 @@ export const refresh = async (req, res) => {
     if (!user) {
       return res
         .status(401)
-        .json({ message: "User account no longer exists." });
+        .json({ error: { message: "User account no longer exists.", code: "UNAUTHORIZED", category: "USER" } });
     }
     if (user.isDisabled) {
       return res
         .status(403)
-        .json({ message: "Account has been disabled. Contact support." });
+        .json({ error: { message: "Account has been disabled. Contact support.", code: "FORBIDDEN", category: "USER" } });
     }
 
     // Reject unknown/revoked refresh tokens, then rotate to a fresh one
