@@ -158,11 +158,8 @@ export const logSleep = async (req, res) => {
     const pointsEarned = await awardMessagePoints(req.user.id, 3)
     res.status(201).json({ ...decryptLog(entry), pointsEarned })
   } catch (err) {
-    logger.error({ err }, "failed to log sleep")
-    res
-      .status(500)
-      .json({ error: { message: "Failed to save sleep log" } })
-  }
+      throw err
+    }
 }
 
 export const getMyLogs = async (req, res) => {
@@ -178,11 +175,8 @@ export const getMyLogs = async (req, res) => {
     const data = logs.map(decryptLog)
     res.status(200).json(formatPaginatedResponse(data, total, page, limit))
   } catch (err) {
-    logger.error({ err }, "failed to get sleep logs")
-    res
-      .status(500)
-      .json({ error: { message: "Failed to get sleep logs" } })
-  }
+      throw err
+    }
 }
 
 export const getSleepStats = async (req, res) => {
@@ -273,11 +267,8 @@ export const getSleepStats = async (req, res) => {
       weeklyTrend,
     })
   } catch (err) {
-    logger.error({ err }, "failed to get sleep stats")
-    res
-      .status(500)
-      .json({ error: { message: "Failed to get sleep stats" } })
-  }
+      throw err
+    }
 }
 
 export const getContent = async (req, res) => {
@@ -290,11 +281,8 @@ export const getContent = async (req, res) => {
     const content = await SleepContent.find(filter).sort({ type: 1, title: 1 })
     res.status(200).json({ content })
   } catch (err) {
-    logger.error({ err }, "failed to get sleep content")
-    res
-      .status(500)
-      .json({ error: { message: "Failed to get sleep content" } })
-  }
+      throw err
+    }
 }
 
 export const deleteLog = async (req, res) => {
@@ -310,9 +298,6 @@ export const deleteLog = async (req, res) => {
     }
     res.status(200).json({ message: "Sleep log deleted" })
   } catch (err) {
-    logger.error({ err }, "failed to delete sleep log")
-    res
-      .status(500)
-      .json({ error: { message: "Failed to delete sleep log" } })
-  }
+      throw err
+    }
 }
