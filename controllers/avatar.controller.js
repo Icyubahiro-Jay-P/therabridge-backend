@@ -6,7 +6,7 @@ import { sniffUpload } from "../middleware/upload.js";
 export const uploadProfilePicture = async (req, res) => {
   try {
     if (!req.file || !req.file.buffer) {
-      return res.status(400).json({ message: "No file uploaded" });
+      return res.status(400).json({ error: { message: "No file uploaded", code: "VALIDATION_ERROR", category: "USER" } });
     }
 
     // Verify the real file signature (magic bytes), not just the extension.
@@ -19,7 +19,7 @@ export const uploadProfilePicture = async (req, res) => {
 
     const user = await User.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ error: { message: "User not found", code: "NOT_FOUND", category: "USER" } });
     }
 
     // Optimize the uploaded avatar buffer with Sharp before it goes to
@@ -69,7 +69,7 @@ export const deleteAvatar = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ error: { message: "User not found", code: "NOT_FOUND", category: "USER" } });
     }
 
     if (user.avatar) {
