@@ -285,7 +285,7 @@ describe("Chat Controller", () => {
       )
     })
 
-    it("should reject when already a member", async () => {
+    it("should return the community when already a member (idempotent)", async () => {
       Community.findOne.mockResolvedValue({
         members: ["user123"],
         name: "Test",
@@ -299,9 +299,9 @@ describe("Chat Controller", () => {
         body: { inviteKey: "ABCD1234" },
       })
       await joinCommunity(req, res)
-      expect(res.status).toHaveBeenCalledWith(400)
+      expect(res.status).toHaveBeenCalledWith(200)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("already") }) })
+        expect.objectContaining({ alreadyMember: true, message: expect.stringContaining("already") })
       )
     })
 
