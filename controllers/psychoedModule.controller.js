@@ -29,9 +29,8 @@ export const getModules = async (req, res) => {
 
     res.json({ modules: result })
   } catch (err) {
-    logger.error({ err }, "failed to get psychoed modules")
-    res.status(500).json({ error: { message: "Failed to get modules" } })
-  }
+      throw err
+    }
 }
 
 export const getModule = async (req, res) => {
@@ -59,9 +58,8 @@ export const getModule = async (req, res) => {
         : null,
     })
   } catch (err) {
-    logger.error({ err }, "failed to get psychoed module")
-    res.status(500).json({ error: { message: "Failed to get module" } })
-  }
+      throw err
+    }
 }
 
 export const startModule = async (req, res) => {
@@ -99,9 +97,8 @@ export const startModule = async (req, res) => {
       startedAt: progress.startedAt,
     })
   } catch (err) {
-    logger.error({ err }, "failed to start psychoed module")
-    res.status(500).json({ error: { message: "Failed to start module" } })
-  }
+      throw err
+    }
 }
 
 export const completeStep = async (req, res) => {
@@ -153,9 +150,8 @@ export const completeStep = async (req, res) => {
       completedAt: progress.completedAt,
     })
   } catch (err) {
-    logger.error({ err }, "failed to complete psychoed step")
-    res.status(500).json({ error: { message: "Failed to complete step" } })
-  }
+      throw err
+    }
 }
 
 export const getMyProgress = async (req, res) => {
@@ -169,7 +165,6 @@ export const getMyProgress = async (req, res) => {
 
     res.json({ inProgress, completed })
   } catch (err) {
-    logger.error({ err }, "failed to get psychoed progress")
-    res.status(500).json({ error: { message: "Failed to get progress" } })
-  }
+      throw err
+    }
 }
