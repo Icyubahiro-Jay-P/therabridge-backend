@@ -206,7 +206,7 @@ describe("Auth Controller", () => {
       await login(req, res)
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ error: expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("required") }) }) })
+        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("required") }) })
       )
     })
 
@@ -220,7 +220,7 @@ describe("Auth Controller", () => {
       await login(req, res)
       expect(res.status).toHaveBeenCalledWith(401)
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ error: expect.objectContaining({ error: expect.objectContaining({ message: "Invalid credentials." }) }) })
+        expect.objectContaining({ error: expect.objectContaining({ message: "Invalid credentials." }) })
       )
     })
 
