@@ -26,7 +26,7 @@ export const reportPossibleScreenshot = async (req, res) => {
     });
 
     if (result.limited) {
-      return res.status(429).json({ message: "Rate limited. Please wait a moment." });
+      return res.status(429).json({ error: { message: "Rate limited. Please wait a moment.", code: "RATE_LIMITED", category: "USER" } });
     }
     if (result.invalid) {
       return res
