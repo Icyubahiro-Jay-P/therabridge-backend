@@ -88,7 +88,7 @@ export const getRecord = async (req, res) => {
       user: req.user.id,
     })
     if (!record) {
-      return res.status(404).json({ error: { message: "Thought record not found" } })
+      return res.status(404).json({ error: { message: "Thought record not found", code: "NOT_FOUND", category: "USER" } })
     }
     res.json(decryptRecord(record))
   } catch (err) {
@@ -103,7 +103,7 @@ export const updateRecord = async (req, res) => {
       user: req.user.id,
     })
     if (!record) {
-      return res.status(404).json({ error: { message: "Thought record not found" } })
+      return res.status(404).json({ error: { message: "Thought record not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     const fields = [
@@ -135,7 +135,7 @@ export const deleteRecord = async (req, res) => {
       user: req.user.id,
     })
     if (!record) {
-      return res.status(404).json({ error: { message: "Thought record not found" } })
+      return res.status(404).json({ error: { message: "Thought record not found", code: "NOT_FOUND", category: "USER" } })
     }
     res.json({ message: "Thought record deleted" })
   } catch (err) {
