@@ -11,7 +11,7 @@ import {
 } from "../utils/tokens.js";
 import { updateLoginStreak } from "./user.utils.js";
 
-// POST /2fa/setup — Generate TOTP secret + QR code (does not enable yet)
+// POST /2fa/setup, Generate TOTP secret + QR code (does not enable yet)
 export const setupTwoFactor = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -47,7 +47,7 @@ export const setupTwoFactor = async (req, res) => {
   }
 };
 
-// POST /2fa/verify-setup — Verify initial TOTP code and enable 2FA
+// POST /2fa/verify-setup, Verify initial TOTP code and enable 2FA
 export const verifyTwoFactorSetup = async (req, res) => {
   try {
     const { code } = req.body;
@@ -95,7 +95,7 @@ export const verifyTwoFactorSetup = async (req, res) => {
   }
 };
 
-// POST /2fa/validate — Validate TOTP during login (uses 2FA-pending token)
+// POST /2fa/validate, Validate TOTP during login (uses 2FA-pending token)
 export const validateTwoFactor = async (req, res) => {
   try {
     const { code } = req.body;
@@ -137,7 +137,7 @@ export const validateTwoFactor = async (req, res) => {
       }
     }
 
-    // 2FA verified — issue full tokens
+    // 2FA verified, issue full tokens
     const accessToken = signAccessToken(user);
     const { token: refreshToken, jti } = createRefreshToken(user);
     user.refreshTokens.push(hashRefreshToken(jti));
@@ -172,7 +172,7 @@ export const validateTwoFactor = async (req, res) => {
   }
 };
 
-// DELETE /2fa/disable — Disable 2FA (requires password + TOTP code)
+// DELETE /2fa/disable, Disable 2FA (requires password + TOTP code)
 export const disableTwoFactor = async (req, res) => {
   try {
     const { password, code } = req.body;
@@ -214,7 +214,7 @@ export const disableTwoFactor = async (req, res) => {
   }
 };
 
-// GET /2fa/status — Check if 2FA is enabled
+// GET /2fa/status, Check if 2FA is enabled
 export const getTwoFactorStatus = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("twoFactorEnabled twoFactorBackupCodes");
