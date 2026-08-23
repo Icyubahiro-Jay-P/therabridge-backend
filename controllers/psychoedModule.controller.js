@@ -37,7 +37,7 @@ export const getModule = async (req, res) => {
   try {
     const mod = await PsychoedModule.findById(req.params.id)
     if (!mod) {
-      return res.status(404).json({ error: { message: "Module not found" } })
+      return res.status(404).json({ error: { message: "Module not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     const progress = await PsychoedProgress.findOne({
@@ -66,7 +66,7 @@ export const startModule = async (req, res) => {
   try {
     const mod = await PsychoedModule.findById(req.params.id)
     if (!mod) {
-      return res.status(404).json({ error: { message: "Module not found" } })
+      return res.status(404).json({ error: { message: "Module not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     const existing = await PsychoedProgress.findOne({
@@ -105,12 +105,12 @@ export const completeStep = async (req, res) => {
   try {
     const mod = await PsychoedModule.findById(req.params.id)
     if (!mod) {
-      return res.status(404).json({ error: { message: "Module not found" } })
+      return res.status(404).json({ error: { message: "Module not found", code: "NOT_FOUND", category: "USER" } })
     }
 
     const { stepIndex } = req.body
     if (typeof stepIndex !== "number" || stepIndex < 0 || stepIndex >= mod.steps.length) {
-      return res.status(400).json({ error: { message: "Invalid step index" } })
+      return res.status(400).json({ error: { message: "Invalid step index", code: "VALIDATION_ERROR", category: "USER" } })
     }
 
     let progress = await PsychoedProgress.findOne({
