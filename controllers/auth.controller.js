@@ -49,15 +49,23 @@ export const register = async (req, res) => {
     // Username format
     if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
       return res.status(400).json({
-        message:
-          "Invalid username. Use letters, numbers, underscores only (3-30 chars).",
+        error: {
+          message:
+            "Invalid username. Use letters, numbers, underscores only (3-30 chars).",
+          code: "VALIDATION_ERROR",
+          category: "USER",
+        },
       });
     }
 
     // Names length
     if (firstName.length < 2 || lastName.length < 2) {
       return res.status(400).json({
-        message: "First and last name must be at least 2 characters long.",
+        error: {
+          message: "First and last name must be at least 2 characters long.",
+          code: "VALIDATION_ERROR",
+          category: "USER",
+        },
       });
     }
 
