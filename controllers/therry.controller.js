@@ -217,10 +217,10 @@ export const chat = async (req, res) => {
   try {
     const { message } = req.body;
     if (!message || message.trim() === "") {
-      return res.status(400).json({ message: "Message cannot be empty." });
+      return res.status(400).json({ error: { message: "Message cannot be empty.", code: "VALIDATION_ERROR", category: "USER" } });
     }
     if (message.trim().length > 4000) {
-      return res.status(400).json({ message: "Message is too long (maximum 4000 characters)." });
+      return res.status(400).json({ error: { message: "Message is too long (maximum 4000 characters).", code: "VALIDATION_ERROR", category: "USER" } });
     }
 
     const aiResults = await analyzeAll(message);
