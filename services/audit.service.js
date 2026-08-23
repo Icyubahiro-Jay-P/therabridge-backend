@@ -1,4 +1,5 @@
 import AuditLog from "../models/auditLog.model.js";
+import logger from "../utils/logger.js";
 
 // Fire-and-forget audit logging. Intentionally swallows errors so auditing
 // never blocks or breaks the request it wraps; failures are surfaced in logs.
@@ -24,7 +25,7 @@ export const logAccess = async ({
       userAgent: userAgent ? String(userAgent).slice(0, 300) : null,
     });
   } catch (err) {
-    console.error("[audit] failed to write log:", err.message);
+    logger.error({ err, action }, "Failed to write audit log");
   }
 };
 
