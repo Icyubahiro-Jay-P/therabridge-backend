@@ -99,7 +99,7 @@ export const acknowledgeAiDisclosure = async (req, res) => {
       { new: true },
     ).select("aiDisclosureAcknowledgedAt");
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND", category: "USER" } });
     }
     await logAccess({
       actor: req.user.id,
@@ -155,7 +155,7 @@ export const exportMyData = async (req, res) => {
     ]);
 
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND", category: "USER" } });
     }
 
     const exportedAt = new Date().toISOString();
