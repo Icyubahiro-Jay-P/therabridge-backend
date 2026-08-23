@@ -333,6 +333,6 @@ export const getRecommendations = async (req, res) => {
     res.status(200).json({ recommendations: capped });
   } catch (err) {
     logger.error({ err }, "failed to generate recommendations");
-    res.status(500).json({ error: { message: "Failed to generate recommendations" } });
+    throw err;
   }
 };
