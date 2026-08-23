@@ -15,7 +15,7 @@ export const authMiddleware = async (req, res, next) => {
   if (!token) {
     return res
       .status(401)
-      .json({ message: "Authentication required. Please log in." });
+      .json({ error: { message: "Authentication required. Please log in.", code: "UNAUTHORIZED", category: "USER" } });
   }
 
   try {
@@ -24,12 +24,12 @@ export const authMiddleware = async (req, res, next) => {
     if (!user) {
       return res
         .status(401)
-        .json({ message: "User account no longer exists." });
+        .json({ error: { message: "User account no longer exists.", code: "UNAUTHORIZED", category: "USER" } });
     }
     if (user.isDisabled) {
       return res
         .status(403)
-        .json({ message: "Account has been disabled. Contact support." });
+        .json({ error: { message: "Account has been disabled. Contact support.", code: "FORBIDDEN", category: "USER" } });
     }
 
     // Prefer authoritative role from DB in case it changed since token issuance
@@ -39,9 +39,11 @@ export const authMiddleware = async (req, res, next) => {
     if (error.name === "TokenExpiredError") {
       return res
         .status(401)
-        .json({ message: "Session expired. Please log in again." });
+        .json({ error: { message: "Session expired. Please log in again.", code: "UNAUTHORIZED", category: "USER" } });
     }
-    return res.status(401).json({ message: "Invalid or malformed token." });
+    return res
+      .status(401)
+      .json({ error: { message: "Invalid or malformed token.", code: "UNAUTHORIZED", category: "USER" } });
   }
 };
 
