@@ -100,7 +100,7 @@ export const takeAssessment = async (req, res) => {
 
     if (responses.length !== config.questions) {
       return res.status(400).json({
-        error: { message: `Expected ${config.questions} responses for ${type}` },
+        error: { message: `Expected ${config.questions} responses for ${type}`, code: "VALIDATION_ERROR", category: "USER" },
       })
     }
 
