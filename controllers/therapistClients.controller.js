@@ -30,13 +30,13 @@ export const addTherapistClient = async (req, res) => {
     const { userId } = req.body;
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND", category: "USER" } });
     }
     if (user.role !== "user") {
-      return res.status(400).json({ message: "Only regular users can be added as clients." });
+      return res.status(400).json({ error: { message: "Only regular users can be added as clients.", code: "VALIDATION_ERROR", category: "USER" } });
     }
     if (user.therapist && user.therapist.toString() !== req.user.id) {
-      return res.status(409).json({ message: "This user already has a therapist." });
+      return res.status(409).json({ error: { message: "This user already has a therapist.", code: "CONFLICT", category: "USER" } });
     }
 
     user.therapist = req.user.id;
@@ -58,13 +58,13 @@ export const assignTherapist = async (req, res) => {
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ error: { message: "User not found.", code: "NOT_FOUND", category: "USER" } });
     }
 
     if (therapistId) {
       const therapist = await User.findById(therapistId);
       if (!therapist || therapist.role !== "therapist") {
-        return res.status(400).json({ message: "Invalid therapist." });
+        return res.status(400).json({ error: { message: "Invalid therapist.", code: "VALIDATION_ERROR", category: "USER" } });
       }
       user.therapist = therapistId;
     } else {
