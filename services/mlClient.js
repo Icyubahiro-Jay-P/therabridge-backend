@@ -1,7 +1,9 @@
+import logger from "../utils/logger.js";
+
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";
 const TIMEOUT_MS = 2000;
 
-async function fetchPrediction(endpoint, text) {
+async function fetchPrediction(endpoint, text, requestId) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -15,9 +17,19 @@ async function fetchPrediction(endpoint, text) {
 
     clearTimeout(timeout);
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // The ML service is optional hardening - degrade gracefully, but leave a
+      // trace so outages are visible in the logs instead of silent.
+      logger.warn({ endpoint, status: res.status }, "ML service returned an error");
+      return null;
+    }
     return await res.json();
-  } catch {
+  } catch (err) {
+    if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+      logger.warn({ endpoint }, "ML service timed out");
+    } else {
+      logger.warn({ err, endpoint }, "ML service unreachable");
+    }
     return null;
   }
 }
