@@ -1,14 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
-vi.mock("../models/user.model.js", () => ({
-  default: {
-    findOne: vi.fn(),
-    findById: vi.fn(),
-    findByIdAndUpdate: vi.fn(),
-    findByIdAndDelete: vi.fn(),
-    updateOne: vi.fn().mockResolvedValue({}),
-  },
-}))
+vi.mock("../models/user.model.js", () => {
+  // Constructible mock - the controller does `new User({...})` during
+  // register, so a plain object literal here throws
+  // "TypeError: default is not a constructor".
+  const UserMock = vi.fn().mockImplementation(function (data = {}) {
+    Object.assign(this, data)
+    this.refreshTokens = this.refreshTokens ?? []
+    this.save = vi.fn().mockResolvedValue(this)
+  })
+  UserMock.findOne = vi.fn()
+  UserMock.findById = vi.fn()
+  UserMock.findByIdAndUpdate = vi.fn()
+  UserMock.findByIdAndDelete = vi.fn()
+  UserMock.updateOne = vi.fn().mockResolvedValue({})
+  return { default: UserMock }
+})
 
 vi.mock("../services/audit.service.js", () => ({
   logAccess: vi.fn(),
@@ -81,23 +88,9 @@ describe("Auth Controller", () => {
       )
     })
 
-    it("should reject invalid email format", async () => {
-      const { req, res } = mockReqRes({
-        body: {
-          username: "testuser",
-          email: "notanemail",
-          password: "password123",
-          firstName: "Test",
-          lastName: "User",
-          dateOfBirth: "2000-01-01",
-        },
-      })
-      await register(req, res)
-      expect(res.status).toHaveBeenCalledWith(400)
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("email") }) })
-      )
-    })
+    // Note: invalid email and underage dateOfBirth are rejected earlier in the
+    // request pipeline by validate(registerSchema) (Zod) - covered in
+    // validation.test.js. The controller only sees pre-validated bodies.
 
     it("should reject invalid username (too short)", async () => {
       const { req, res } = mockReqRes({
@@ -114,24 +107,6 @@ describe("Auth Controller", () => {
       expect(res.status).toHaveBeenCalledWith(400)
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("username") }) })
-      )
-    })
-
-    it("should reject underage users", async () => {
-      const { req, res } = mockReqRes({
-        body: {
-          username: "testuser",
-          email: "test@test.com",
-          password: "password123",
-          firstName: "Test",
-          lastName: "User",
-          dateOfBirth: "2010-01-01",
-        },
-      })
-      await register(req, res)
-      expect(res.status).toHaveBeenCalledWith(400)
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ error: expect.objectContaining({ message: expect.stringContaining("age") }) })
       )
     })
 
