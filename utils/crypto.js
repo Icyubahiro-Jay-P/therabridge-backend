@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import logger from "./logger.js";
 
 // Field-level encryption at rest (AES-256-GCM).
 //
@@ -32,8 +33,8 @@ let warnedMissingKey = false;
 const warnMissingKey = () => {
   if (!warnedMissingKey) {
     warnedMissingKey = true;
-    console.warn(
-      "[crypto] FIELD_ENCRYPTION_KEY is not configured; sensitive fields are not encrypted at rest.",
+    logger.warn(
+      "FIELD_ENCRYPTION_KEY is not configured; sensitive fields are not encrypted at rest.",
     );
   }
 };
