@@ -1,6 +1,11 @@
 import JournalEntry from "../models/journal.model.js"
 import { encryptField, decryptField } from "../utils/crypto.js"
+import { awardMessagePoints } from "../utils/points.js"
+import { awardPetXp } from "../utils/petXp.js"
 import logger from "../utils/logger.js"
+
+const JOURNAL_POINTS = 3
+const JOURNAL_PET_XP = 5
 
 const decryptEntry = (entry) => {
   const obj = entry.toObject()
@@ -27,7 +32,22 @@ export const createEntry = async (req, res) => {
       isPublic: isPublic || false,
     })
     await entry.save()
-    res.status(201).json(decryptEntry(entry))
+
+    // Points on every entry (bounded by the shared daily cap); pet XP only on
+    // the first entry of the day so one writing session can't be farmed.
+    const pointsEarned = await awardMessagePoints(req.user.id, JOURNAL_POINTS)
+
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const todaysCount = await JournalEntry.countDocuments({
+      user: req.user.id,
+      createdAt: { $gte: startOfToday },
+    })
+    if (todaysCount <= 1) {
+      await awardPetXp(req.user.id, JOURNAL_PET_XP)
+    }
+
+    res.status(201).json({ ...decryptEntry(entry), pointsEarned })
   } catch (err) {
       throw err
     }
