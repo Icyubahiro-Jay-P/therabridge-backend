@@ -245,7 +245,6 @@ export const toggleHabitCheckIn = async (req, res) => {
     }
 
     const { date } = req.body
-    const todayKey = toKey(new Date())
     if (date > toKey(new Date(Date.now() + DAY_MS))) {
       return res.status(400).json({ error: { message: "Cannot check in for a future date", code: "VALIDATION_ERROR", category: "USER" } })
     }
@@ -273,7 +272,6 @@ export const toggleHabitCheckIn = async (req, res) => {
       completed: true,
       pointsEarned,
       petLeveledUp: pet.leveledUp,
-      todayKey,
     })
   } catch (err) {
     throw err
