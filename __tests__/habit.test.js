@@ -26,6 +26,7 @@ vi.mock("../models/habit.model.js", () => {
   }
   HabitLogMock.prototype.deleteOne = vi.fn();
   HabitLogMock.create = vi.fn();
+  HabitLogMock.findOne = vi.fn();
   HabitLogMock.find = vi.fn();
   HabitLogMock.aggregate = vi.fn();
 
