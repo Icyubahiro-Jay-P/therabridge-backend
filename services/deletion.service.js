@@ -9,6 +9,18 @@ import ExerciseLog from "../models/exerciseLog.model.js";
 import PushSubscription from "../models/pushSubscription.model.js";
 import SafetyPlan from "../models/safetyPlan.model.js";
 import AuditLog from "../models/auditLog.model.js";
+import ThoughtRecord from "../models/thoughtRecord.model.js";
+import Assessment from "../models/assessment.model.js";
+import GratitudeEntry from "../models/gratitude.model.js";
+import Activity from "../models/activity.model.js";
+import CopingCard from "../models/copingCard.model.js";
+import { PsychoedProgress } from "../models/psychoedModule.model.js";
+import { Program, UserProgress } from "../models/program.model.js";
+import { SleepLog } from "../models/sleep.model.js";
+import { Medication, MedicationLog } from "../models/medication.model.js";
+import Pet from "../models/pet.model.js";
+import JournalEntry from "../models/journal.model.js";
+import { Habit, HabitLog } from "../models/habit.model.js";
 import { withTransaction } from "../utils/transactions.js";
 import { deleteAvatarFromCloudinary } from "../utils/cloudinary.js";
 import logger from "../utils/logger.js";
@@ -66,6 +78,24 @@ export const deleteUserAndData = async (userId) => {
     await ExerciseLog.deleteMany({ user: userId }, opts);
     await PushSubscription.deleteMany({ user: userId }, opts);
     await SafetyPlan.deleteMany({ user: userId }, opts);
+
+    // Wellness tool data (thought records, assessments, gratitude, activities,
+    // coping cards, psychoeducation + program progress, sleep, medications,
+    // pet, journal, habits).
+    await ThoughtRecord.deleteMany({ user: userId }, opts);
+    await Assessment.deleteMany({ user: userId }, opts);
+    await GratitudeEntry.deleteMany({ user: userId }, opts);
+    await Activity.deleteMany({ user: userId }, opts);
+    await CopingCard.deleteMany({ user: userId }, opts);
+    await PsychoedProgress.deleteMany({ user: userId }, opts);
+    await UserProgress.deleteMany({ user: userId }, opts);
+    await SleepLog.deleteMany({ user: userId }, opts);
+    await MedicationLog.deleteMany({ user: userId }, opts);
+    await Medication.deleteMany({ user: userId }, opts);
+    await Pet.deleteMany({ user: userId }, opts);
+    await JournalEntry.deleteMany({ user: userId }, opts);
+    await HabitLog.deleteMany({ user: userId }, opts);
+    await Habit.deleteMany({ user: userId }, opts);
 
     // Keep the audit trail, but strip the identity from it.
     await AuditLog.updateMany(
