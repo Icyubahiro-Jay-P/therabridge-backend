@@ -127,6 +127,8 @@ export const checkActivity = async (req, res) => {
       assessment: 8,
       thought_record: 8,
       medication_log: 5,
+      journal_entry: 5,
+      habit_checkin: 3,
     };
     const xpGain = xpMap[activityType] || 5;
 
