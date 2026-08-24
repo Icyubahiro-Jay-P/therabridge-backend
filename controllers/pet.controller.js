@@ -79,7 +79,7 @@ export const feedPet = async (req, res) => {
     }
 
     await pet.save();
-    res.status(200).json({ fed: true, pet, leveledUp, message: `${pet.name} gobbled up the treat! +5 XP` });
+    res.status(200).json({ fed: true, pet, leveledUp, message: `${pet.name} gobbled up the treat!` });
   } catch (error) {
     throw error;
   }
@@ -165,7 +165,7 @@ export const checkActivity = async (req, res) => {
       leveledUp,
       adventureTriggered,
       adventureText,
-      message: leveledUp ? `${pet.name} leveled up to level ${pet.level}!` : `+${xpGain} XP`,
+      message: leveledUp ? `${pet.name} leveled up to level ${pet.level}!` : `${pet.name} is feeling great!`,
     });
   } catch (error) {
     throw error;
