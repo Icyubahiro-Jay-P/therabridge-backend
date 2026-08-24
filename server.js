@@ -36,6 +36,7 @@ import recommendationRoutes from "./routes/recommendation.route.js";
 import sleepRoutes from "./routes/sleep.route.js";
 import medicationRoutes from "./routes/medication.route.js";
 import petRoutes from "./routes/pet.route.js";
+import habitRoutes from "./routes/habit.route.js";
 import { seedPrograms } from "./controllers/program.controller.js";
 import { seedSleepContent } from "./controllers/sleep.controller.js";
 import {
@@ -191,6 +192,7 @@ app.use("/api/recommendations", recommendationRoutes);
 app.use("/api/sleep", sleepRoutes);
 app.use("/api/medications", medicationRoutes);
 app.use("/api/pet", petRoutes);
+app.use("/api/habits", habitRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
