@@ -380,6 +380,26 @@ export const logSleepSchema = z.object({
   dreams: z.string().max(500).optional(),
 })
 
+export const createHabitSchema = z.object({
+  name: z.string().min(1, "Name is required").max(80),
+  emoji: z.string().min(1).max(8).optional(),
+  color: z.enum(["emerald", "sky", "violet", "amber", "rose", "teal"]).optional(),
+  daysOfWeek: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+  reminderTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Reminder must be HH:mm")
+    .nullable()
+    .optional(),
+})
+
+export const updateHabitSchema = createHabitSchema
+  .partial()
+  .extend({ active: z.boolean().optional() })
+
+export const toggleHabitSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
+})
+
 export const validate = (schema) => (req, res, next) => {
   const result = schema.safeParse(req.body)
   if (!result.success) {
