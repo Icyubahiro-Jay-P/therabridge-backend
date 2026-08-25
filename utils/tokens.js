@@ -43,10 +43,11 @@ const cookieOptions = (maxAge, isSecure) => ({
 });
 
 const isRequestSecure = (req) => {
-  if (!req) return false;
+  if (!req) return process.env.NODE_ENV === "production";
   if (req.secure) return true;
   const proto = req.headers?.["x-forwarded-proto"] ?? "";
-  return proto.split(",")[0].trim() === "https";
+  if (proto.split(",")[0].trim() === "https") return true;
+  return process.env.NODE_ENV === "production";
 };
 
 export const setAuthCookies = (res, { accessToken, refreshToken }) => {
