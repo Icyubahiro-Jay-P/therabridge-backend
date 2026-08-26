@@ -81,6 +81,7 @@ export const markAllAsRead = async (req, res) => {
       recipient: req.user.id,
       read: false,
     });
+    await setUnreadCount(req.user.id, unread);
     emitToUser(req.user.id, "notifications_updated", { count: unread });
     res.status(200).json({ message: "All notifications marked as read." });
   } catch (error) {
