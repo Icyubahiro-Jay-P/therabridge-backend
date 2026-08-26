@@ -104,7 +104,7 @@ export const sendMessage = async (req, res) => {
           _id: origObj._id,
           senderUsername: origObj.sender?.username || "",
           senderAvatar: origObj.sender?.avatar || null,
-          content: decryptField(origObj.content).slice(0, 150),
+          content: encryptField(decryptField(origObj.content).slice(0, 150)),
           type: origObj.type || "text",
         };
       }
