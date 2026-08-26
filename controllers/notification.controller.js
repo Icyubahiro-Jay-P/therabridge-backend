@@ -5,7 +5,7 @@ import {
   getPaginationParams,
   formatPaginatedResponse,
 } from "../utils/pagination.js";
-import { getUnreadCount, setUnreadCount, invalidateUnreadCount } from "../services/cache.js";
+import { getUnreadCount, setUnreadCount } from "../services/cache.js";
 
 export const getMyNotifications = async (req, res) => {
   try {
