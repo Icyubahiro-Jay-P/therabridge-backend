@@ -11,6 +11,10 @@ import {
 } from "../utils/tokens.js";
 import { updateLoginStreak } from "./user.utils.js";
 
+// 2FA lockout: 5 consecutive failed attempts locks 2FA for 15 minutes.
+const MAX_2FA_ATTEMPTS = 5;
+const TWO_FACTOR_LOCKOUT_MS = 15 * 60 * 1000;
+
 // POST /2fa/setup, Generate TOTP secret + QR code (does not enable yet)
 export const setupTwoFactor = async (req, res) => {
   try {
