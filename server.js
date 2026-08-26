@@ -108,70 +108,77 @@ app.use(
   }),
 );
 
-const redisReady = () => redis.status === "ready";
+// Rate limiters are created after Redis connects (see startup block below).
+// These placeholders are replaced before the server starts listening.
+let authLimiter, passwordResetLimiter, twoFactorLimiter, crisisLimiter, generalLimiter;
 
-const redisStoreOpts = {
-  sendCommand: async (...args) => {
-    if (!redisReady()) return undefined;
-    try {
-      return await redis.call(...args);
-    } catch {
-      return undefined;
-    }
-  },
-};
+function createLimiters(useRedis) {
+  const storeOpts = useRedis
+    ? { sendCommand: (...args) => redis.call(...args) }
+    : undefined;
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50,
-  standardHeaders: true,
-  legacyHeaders: false,
-  store: new RedisStore({ ...redisStoreOpts, prefix: "rl:auth:" }),
-  message: { error: { message: "Too many attempts, try again later", code: "RATE_LIMITED" } },
+  const makeStore = (prefix) => (useRedis ? new RedisStore({ ...storeOpts, prefix }) : undefined);
+
+  authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 50,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: makeStore("rl:auth:"),
+    message: { error: { message: "Too many attempts, try again later", code: "RATE_LIMITED" } },
+  });
+
+  passwordResetLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: makeStore("rl:pwd:"),
+    message: { error: { message: "Too many password reset attempts, try again later", code: "RATE_LIMITED" } },
+  });
+
+  twoFactorLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: makeStore("rl:2fa:"),
+    message: { error: { message: "Too many two-factor attempts, try again later", code: "RATE_LIMITED" } },
+  });
+
+  crisisLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: makeStore("rl:crisis:"),
+    message: { error: { message: "Too many alerts, please contact your therapist directly", code: "RATE_LIMITED" } },
+  });
+
+  // Long-poll + layout polling endpoints run frequently (every ~10s), so they
+  // are exempt from the general limiter to avoid tripping it during normal use.
+  const skipFrequentPolling = (req) => /\/updates$/.test(req.path);
+
+  generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 500,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: skipFrequentPolling,
+    store: makeStore("rl:general:"),
+    message: { error: { message: "Too many requests, try again later", code: "RATE_LIMITED" } },
+  });
+}
+
+// Create limiters immediately with in-memory store as safe default.
+// They will be re-created with Redis store after Redis connects.
+createLimiters(false);
+
+app.use((_req, _res, next) => {
+  // Lazily resolve the current general limiter at request time so
+  // swapping from memory → Redis store mid-flight works seamlessly.
+  return generalLimiter(_req, _res, next);
 });
-
-const passwordResetLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  store: new RedisStore({ ...redisStoreOpts, prefix: "rl:pwd:" }),
-  message: { error: { message: "Too many password reset attempts, try again later", code: "RATE_LIMITED" } },
-});
-
-const twoFactorLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  store: new RedisStore({ ...redisStoreOpts, prefix: "rl:2fa:" }),
-  message: { error: { message: "Too many two-factor attempts, try again later", code: "RATE_LIMITED" } },
-});
-
-const crisisLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  store: new RedisStore({ ...redisStoreOpts, prefix: "rl:crisis:" }),
-  message: { error: { message: "Too many alerts, please contact your therapist directly", code: "RATE_LIMITED" } },
-});
-
-// Long-poll + layout polling endpoints run frequently (every ~10s), so they
-// are exempt from the general limiter to avoid tripping it during normal use.
-const skipFrequentPolling = (req) => /\/updates$/.test(req.path);
-
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 500,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: skipFrequentPolling,
-  store: new RedisStore({ ...redisStoreOpts, prefix: "rl:general:" }),
-  message: { error: { message: "Too many requests, try again later", code: "RATE_LIMITED" } },
-});
-
-app.use(generalLimiter);
 
 // ====================== PARSING ======================
 // JSON body parsing is mounted per-router with route-tuned size limits (see
@@ -185,20 +192,20 @@ app.use(idempotencyMiddleware);
 // ====================== ROUTES ======================
 // Auth routes get a stricter limiter registered before the user routes so
 // it actually matches (middleware runs in registration order).
-app.use("/api/users/login", authLimiter);
-app.use("/api/users/register", authLimiter);
-app.use("/api/users/verify-email", authLimiter);
-app.use("/api/users/resend-verification", authLimiter);
-app.use("/api/users/forgot-password", passwordResetLimiter);
-app.use("/api/users/reset-password", passwordResetLimiter);
-app.use("/api/users/2fa/validate", twoFactorLimiter);
+app.use("/api/users/login", (req, res, next) => authLimiter(req, res, next));
+app.use("/api/users/register", (req, res, next) => authLimiter(req, res, next));
+app.use("/api/users/verify-email", (req, res, next) => authLimiter(req, res, next));
+app.use("/api/users/resend-verification", (req, res, next) => authLimiter(req, res, next));
+app.use("/api/users/forgot-password", (req, res, next) => passwordResetLimiter(req, res, next));
+app.use("/api/users/reset-password", (req, res, next) => passwordResetLimiter(req, res, next));
+app.use("/api/users/2fa/validate", (req, res, next) => twoFactorLimiter(req, res, next));
 
 app.use("/api/users", userRoutes);
 app.use("/api/exercises", exerciseRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/mood", moodRoutes);
-app.use("/api/crisis", crisisLimiter);
+app.use("/api/crisis", (req, res, next) => crisisLimiter(req, res, next));
 app.use("/api/crisis", crisisRoutes);
 app.use("/api/therry", therryRoutes);
 app.use("/api/push", pushRoutes);
@@ -306,9 +313,10 @@ connectDB()
     try {
       await redis.connect();
       redisConnected = true;
-      logger.info("Redis connected successfully");
+      createLimiters(true);
+      logger.info("Redis connected successfully — rate limiters using Redis store");
     } catch (err) {
-      logger.warn({ err }, "Redis connection failed — running without cache/queues");
+      logger.warn({ err }, "Redis connection failed — running without cache/queues (memory rate limiting)");
     }
 
     if (redisConnected) {
