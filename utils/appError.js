@@ -57,7 +57,4 @@ export class ServerError extends AppError {
   }
 }
 
-export const userError = (message, opts) => new UserError(message, opts);
-export const serverError = (message, opts) => new ServerError(message, opts);
-
 export default AppError;
