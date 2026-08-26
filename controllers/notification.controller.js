@@ -33,7 +33,11 @@ export const getMyNotifications = async (req, res) => {
 
 export const getUnreadCount = async (req, res) => {
   try {
+    const cached = await getUnreadCount(req.user.id);
+    if (cached !== null) return res.status(200).json({ count: cached });
+
     const count = await Notification.countDocuments({ recipient: req.user.id, read: false });
+    await setUnreadCount(req.user.id, count);
     res.status(200).json({ count });
   } catch (error) {
     throw error;
