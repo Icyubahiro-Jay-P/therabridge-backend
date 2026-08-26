@@ -62,7 +62,7 @@ export const setAuthCookies = (res, { accessToken, refreshToken }) => {
 
 export const clearAuthCookies = (res) => {
   const isSecure = isRequestSecure(res.req);
-  const options = { ...cookieOptions(0, isSecure), maxAge: undefined };
+  const options = cookieOptions(0, isSecure);
   res.clearCookie("token", options);
   res.clearCookie("refreshToken", options);
 };
