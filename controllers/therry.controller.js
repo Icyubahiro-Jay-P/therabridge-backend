@@ -279,11 +279,6 @@ export const chat = async (req, res) => {
         : undefined,
       pointsEarned,
       timestamp: new Date().toISOString(),
-      _ai: aiResults ? {
-        sentiment: aiResults.sentiment?.sentiment,
-        spam_score: aiResults.spam?.spam_score,
-        crisis_score: aiResults.crisis?.crisis_score,
-      } : undefined,
     });
   } catch (error) {
     logger.error({ err: error }, "Therry error");
