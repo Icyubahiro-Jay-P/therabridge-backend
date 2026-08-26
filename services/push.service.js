@@ -83,8 +83,6 @@ export const sendPushToUser = async (userId, { title, body, data = {} }, { skipI
           payload,
           { TTL: DEFAULT_TTL_SECONDS },
         );
-        sub.lastUsedAt = new Date();
-        await sub.save();
         sent++;
       } catch (err) {
         if (err.statusCode === 404 || err.statusCode === 410) {
@@ -94,6 +92,12 @@ export const sendPushToUser = async (userId, { title, body, data = {} }, { skipI
         } else {
           logger.error({ err, statusCode: err.statusCode }, "Push delivery failed");
         }
+      }
+      try {
+        sub.lastUsedAt = new Date();
+        await sub.save();
+      } catch {
+        // Non-critical: metadata update failure should not abort other deliveries
       }
     }
     return sent;
