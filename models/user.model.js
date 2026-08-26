@@ -184,6 +184,16 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // 2FA login lockout: consecutive failed 2FA attempts and when the
+    // 2FA session is locked until. Reset to 0/null on a successful 2FA validation.
+    failedTwoFactorAttempts: {
+      type: Number,
+      default: 0,
+    },
+    twoFactorLockedUntil: {
+      type: Date,
+      default: null,
+    },
     // ISO-3166 alpha-2 country code used to route crisis hotline resources
     countryCode: {
       type: String,
