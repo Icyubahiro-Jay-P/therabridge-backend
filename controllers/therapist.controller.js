@@ -179,7 +179,9 @@ export const getClientsRiskSummary = async (req, res) => {
       computeClientRisk({ client, moods, crises, exerciseLogs, now }),
     );
 
-    res.status(200).json({ clients: summaries });
+    const payload = { clients: summaries };
+    await cacheSet(cacheKey, payload, 300);
+    res.status(200).json(payload);
   } catch (error) {
     throw error;
   }
