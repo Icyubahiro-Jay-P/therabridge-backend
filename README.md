@@ -528,7 +528,6 @@ Crisis handling is automatic, not just manual:
 - **Audit service:** privacy-sensitive access is logged through `services/audit.service.js` (fire-and-forget).
 - **Deletion service:** account deletion cascades through `services/deletion.service.js`.
 - **Mood check-in service:** `services/moodCheckin.service.js` fires after `POST /api/mood`: when the 3 most recent mood entries are all strictly below the user's 14-day baseline, it creates a `mood_checkin` notification (max one per 3 days) and a Therry assistant message.
-- **ML client:** `services/mlClient.js` calls a Python ML microservice for spam/crisis/sentiment hints (falls back gracefully when unavailable).
 - **Encryption:** AES-256-GCM field-level encryption via `utils/crypto.js`, backfilled by `scripts/migrate-encrypt.js`.
 
 ## Project Layout
@@ -538,8 +537,8 @@ Crisis handling is automatic, not just manual:
 ├── routes/                # Express routers per resource (24 route files)
 ├── controllers/           # Request handlers
 ├── models/                # Mongoose schemas (23 model files)
-├── middleware/            # auth, upload (multer+sharp), spamFilter, idempotency, jsonBody, error handlers
-├── services/              # notification, push, audit, deletion, mlClient, moodCheckin
+├── middleware/            # auth, spamFilter, idempotency, jsonBody, error handlers
+├── services/              # notification, push, audit, deletion, moodCheckin
 ├── scripts/               # migrate-encrypt.js, generateVapidKeys.js
 ├── docs/                  # key-management.md, retention-policy.md
 ├── utils/                 # email (Google Apps Script), logger (pino), pagination, validation (zod), crypto, hotlines, cloudinary, tokens, points
