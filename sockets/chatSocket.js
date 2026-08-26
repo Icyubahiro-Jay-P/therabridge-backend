@@ -305,6 +305,7 @@ export const initChatSocket = (server) => {
         callerId: id,
         callerName: socket.data.user.displayName,
         callerUsername: socket.data.user.username,
+        callerAvatar: socket.data.user.avatar || null,
       });
 
       socket.emit("call:initiated", { callId, calleeId });
