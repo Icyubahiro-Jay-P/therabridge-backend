@@ -71,7 +71,11 @@ export const markAllAsRead = async (req, res) => {
       { recipient: req.user.id, read: false },
       { $set: { read: true, readAt: new Date() } }
     );
-    emitToUser(req.user.id, "notifications_updated", { count: 0 });
+    const unread = await Notification.countDocuments({
+      recipient: req.user.id,
+      read: false,
+    });
+    emitToUser(req.user.id, "notifications_updated", { count: unread });
     res.status(200).json({ message: "All notifications marked as read." });
   } catch (error) {
     throw error;
@@ -104,7 +108,11 @@ export const deleteNotification = async (req, res) => {
 export const deleteAllNotifications = async (req, res) => {
   try {
     await Notification.deleteMany({ recipient: req.user.id });
-    emitToUser(req.user.id, "notifications_updated", { count: 0 });
+    const unread = await Notification.countDocuments({
+      recipient: req.user.id,
+      read: false,
+    });
+    emitToUser(req.user.id, "notifications_updated", { count: unread });
     res.status(200).json({ message: "All notifications deleted." });
   } catch (error) {
     throw error;
