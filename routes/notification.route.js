@@ -1,7 +1,7 @@
 import express from "express";
 import {
   getMyNotifications,
-  getUnreadCount,
+  getMyUnreadCount,
   markAsRead,
   markAllAsRead,
   deleteNotification,
@@ -16,7 +16,7 @@ router.use(jsonBody("10kb"));
 router.use(authMiddleware);
 
 router.get("/", getMyNotifications);
-router.get("/unread-count", getUnreadCount);
+router.get("/unread-count", getMyUnreadCount);
 router.put("/:id/read", markAsRead);
 router.put("/read-all", markAllAsRead);
 router.delete("/:id", deleteNotification);
