@@ -108,8 +108,17 @@ app.use(
   }),
 );
 
+const redisReady = () => redis.status === "ready";
+
 const redisStoreOpts = {
-  sendCommand: (...args) => redis.call(...args),
+  sendCommand: async (...args) => {
+    if (!redisReady()) return undefined;
+    try {
+      return await redis.call(...args);
+    } catch {
+      return undefined;
+    }
+  },
 };
 
 const authLimiter = rateLimit({
