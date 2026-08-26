@@ -205,7 +205,7 @@ export const sendCommunityMessage = async (req, res) => {
               : "/community",
           },
           req.user.id,
-          { skipIfOnline: true },
+          { skipIfOnline: true, pushOnly: true },
         ),
       ),
     );
