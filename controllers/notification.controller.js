@@ -62,6 +62,7 @@ export const markAsRead = async (req, res) => {
       recipient: req.user.id,
       read: false,
     });
+    await setUnreadCount(req.user.id, unread);
     emitToUser(req.user.id, "notifications_updated", { count: unread });
 
     res.status(200).json(obj);
