@@ -194,6 +194,10 @@ export const getFullUserData = async (req, res) => {
 // Admin-only platform overview.
 export const getDashboard = async (req, res) => {
   try {
+    const cacheKey = "admin:dashboard";
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.status(200).json(cached);
+
     const week = daysAgo(7);
     const month = daysAgo(30);
 
