@@ -26,9 +26,43 @@ export const createNotification = async (
   body,
   data = {},
   senderId = null,
-  { skipIfOnline = false } = {},
+  { skipIfOnline = false, pushOnly = false } = {},
 ) => {
   try {
+    const pushPayload = {
+      title,
+      body,
+      data: {
+        ...data,
+        url: data.url || DEFAULT_URLS[type] || "/notifications",
+        type,
+      },
+    };
+
+    // pushOnly: skip in-app persistence and socket emit — used for chat
+    // messages where the real-time socket already delivers the message and
+    // the notification bell should stay uncluttered.
+    if (pushOnly) {
+      const criticalTypes = ["crisis_alert", "message"];
+      const isCritical = criticalTypes.includes(type);
+
+      if (isCritical) {
+        await sendPushToUser(recipientId, pushPayload, { skipIfOnline });
+      } else {
+        await notificationQueue.add(
+          "send-push",
+          { recipientId, payload: pushPayload, skipIfOnline },
+          {
+            attempts: 3,
+            backoff: { type: "exponential", delay: 2000 },
+            removeOnComplete: true,
+            removeOnFail: { count: 50 },
+          },
+        );
+      }
+      return null;
+    }
+
     // Bodies carry message previews, so they are encrypted at rest but always
     // delivered to clients/push in plaintext.
     const storedBody = encryptionEnabled() ? encryptField(body ?? "") : body;
@@ -47,20 +81,11 @@ export const createNotification = async (
       body: decryptField(notification.body),
     });
 
+    pushPayload.data.notificationId = notification._id.toString();
+
     // Queue push delivery (non-critical path — won't block the request)
     const criticalTypes = ["crisis_alert", "message"];
     const isCritical = criticalTypes.includes(type);
-
-    const pushPayload = {
-      title,
-      body,
-      data: {
-        ...data,
-        url: data.url || DEFAULT_URLS[type] || "/notifications",
-        type,
-        notificationId: notification._id.toString(),
-      },
-    };
 
     if (isCritical) {
       // Critical notifications: deliver inline for reliability
