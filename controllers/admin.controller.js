@@ -7,6 +7,7 @@ import Notification from "../models/notification.model.js";
 import AuditLog from "../models/auditLog.model.js";
 import { deleteUserAndData } from "../services/deletion.service.js";
 import { logAccess, ipFromReq, uaFromReq } from "../services/audit.service.js";
+import { cacheGet, cacheSet, cacheDelPattern } from "../services/cache.js";
 
 const daysAgo = (days) => {
   const d = new Date();
