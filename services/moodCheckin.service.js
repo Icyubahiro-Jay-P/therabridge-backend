@@ -3,6 +3,7 @@ import Notification from "../models/notification.model.js";
 import { TherryMessage } from "../models/therryMessage.model.js";
 import { createNotification } from "./notification.service.js";
 import { encryptField } from "../utils/crypto.js";
+import { moodCheckinQueue } from "./queue.js";
 import logger from "../utils/logger.js";
 
 const MOOD_SCORE = { great: 4, good: 3, okay: 2, bad: 1, terrible: 0 };
@@ -50,53 +51,69 @@ export const computeMoodCheckin = (entries) => {
   return allBelow ? { baseline, recentScores } : null;
 };
 
-// Fired after a mood entry is logged. Sends at most one mood check-in per user
-// per 3 days (a Therry chat message + an in-app/push notification). Never
-// throws - mood logging must keep working even if this fails.
+// Queue a mood check-in job for async processing. Never blocks the mood
+// logging request. The worker handles the actual DB lookups and notification.
 export const maybeSendMoodCheckin = async (userId) => {
   try {
-    const windowStart =
-      Date.now() - BASELINE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-    const entries = await Mood.find({
-      user: userId,
-      date: { $gte: new Date(windowStart) },
-    })
-      .sort({ date: 1 })
-      .select("mood date");
-
-    const decision = computeMoodCheckin(
-      entries.map((e) => ({ mood: e.mood, date: e.date }))
+    await moodCheckinQueue.add(
+      "check-mood",
+      { userId },
+      {
+        attempts: 2,
+        backoff: { type: "fixed", delay: 5000 },
+        removeOnComplete: true,
+        removeOnFail: { count: 50 },
+      },
     );
-    if (!decision) return null;
-
-    const rateLimitStart = new Date(Date.now() - RATE_LIMIT_MS);
-    const recent = await Notification.findOne({
-      recipient: userId,
-      type: "mood_checkin",
-      createdAt: { $gte: rateLimitStart },
-    }).select("_id");
-    if (recent) return { skipped: "rate_limited" };
-
-    await createNotification(
-      userId,
-      "mood_checkin",
-      CHECKIN_TITLE,
-      CHECKIN_BODY,
-      { url: "/chat/therry" }
-    );
-
-    await TherryMessage.create({
-      user: userId,
-      role: "assistant",
-      content: encryptField(
-        "I noticed the last few mood check-ins have been harder than usual. I'm here if you'd like to talk it through - whenever you're ready."
-      ),
-      category: "checkin",
-    });
-
-    return { sent: true };
+    return { queued: true };
   } catch (error) {
-    logger.error({ err: error }, "Mood check-in failed");
+    logger.error({ err: error }, "Failed to queue mood check-in");
     return null;
   }
+};
+
+// Worker processor for mood check-in queue
+export const processMoodCheckinJob = async (job) => {
+  const { userId } = job.data;
+
+  const windowStart =
+    Date.now() - BASELINE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const entries = await Mood.find({
+    user: userId,
+    date: { $gte: new Date(windowStart) },
+  })
+    .sort({ date: 1 })
+    .select("mood date");
+
+  const decision = computeMoodCheckin(
+    entries.map((e) => ({ mood: e.mood, date: e.date }))
+  );
+  if (!decision) return { skipped: "no_decline" };
+
+  const rateLimitStart = new Date(Date.now() - RATE_LIMIT_MS);
+  const recent = await Notification.findOne({
+    recipient: userId,
+    type: "mood_checkin",
+    createdAt: { $gte: rateLimitStart },
+  }).select("_id");
+  if (recent) return { skipped: "rate_limited" };
+
+  await createNotification(
+    userId,
+    "mood_checkin",
+    CHECKIN_TITLE,
+    CHECKIN_BODY,
+    { url: "/chat/therry" }
+  );
+
+  await TherryMessage.create({
+    user: userId,
+    role: "assistant",
+    content: encryptField(
+      "I noticed the last few mood check-ins have been harder than usual. I'm here if you'd like to talk it through - whenever you're ready."
+    ),
+    category: "checkin",
+  });
+
+  return { sent: true };
 };
