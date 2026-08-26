@@ -1,8 +1,9 @@
 import AuditLog from "../models/auditLog.model.js";
+import { auditQueue } from "./queue.js";
 import logger from "../utils/logger.js";
 
-// Fire-and-forget audit logging. Intentionally swallows errors so auditing
-// never blocks or breaks the request it wraps; failures are surfaced in logs.
+// Fire-and-forget audit logging via BullMQ queue. Intentionally swallows
+// errors so auditing never blocks or breaks the request it wraps.
 export const logAccess = async ({
   actor = null,
   actorRole = "system",
@@ -14,19 +15,42 @@ export const logAccess = async ({
   userAgent = null,
 }) => {
   try {
-    await AuditLog.create({
-      actor: actor || null,
-      actorRole,
-      action,
-      targetType,
-      target: target || null,
-      detail,
-      ip: ip || null,
-      userAgent: userAgent ? String(userAgent).slice(0, 300) : null,
-    });
+    await auditQueue.add(
+      "log-access",
+      {
+        actor: actor || null,
+        actorRole,
+        action,
+        targetType,
+        target: target || null,
+        detail,
+        ip: ip || null,
+        userAgent: userAgent ? String(userAgent).slice(0, 300) : null,
+      },
+      { removeOnComplete: true, removeOnFail: { count: 100 } },
+    );
   } catch (err) {
-    logger.error({ err, action }, "Failed to write audit log");
+    // If queue is unavailable, write directly as fallback
+    try {
+      await AuditLog.create({
+        actor: actor || null,
+        actorRole,
+        action,
+        targetType,
+        target: target || null,
+        detail,
+        ip: ip || null,
+        userAgent: userAgent ? String(userAgent).slice(0, 300) : null,
+      });
+    } catch (fallbackErr) {
+      logger.error({ err: fallbackErr, action }, "Failed to write audit log (queue + fallback)");
+    }
   }
+};
+
+// Worker processor for audit queue
+export const processAuditJob = async (job) => {
+  await AuditLog.create(job.data);
 };
 
 // Helpers for pulling the client IP and user agent off a request.
