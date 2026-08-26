@@ -135,6 +135,10 @@ const computeClientRisk = ({ client, moods, crises, exerciseLogs, now }) => {
 // therapist's roster. Read-only and audit-logged.
 export const getClientsRiskSummary = async (req, res) => {
   try {
+    const cacheKey = `therapist:risk:${req.user.id}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.status(200).json(cached);
+
     const now = new Date();
     const moodWindowStart = new Date(now.getTime() - LOOKBACK.moodDays * DAY_MS);
     const crisisWindowStart = new Date(now.getTime() - LOOKBACK.crisisDays * DAY_MS);
