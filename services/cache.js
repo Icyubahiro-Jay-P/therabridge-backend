@@ -1,0 +1,163 @@
+import Redis from "ioredis";
+import logger from "../utils/logger.js";
+
+const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+
+export const redis = new Redis(REDIS_URL, {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+  retryStrategy(times) {
+    if (times > 10) return null;
+    return Math.min(times * 200, 5000);
+  },
+  lazyConnect: true,
+});
+
+redis.on("error", (err) => {
+  logger.error({ err }, "Redis connection error");
+});
+
+redis.on("connect", () => {
+  logger.info("Redis connected");
+});
+
+// ====================== CACHE HELPERS ======================
+
+const PREFIX = "cache:";
+
+export const cacheGet = async (key) => {
+  try {
+    const raw = await redis.get(`${PREFIX}${key}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const cacheSet = async (key, value, ttlSeconds = 60) => {
+  try {
+    await redis.set(`${PREFIX}${key}`, JSON.stringify(value), "EX", ttlSeconds);
+  } catch {
+    // Cache write failure is non-critical
+  }
+};
+
+export const cacheDel = async (key) => {
+  try {
+    await redis.del(`${PREFIX}${key}`);
+  } catch {
+    // Non-critical
+  }
+};
+
+export const cacheDelPattern = async (pattern) => {
+  try {
+    const keys = await redis.keys(`${PREFIX}${pattern}`);
+    if (keys.length > 0) await redis.del(...keys);
+  } catch {
+    // Non-critical
+  }
+};
+
+// ====================== IDEMPOTENCY HELPERS ======================
+
+const IDEMPOTENCY_PREFIX = "idemp:";
+const IDEMPOTENCY_TTL = 86400; // 24 hours
+
+export const idempotencyGet = async (key) => {
+  try {
+    const raw = await redis.get(`${IDEMPOTENCY_PREFIX}${key}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const idempotencySet = async (key, value) => {
+  try {
+    await redis.set(`${IDEMPOTENCY_PREFIX}${key}`, JSON.stringify(value), "EX", IDEMPOTENCY_TTL);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// ====================== REVOKED TOKEN HELPERS ======================
+
+const REVOKED_TOKEN_PREFIX = "revoked_token:";
+
+export const revokeToken = async (jti, ttlSeconds = 7 * 86400) => {
+  try {
+    await redis.set(`${REVOKED_TOKEN_PREFIX}${jti}`, "1", "EX", ttlSeconds);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const isTokenRevoked = async (jti) => {
+  try {
+    const exists = await redis.exists(`${REVOKED_TOKEN_PREFIX}${jti}`);
+    return exists === 1;
+  } catch {
+    return false;
+  }
+};
+
+// ====================== NOTIFICATION COUNT CACHE ======================
+
+const UNREAD_PREFIX = "unread:";
+
+export const getUnreadCount = async (userId) => {
+  try {
+    const count = await redis.get(`${UNREAD_PREFIX}${userId}`);
+    return count !== null ? parseInt(count, 10) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const setUnreadCount = async (userId, count) => {
+  try {
+    await redis.set(`${UNREAD_PREFIX}${userId}`, count, "EX", 300); // 5min TTL
+  } catch {
+    // Non-critical
+  }
+};
+
+export const invalidateUnreadCount = async (userId) => {
+  try {
+    await redis.del(`${UNREAD_PREFIX}${userId}`);
+  } catch {
+    // Non-critical
+  }
+};
+
+// ====================== USER CACHE ======================
+
+const USER_PREFIX = "user:";
+
+export const getCachedUser = async (userId) => {
+  try {
+    const raw = await redis.get(`${USER_PREFIX}${userId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const setCachedUser = async (userId, userData, ttlSeconds = 300) => {
+  try {
+    await redis.set(`${USER_PREFIX}${userId}`, JSON.stringify(userData), "EX", ttlSeconds);
+  } catch {
+    // Non-critical
+  }
+};
+
+export const invalidateCachedUser = async (userId) => {
+  try {
+    await redis.del(`${USER_PREFIX}${userId}`);
+  } catch {
+    // Non-critical
+  }
+};
