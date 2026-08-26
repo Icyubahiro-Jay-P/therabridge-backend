@@ -133,7 +133,7 @@ export const getMyHabits = async (req, res) => {
       .lean()
 
     const totals = await HabitLog.aggregate([
-      { $match: { habit: { $in: habitIds } } },
+      { $match: { user: req.user.id, habit: { $in: habitIds } } },
       { $group: { _id: "$habit", count: { $sum: 1 } } },
     ])
     const totalsByHabit = new Map(totals.map((t) => [String(t._id), t.count]))
