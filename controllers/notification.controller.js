@@ -31,7 +31,7 @@ export const getMyNotifications = async (req, res) => {
   }
 };
 
-export const getUnreadCount = async (req, res) => {
+export const getMyUnreadCount = async (req, res) => {
   try {
     const cached = await getUnreadCount(req.user.id);
     if (cached !== null) return res.status(200).json({ count: cached });
