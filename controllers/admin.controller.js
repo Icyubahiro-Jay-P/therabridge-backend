@@ -315,7 +315,7 @@ export const getDashboard = async (req, res) => {
       if (moodDist[row._id] !== undefined) moodDist[row._id] = row.count;
     });
 
-    res.status(200).json({
+    const payload = {
       totals: {
         users: totalUsers,
         therapists: totalTherapists,
@@ -354,7 +354,10 @@ export const getDashboard = async (req, res) => {
       activeCrises,
       recentAudit,
       topCommunities,
-    });
+    };
+
+    await cacheSet(cacheKey, payload, 60);
+    res.status(200).json(payload);
   } catch (error) {
     throw error;
   }
