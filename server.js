@@ -122,6 +122,14 @@ const passwordResetLimiter = rateLimit({
   message: { error: { message: "Too many password reset attempts, try again later", code: "RATE_LIMITED" } },
 });
 
+const twoFactorLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { message: "Too many two-factor attempts, try again later", code: "RATE_LIMITED" } },
+});
+
 const crisisLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 20,
