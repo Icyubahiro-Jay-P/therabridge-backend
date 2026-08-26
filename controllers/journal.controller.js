@@ -70,8 +70,8 @@ export const getMyEntries = async (req, res) => {
       .skip(skip)
       .limit(Number(limit) + 1)
 
-    const hasMore = entries.length > Number(limit)
-    if (hasMore) entries = entries.slice(0, Number(limit))
+    const preFilterHasMore = entries.length > Number(limit)
+    if (preFilterHasMore) entries = entries.slice(0, Number(limit))
 
     let results = entries.map(decryptEntry)
 
@@ -83,6 +83,8 @@ export const getMyEntries = async (req, res) => {
           e.content.toLowerCase().includes(q),
       )
     }
+
+    const hasMore = preFilterHasMore || results.length === Number(limit)
 
     res.json({ entries: results, hasMore })
   } catch (err) {
