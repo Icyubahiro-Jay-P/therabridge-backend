@@ -349,6 +349,7 @@ export const initChatSocket = (server) => {
     socket.on("call:end", ({ callId } = {}) => {
       const call = io._activeCalls?.get(callId);
       if (!call) return;
+      if (call.callerId !== id && call.calleeId !== id) return;
       clearCallTimeout(callId);
       const peerId =
         call.callerId === id ? call.calleeId : call.callerId;
