@@ -49,10 +49,6 @@ export const deletePushSubscription = async (userId, endpoint) => {
   return PushSubscription.findOneAndDelete({ user: userId, endpoint });
 };
 
-export const deleteAllPushSubscriptions = async (userId) => {
-  return PushSubscription.deleteMany({ user: userId });
-};
-
 // Sends a device push to every subscription the user has. If `skipIfOnline`
 // is true (used for chat messages), no push is sent while the user has a live
 // socket - they already get the in-app notification in real time.
