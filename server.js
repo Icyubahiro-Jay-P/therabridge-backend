@@ -158,7 +158,7 @@ app.use(idempotencyMiddleware);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ====================== ROUTES ======================
-// Auth routes get a stricter limiter - registered before the user routes so
+// Auth routes get a stricter limiter registered before the user routes so
 // it actually matches (middleware runs in registration order).
 app.use("/api/users/login", authLimiter);
 app.use("/api/users/register", authLimiter);
