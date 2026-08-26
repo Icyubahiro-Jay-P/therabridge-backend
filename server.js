@@ -216,7 +216,15 @@ app.get("/health", async (req, res) => {
   try {
     const dbState = mongoose.connection.readyState;
     const dbStatus = { 0: "disconnected", 1: "connected", 2: "connecting", 3: "disconnecting" };
-    const redisStatus = redis.status === "ready" ? "connected" : redis.status;
+    let redisStatus = "disconnected";
+    try {
+      if (redis.status === "ready" || redis.status === "connect") {
+        await redis.ping();
+        redisStatus = "connected";
+      }
+    } catch {
+      redisStatus = "disconnected";
+    }
 
     res.status(200).json({
       status: "ok",
