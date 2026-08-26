@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "seed": "node scripts/seed.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "vapid": "node ./scripts/generateVapidKeys.js",
