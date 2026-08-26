@@ -333,6 +333,7 @@ export const getMyConversations = async (req, res) => {
                   $and: [
                     { $eq: ["$recipient", myObjectId] },
                     { $eq: ["$read", false] },
+                    { $eq: ["$unsent", false] },
                   ],
                 },
                 1,
@@ -371,11 +372,13 @@ export const getMyConversations = async (req, res) => {
       .select("username firstName lastName avatar isDisabled");
     const partnerMap = new Map(partners.map((p) => [p._id.toString(), p]));
 
-    const result = conversations.map((c) => ({
-      partner: partnerMap.get(c._id.toString()),
-      lastMessage: decryptMessageContent(c.lastMessage),
-      unread: c.unreadCount,
-    }));
+    const result = conversations
+      .filter((c) => partnerMap.has(c._id.toString()))
+      .map((c) => ({
+        partner: partnerMap.get(c._id.toString()),
+        lastMessage: decryptMessageContent(c.lastMessage),
+        unread: c.unreadCount,
+      }));
 
     res
       .status(200)
