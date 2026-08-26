@@ -296,6 +296,7 @@ connectDB()
     }
 
     await scheduleRetentionPurge();
+    startWorkers();
 
     serverInstance.httpServer = server.listen(PORT, () => {
       logger.info({ port: PORT }, "Therabridge server started");
