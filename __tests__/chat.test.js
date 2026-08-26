@@ -64,7 +64,10 @@ import {
 import { Message, Community } from "../models/chat.model.js"
 import User from "../models/user.model.js"
 import Notification from "../models/notification.model.js"
-import { recordPossibleScreenshot as mockRecordPossibleScreenshot, emitToUser as mockEmitToUser } from "../sockets/chatSocket.js"
+import {
+  recordPossibleScreenshot as mockRecordPossibleScreenshot,
+  emitToUser as mockEmitToUser,
+} from "../sockets/chatSocket.js"
 
 function mockReqRes(overrides = {}) {
   const req = {
@@ -228,7 +231,6 @@ describe("Chat Controller", () => {
       const { req, res } = mockReqRes({ params: { userId: "user456" } })
       await markConversationRead(req, res)
       expect(Message.updateMany).not.toHaveBeenCalled()
-      // The reader's own notification bell is still cleared.
       expect(Notification.updateMany).toHaveBeenCalled()
       expect(res.status).toHaveBeenCalledWith(200)
       expect(res.json).toHaveBeenCalledWith(
