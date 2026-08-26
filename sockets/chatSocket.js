@@ -140,7 +140,7 @@ export const initChatSocket = (server) => {
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.id).select(
-        "isDisabled role username firstName lastName",
+        "isDisabled role username firstName lastName avatar",
       );
       if (!user) return next(new Error("unauthorized"));
       if (user.isDisabled) return next(new Error("disabled"));
