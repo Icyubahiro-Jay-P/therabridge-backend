@@ -174,6 +174,7 @@ app.use("/api/users/verify-email", authLimiter);
 app.use("/api/users/resend-verification", authLimiter);
 app.use("/api/users/forgot-password", passwordResetLimiter);
 app.use("/api/users/reset-password", passwordResetLimiter);
+app.use("/api/users/2fa/validate", twoFactorLimiter);
 
 app.use("/api/users", userRoutes);
 app.use("/api/exercises", exerciseRoutes);
