@@ -1,12 +1,11 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import { encryptField, encryptionEnabled } from "../utils/crypto.js";
-import Message from "../models/message.model.js";
+import { Message, Community } from "../models/chat.model.js";
 import Mood from "../models/mood.model.js";
 import Crisis from "../models/crisis.model.js";
 import { TherryMessage } from "../models/therryMessage.model.js";
 import Notification from "../models/notification.model.js";
-import Community from "../models/community.model.js";
 
 dotenv.config();
 
