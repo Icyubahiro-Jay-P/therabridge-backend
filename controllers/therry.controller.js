@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { analyzeAll } from "../services/mlClient.js";
 import { TherryMessage } from "../models/therryMessage.model.js";
 import Crisis from "../models/crisis.model.js";
 import CrisisLog from "../models/crisisLog.model.js";
@@ -223,35 +222,8 @@ export const chat = async (req, res) => {
       return res.status(400).json({ error: { message: "Message is too long (maximum 4000 characters).", code: "VALIDATION_ERROR", category: "USER" } });
     }
 
-    const aiResults = await analyzeAll(message);
-
     let category = getResponseCategory(message);
     let isCrisis = category === "crisis";
-
-    if (aiResults) {
-      if (aiResults.crisis?.is_crisis) {
-        isCrisis = true;
-        category = "crisis";
-      }
-
-      if (!isCrisis && aiResults.sentiment) {
-        const sentimentMap = {
-          negative: "sad",
-          positive: "general",
-          neutral: "general",
-        };
-        category = sentimentMap[aiResults.sentiment.sentiment] || category;
-      }
-
-      if (aiResults.spam?.is_spam) {
-        return res.status(400).json({
-          message: "I'm here to support you with meaningful conversations. Please share what's on your mind.",
-          category: "general",
-          isCrisis: false,
-          timestamp: new Date().toISOString(),
-        });
-      }
-    }
 
     const userMsg = await saveMessage(
       req.user.id,
