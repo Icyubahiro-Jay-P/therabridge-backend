@@ -62,6 +62,10 @@ export const createNotification = async (
 
     return notification;
   } catch (error) {
+    const criticalTypes = ["crisis_alert", "message"];
+    if (criticalTypes.includes(type)) {
+      throw error;
+    }
     logger.error({ err: error }, "Failed to create notification");
     return null;
   }
