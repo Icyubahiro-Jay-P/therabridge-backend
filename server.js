@@ -218,6 +218,7 @@ app.get("/health", async (req, res) => {
   try {
     const dbState = mongoose.connection.readyState;
     const dbStatus = { 0: "disconnected", 1: "connected", 2: "connecting", 3: "disconnecting" };
+    const redisStatus = redis.status === "ready" ? "connected" : redis.status;
 
     res.status(200).json({
       status: "ok",
@@ -225,6 +226,7 @@ app.get("/health", async (req, res) => {
       uptime: process.uptime(),
       environment: process.env.NODE_ENV || "development",
       database: dbStatus[dbState] || "unknown",
+      redis: redisStatus,
     });
   } catch {
     res.status(503).json({ status: "error", message: "Health check failed" });
