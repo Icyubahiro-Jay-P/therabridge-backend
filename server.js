@@ -286,7 +286,16 @@ process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 
 connectDB()
-  .then(() => {
+  .then(async () => {
+    try {
+      await redis.connect();
+      logger.info("Redis connected successfully");
+    } catch (err) {
+      logger.warn({ err }, "Redis connection failed — running without cache");
+    }
+
+    await scheduleRetentionPurge();
+
     serverInstance.httpServer = server.listen(PORT, () => {
       logger.info({ port: PORT }, "Therabridge server started");
     });
