@@ -256,9 +256,15 @@ process.on("uncaughtException", (err) => {
 const shutdown = (signal) => {
   logger.info({ signal }, "Shutting down gracefully");
   if (!serverInstance.httpServer) return;
-  serverInstance.httpServer.close(() => {
+  serverInstance.httpServer.close(async () => {
     if (serverInstance.dbClosed) return;
     serverInstance.dbClosed = true;
+    try {
+      await redis.quit();
+      logger.info("Redis disconnected");
+    } catch {
+      // Redis may already be disconnected
+    }
     mongoose
       .disconnect()
       .then(() => {
