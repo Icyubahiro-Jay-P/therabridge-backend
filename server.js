@@ -86,7 +86,7 @@ app.use((req, res, next) => {
 // ====================== SECURITY ======================
 app.use(
   helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginResourcePolicy: { policy: "same-origin" },
     contentSecurityPolicy: false,
   }),
 );
