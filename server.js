@@ -302,15 +302,27 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 
 connectDB()
   .then(async () => {
+    let redisConnected = false;
     try {
       await redis.connect();
+      redisConnected = true;
       logger.info("Redis connected successfully");
     } catch (err) {
-      logger.warn({ err }, "Redis connection failed — running without cache");
+      logger.warn({ err }, "Redis connection failed — running without cache/queues");
     }
 
-    await scheduleRetentionPurge();
-    startWorkers();
+    if (redisConnected) {
+      try {
+        await scheduleRetentionPurge();
+      } catch (err) {
+        logger.warn({ err }, "Failed to schedule retention purge");
+      }
+      try {
+        startWorkers();
+      } catch (err) {
+        logger.warn({ err }, "Failed to start workers");
+      }
+    }
 
     serverInstance.httpServer = server.listen(PORT, () => {
       logger.info({ port: PORT }, "Therabridge server started");
