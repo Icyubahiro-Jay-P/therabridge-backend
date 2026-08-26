@@ -1,17 +1,6 @@
 import crypto from "crypto"
+import { idempotencyGet, idempotencySet } from "../services/cache.js"
 import logger from "../utils/logger.js"
-
-const memoryStore = new Map()
-
-const CLEANUP_INTERVAL = 60 * 60 * 1000
-const TTL = 24 * 60 * 60 * 1000
-
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, entry] of memoryStore) {
-    if (entry.expiresAt <= now) memoryStore.delete(key)
-  }
-}, CLEANUP_INTERVAL)
 
 function hashBody(body) {
   return crypto.createHash("sha256").update(JSON.stringify(body || {})).digest("hex")
@@ -22,7 +11,7 @@ function getStoreKey(req, key) {
   return `${userId}:${key}`
 }
 
-export const idempotencyMiddleware = (req, res, next) => {
+export const idempotencyMiddleware = async (req, res, next) => {
   if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return next()
 
   const idempotencyKey = req.headers["idempotency-key"]
@@ -31,55 +20,50 @@ export const idempotencyMiddleware = (req, res, next) => {
   const storeKey = getStoreKey(req, idempotencyKey)
   const requestHash = hashBody(req.body)
 
-  const existing = memoryStore.get(storeKey)
-  if (existing) {
-    if (existing.status === "processing") {
-      return res.status(425).json({
-        error: { message: "Request is already being processed", code: "TOO_EARLY" },
-      })
+  try {
+    const existing = await idempotencyGet(storeKey)
+    if (existing) {
+      if (existing.status === "processing") {
+        return res.status(425).json({
+          error: { message: "Request is already being processed", code: "TOO_EARLY" },
+        })
+      }
+
+      if (existing.requestHash !== requestHash) {
+        return res.status(422).json({
+          error: {
+            message: "Idempotency key reused with different request body",
+            code: "IDEMPOTENCY_KEY_MISMATCH",
+          },
+        })
+      }
+
+      return res.status(existing.statusCode).json(existing.data)
     }
 
-    if (existing.requestHash !== requestHash) {
-      return res.status(422).json({
-        error: {
-          message: "Idempotency key reused with different request body",
-          code: "IDEMPOTENCY_KEY_MISMATCH",
-        },
-      })
-    }
-
-    return res.status(existing.statusCode).json(existing.data)
+    await idempotencySet(storeKey, {
+      requestHash,
+      status: "processing",
+    })
+  } catch {
+    // If Redis is down, allow the request through (fail open)
   }
-
-  memoryStore.set(storeKey, {
-    requestHash,
-    status: "processing",
-    expiresAt: Date.now() + TTL,
-  })
 
   const originalJson = res.json.bind(res)
   res.json = function (data) {
-    memoryStore.set(storeKey, {
+    idempotencySet(storeKey, {
       requestHash,
       statusCode: res.statusCode,
       data,
       status: "completed",
-      expiresAt: Date.now() + TTL,
-    })
+    }).catch(() => {})
 
     return originalJson(data)
   }
-
-  res.on("finish", () => {
-    const entry = memoryStore.get(storeKey)
-    if (entry && entry.status === "processing") {
-      memoryStore.delete(storeKey)
-    }
-  })
 
   next()
 }
 
 export const clearIdempotencyCache = () => {
-  memoryStore.clear()
+  // No-op: Redis handles its own cleanup via TTL
 }
