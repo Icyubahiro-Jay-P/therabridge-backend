@@ -173,9 +173,6 @@ app.use(cookieParser());
 // ====================== IDEMPOTENCY ======================
 app.use(idempotencyMiddleware);
 
-// ====================== STATIC FILES ======================
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 // ====================== ROUTES ======================
 // Auth routes get a stricter limiter registered before the user routes so
 // it actually matches (middleware runs in registration order).
