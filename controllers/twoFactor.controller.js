@@ -114,6 +114,21 @@ export const validateTwoFactor = async (req, res) => {
       return res.status(400).json({ error: { message: "Two-factor authentication is not enabled.", code: "NOT_ENABLED" } });
     }
 
+    // 2FA lockout: after MAX_2FA_ATTEMPTS failures the 2FA session is locked
+    // until twoFactorLockedUntil.
+    const now = Date.now();
+    if (user.twoFactorLockedUntil && user.twoFactorLockedUntil.getTime() > now) {
+      const remainingMin = Math.ceil(
+        (user.twoFactorLockedUntil.getTime() - now) / 60000,
+      );
+      return res.status(429).json({
+        error: {
+          message: `Too many failed two-factor attempts. Try again in ${remainingMin} minute${remainingMin === 1 ? "" : "s"}.`,
+          code: "ACCOUNT_LOCKED",
+        },
+      });
+    }
+
     // Check if it's a backup code (8-char hex)
     let isBackupCode = false;
     if (/^[0-9a-f]{8}$/.test(code)) {
