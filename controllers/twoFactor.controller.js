@@ -152,9 +152,40 @@ export const validateTwoFactor = async (req, res) => {
       });
 
       if (!verified) {
+        const failed = (user.failedTwoFactorAttempts || 0) + 1;
+        if (failed >= MAX_2FA_ATTEMPTS) {
+          await User.updateOne(
+            { _id: user._id },
+            {
+              $set: {
+                failedTwoFactorAttempts: 0,
+                twoFactorLockedUntil: new Date(now + TWO_FACTOR_LOCKOUT_MS),
+              },
+            },
+          );
+          const remainingMin = Math.ceil(TWO_FACTOR_LOCKOUT_MS / 60000);
+          return res.status(429).json({
+            error: {
+              message: `Too many failed two-factor attempts. Account locked for ${remainingMin} minutes.`,
+              code: "ACCOUNT_LOCKED",
+            },
+          });
+        }
+        await User.updateOne(
+          { _id: user._id },
+          { $set: { failedTwoFactorAttempts: failed } },
+        );
         return res.status(400).json({ error: { message: "Invalid code.", code: "INVALID_CODE" } });
       }
     }
+
+    // 2FA verified: clear any prior lockout state
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { failedTwoFactorAttempts: 0, twoFactorLockedUntil: null } },
+    );
+    user.failedTwoFactorAttempts = 0;
+    user.twoFactorLockedUntil = null;
 
     // 2FA verified, issue full tokens
     const accessToken = signAccessToken(user);
