@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import mongoose from "mongoose";
 import { connectDB } from "./db/connectDB.js";
 import { initChatSocket } from "./sockets/chatSocket.js";
+import { redis } from "./services/cache.js";
 import userRoutes from "./routes/user.route.js";
 import exerciseRoutes from "./routes/exercise.route.js";
 import chatRoutes from "./routes/chat.route.js";
