@@ -42,14 +42,6 @@ export const cacheSet = async (key, value, ttlSeconds = 60) => {
   }
 };
 
-export const cacheDel = async (key) => {
-  try {
-    await redis.del(`${PREFIX}${key}`);
-  } catch {
-    // Non-critical
-  }
-};
-
 export const cacheDelPattern = async (pattern) => {
   try {
     const keys = await redis.keys(`${PREFIX}${pattern}`);
@@ -82,28 +74,6 @@ export const idempotencySet = async (key, value) => {
   }
 };
 
-// ====================== REVOKED TOKEN HELPERS ======================
-
-const REVOKED_TOKEN_PREFIX = "revoked_token:";
-
-export const revokeToken = async (jti, ttlSeconds = 7 * 86400) => {
-  try {
-    await redis.set(`${REVOKED_TOKEN_PREFIX}${jti}`, "1", "EX", ttlSeconds);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-export const isTokenRevoked = async (jti) => {
-  try {
-    const exists = await redis.exists(`${REVOKED_TOKEN_PREFIX}${jti}`);
-    return exists === 1;
-  } catch {
-    return false;
-  }
-};
-
 // ====================== NOTIFICATION COUNT CACHE ======================
 
 const UNREAD_PREFIX = "unread:";
@@ -128,35 +98,6 @@ export const setUnreadCount = async (userId, count) => {
 export const invalidateUnreadCount = async (userId) => {
   try {
     await redis.del(`${UNREAD_PREFIX}${userId}`);
-  } catch {
-    // Non-critical
-  }
-};
-
-// ====================== USER CACHE ======================
-
-const USER_PREFIX = "user:";
-
-export const getCachedUser = async (userId) => {
-  try {
-    const raw = await redis.get(`${USER_PREFIX}${userId}`);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-};
-
-export const setCachedUser = async (userId, userData, ttlSeconds = 300) => {
-  try {
-    await redis.set(`${USER_PREFIX}${userId}`, JSON.stringify(userData), "EX", ttlSeconds);
-  } catch {
-    // Non-critical
-  }
-};
-
-export const invalidateCachedUser = async (userId) => {
-  try {
-    await redis.del(`${USER_PREFIX}${userId}`);
   } catch {
     // Non-critical
   }
