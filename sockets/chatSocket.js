@@ -332,6 +332,13 @@ export const initChatSocket = (server) => {
     });
 
     socket.on("call:ice-candidate", ({ callId, candidate, targetId } = {}) => {
+      const call = io._activeCalls?.get(callId);
+      if (!call) return;
+      const isParticipant = call.callerId === id || call.calleeId === id;
+      const validTarget =
+        (call.callerId === id && call.calleeId === targetId) ||
+        (call.calleeId === id && call.callerId === targetId);
+      if (!isParticipant || !validTarget) return;
       io.to(`user:${targetId}`).emit("call:ice-candidate", {
         callId,
         candidate,
