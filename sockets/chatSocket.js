@@ -50,8 +50,6 @@ const extractToken = (handshake) => {
 
 let ioInstance = null;
 
-export const getSocketIO = () => ioInstance;
-
 export const emitToUser = (userId, event, payload) => {
   ioInstance?.to(`user:${userId}`).emit(event, payload);
 };
