@@ -57,11 +57,10 @@ Copy `backend/.env.example` to `.env`:
 | `CLOUDINARY_CLOUD_NAME` | Prod | Cloudinary cloud name for profile pictures |
 | `CLOUDINARY_API_KEY` | Prod | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Prod | Cloudinary API secret |
-| `AI_SERVICE_URL` | No | Python ML microservice (default: `http://localhost:8000`) |
 | `NODE_ENV` | No | `development` or `production` |
 | `LOG_LEVEL` | No | Pino log level (default: `info`) |
 
-**Production:** the API runs at [therabridge-backend.onrender.com](https://therabridge-backend.onrender.com); the Vercel frontend proxies `/api`, `/uploads`, and `/socket.io` to it via the rewrites in `frontend/vercel.json`.
+**Production:** the API runs at [therabridge-backend.onrender.com](https://therabridge-backend.onrender.com); the Vercel frontend proxies `/api` and `/socket.io` to it via the rewrites in `frontend/vercel.json`.
 
 ## Scripts
 
@@ -519,7 +518,7 @@ Crisis handling is automatic, not just manual:
 
 ## Therry (AI Companion)
 
-`POST /api/therry/chat` generates replies with Google Gemini (`gemini-3.5-flash`, system prompt enforces a supportive, non-diagnostic tone). Keyword heuristics classify the message into a category; if an ML microservice is reachable, its crisis/sentiment/spam hints refine the category. Crisis messages always return a helpline response and are auto-escalated. Both user and assistant turns are persisted to `TherryMessage` (encrypted content, <=4000 chars).
+`POST /api/therry/chat` generates replies with Google Gemini (`gemini-3.5-flash`, system prompt enforces a supportive, non-diagnostic tone). Keyword heuristics classify the message into a category. Crisis messages always return a helpline response and are auto-escalated. Both user and assistant turns are persisted to `TherryMessage` (encrypted content, <=4000 chars).
 
 ## Architecture Notes
 
