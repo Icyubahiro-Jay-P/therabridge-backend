@@ -1,8 +1,10 @@
 import { Server } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
 import { Message, Community } from "../models/chat.model.js";
 import { encryptField } from "../utils/crypto.js";
+import { redis } from "../services/cache.js";
 import logger from "../utils/logger.js";
 
 // ====================== RATE LIMITING ======================
