@@ -3,6 +3,7 @@ import Mood from "../models/mood.model.js";
 import Crisis from "../models/crisis.model.js";
 import ExerciseLog from "../models/exerciseLog.model.js";
 import { logAccess, ipFromReq, uaFromReq } from "../services/audit.service.js";
+import { cacheGet, cacheSet } from "../services/cache.js";
 
 const DAY_MS = 86400000;
 const MOOD_SCORE = { great: 5, good: 4, okay: 3, bad: 2, terrible: 1 };
