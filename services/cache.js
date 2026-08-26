@@ -7,14 +7,18 @@ export const redis = new Redis(REDIS_URL, {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
   retryStrategy(times) {
-    if (times > 10) return null;
-    return Math.min(times * 200, 5000);
+    if (times > 5) return null;
+    return Math.min(times * 200, 3000);
   },
   lazyConnect: true,
 });
 
+let loggedFirstError = false;
 redis.on("error", (err) => {
-  logger.error({ err }, "Redis connection error");
+  if (!loggedFirstError) {
+    logger.error({ err }, "Redis connection error");
+    loggedFirstError = true;
+  }
 });
 
 redis.on("connect", () => {
