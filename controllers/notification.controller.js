@@ -104,6 +104,7 @@ export const deleteNotification = async (req, res) => {
       recipient: req.user.id,
       read: false,
     });
+    await setUnreadCount(req.user.id, unread);
     emitToUser(req.user.id, "notifications_updated", { count: unread });
 
     res.status(200).json({ message: "Notification deleted." });
@@ -115,11 +116,8 @@ export const deleteNotification = async (req, res) => {
 export const deleteAllNotifications = async (req, res) => {
   try {
     await Notification.deleteMany({ recipient: req.user.id });
-    const unread = await Notification.countDocuments({
-      recipient: req.user.id,
-      read: false,
-    });
-    emitToUser(req.user.id, "notifications_updated", { count: unread });
+    await setUnreadCount(req.user.id, 0);
+    emitToUser(req.user.id, "notifications_updated", { count: 0 });
     res.status(200).json({ message: "All notifications deleted." });
   } catch (error) {
     throw error;
