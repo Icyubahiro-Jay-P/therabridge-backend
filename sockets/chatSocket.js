@@ -284,6 +284,7 @@ export const initChatSocket = (server) => {
       // Reject if caller already in a call
       for (const [, call] of io._activeCalls) {
         if (call.callerId === id || call.calleeId === id) {
+          socket.emit("call:busy", { calleeId });
           return;
         }
       }
@@ -311,7 +312,7 @@ export const initChatSocket = (server) => {
 
     socket.on("call:offer", ({ callId, sdp, calleeId } = {}) => {
       const call = io._activeCalls?.get(callId);
-      if (!call || call.callerId !== id) return;
+      if (!call || call.callerId !== id || call.calleeId !== calleeId) return;
       io.to(`user:${calleeId}`).emit("call:offer", {
         callId,
         sdp,
@@ -348,12 +349,12 @@ export const initChatSocket = (server) => {
       io.to(`user:${peerId}`).emit("call:ended", { callId, endedBy: id });
     });
 
-    socket.on("call:reject", ({ callId, callerId } = {}) => {
+    socket.on("call:reject", ({ callId } = {}) => {
       const call = io._activeCalls?.get(callId);
       if (!call || call.calleeId !== id) return;
       clearCallTimeout(callId);
       io._activeCalls.delete(callId);
-      io.to(`user:${callerId}`).emit("call:rejected", {
+      io.to(`user:${call.callerId}`).emit("call:rejected", {
         callId,
         calleeId: id,
       });
