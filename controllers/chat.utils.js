@@ -10,6 +10,9 @@ export const decryptMessageContent = (doc) => {
   return {
     ...obj,
     content: decryptField(obj.content),
+    replyTo: obj.replyTo
+      ? { ...obj.replyTo, content: decryptField(obj.replyTo.content) }
+      : obj.replyTo,
     editHistory: (obj.editHistory || []).map((h) => ({
       ...h,
       content: decryptField(h.content),
@@ -23,6 +26,9 @@ export const decryptCommunityMessageContent = (doc) => {
   return {
     ...obj,
     content: decryptField(obj.content),
+    replyTo: obj.replyTo
+      ? { ...obj.replyTo, content: decryptField(obj.replyTo.content) }
+      : obj.replyTo,
   };
 };
 
