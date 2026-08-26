@@ -14,7 +14,7 @@ RUN addgroup -g 1001 -S therabridge && \
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN mkdir -p uploads && chown -R therabridge:therabridge /app
+RUN chown -R therabridge:therabridge /app
 
 USER therabridge
 
