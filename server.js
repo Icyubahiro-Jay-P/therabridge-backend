@@ -37,8 +37,6 @@ import sleepRoutes from "./routes/sleep.route.js";
 import medicationRoutes from "./routes/medication.route.js";
 import petRoutes from "./routes/pet.route.js";
 import habitRoutes from "./routes/habit.route.js";
-import { seedPrograms } from "./controllers/program.controller.js";
-import { seedSleepContent } from "./controllers/sleep.controller.js";
 import {
   errorHandler,
   notFoundHandler,
@@ -268,9 +266,7 @@ process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 
 connectDB()
-  .then(async () => {
-    await seedPrograms();
-    await seedSleepContent();
+  .then(() => {
     serverInstance.httpServer = server.listen(PORT, () => {
       logger.info({ port: PORT }, "Therabridge server started");
     });
