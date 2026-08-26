@@ -107,11 +107,16 @@ app.use(
   }),
 );
 
+const redisStoreOpts = {
+  sendCommand: (...args) => redis.call(...args),
+};
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50,
   standardHeaders: true,
   legacyHeaders: false,
+  store: new RedisStore({ ...redisStoreOpts, prefix: "rl:auth:" }),
   message: { error: { message: "Too many attempts, try again later", code: "RATE_LIMITED" } },
 });
 
@@ -120,6 +125,7 @@ const passwordResetLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  store: new RedisStore({ ...redisStoreOpts, prefix: "rl:pwd:" }),
   message: { error: { message: "Too many password reset attempts, try again later", code: "RATE_LIMITED" } },
 });
 
@@ -128,6 +134,7 @@ const twoFactorLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  store: new RedisStore({ ...redisStoreOpts, prefix: "rl:2fa:" }),
   message: { error: { message: "Too many two-factor attempts, try again later", code: "RATE_LIMITED" } },
 });
 
@@ -136,6 +143,7 @@ const crisisLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  store: new RedisStore({ ...redisStoreOpts, prefix: "rl:crisis:" }),
   message: { error: { message: "Too many alerts, please contact your therapist directly", code: "RATE_LIMITED" } },
 });
 
@@ -149,6 +157,7 @@ const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: skipFrequentPolling,
+  store: new RedisStore({ ...redisStoreOpts, prefix: "rl:general:" }),
   message: { error: { message: "Too many requests, try again later", code: "RATE_LIMITED" } },
 });
 
