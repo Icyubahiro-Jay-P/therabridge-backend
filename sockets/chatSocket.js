@@ -150,6 +150,7 @@ export const initChatSocket = (server) => {
         role: user.role,
         username: user.username,
         displayName: user.firstName || user.username,
+        avatar: user.avatar || null,
       };
       next();
     } catch {
