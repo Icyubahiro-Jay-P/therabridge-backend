@@ -123,6 +123,18 @@ export const initChatSocket = (server) => {
   const io = new Server(server, { cors: getSocketCors() });
   ioInstance = io;
 
+  // Attach Redis adapter for cross-instance pub/sub when Redis is available
+  if (redis.status === "ready") {
+    try {
+      const pubClient = redis.duplicate();
+      const subClient = redis.duplicate();
+      io.adapter(createAdapter(pubClient, subClient));
+      logger.info("Socket.IO Redis adapter attached");
+    } catch (err) {
+      logger.warn({ err }, "Socket.IO Redis adapter failed — running without cross-instance sync");
+    }
+  }
+
   io.use(async (socket, next) => {
     try {
       const token = extractToken(socket.handshake);
