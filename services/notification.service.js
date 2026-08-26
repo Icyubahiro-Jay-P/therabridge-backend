@@ -40,6 +40,7 @@ export const createNotification = async (
       data,
     });
     await notification.save();
+    await invalidateUnreadCount(recipientId);
     emitToUser(recipientId, "notification", {
       ...notification.toObject(),
       body: decryptField(notification.body),
