@@ -162,7 +162,7 @@ export const sendCommunityVoiceMessage = async (req, res) => {
         "Voice message",
         { url: community.inviteKey ? `/community/${community.inviteKey}` : "/community" },
         req.user.id,
-        { skipIfOnline: true },
+        { skipIfOnline: true, pushOnly: true },
       );
     }
 
