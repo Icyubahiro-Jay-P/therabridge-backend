@@ -140,6 +140,32 @@ export const validateTwoFactor = async (req, res) => {
         // Remove the used backup code
         user.twoFactorBackupCodes.splice(matchedIndex, 1);
         await user.save();
+      } else {
+        // Backup code format but no match — count as failure, don't fall through to TOTP
+        const failed = (user.failedTwoFactorAttempts || 0) + 1;
+        if (failed >= MAX_2FA_ATTEMPTS) {
+          await User.updateOne(
+            { _id: user._id },
+            {
+              $set: {
+                failedTwoFactorAttempts: 0,
+                twoFactorLockedUntil: new Date(now + TWO_FACTOR_LOCKOUT_MS),
+              },
+            },
+          );
+          const remainingMin = Math.ceil(TWO_FACTOR_LOCKOUT_MS / 60000);
+          return res.status(429).json({
+            error: {
+              message: `Too many failed two-factor attempts. Account locked for ${remainingMin} minutes.`,
+              code: "ACCOUNT_LOCKED",
+            },
+          });
+        }
+        await User.updateOne(
+          { _id: user._id },
+          { $set: { failedTwoFactorAttempts: failed } },
+        );
+        return res.status(400).json({ error: { message: "Invalid code.", code: "INVALID_CODE" } });
       }
     }
 
