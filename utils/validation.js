@@ -178,10 +178,6 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").max(128, "Password is too long"),
 })
 
-export const removeMemberSchema = z.object({
-  userId: z.string().min(1),
-})
-
 export const editMessageSchema = z.object({
   content: z.string().min(1, "Message cannot be empty").max(2000),
 })
