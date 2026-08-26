@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: therabridge-backend
+    runtime: docker
+    dockerfilePath: Dockerfile
+    dockerContext: .
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FIELD_ENCRYPTION_KEY
+        generateValue: true
+      - key: REDIS_URL
+        fromDatabase:
+          name: therabridge-redis
+          property: connectionString
+      - key: CLIENT_URL
+        value: https://therabridge.vercel.app
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_SCRIPT_URL
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:no-reply@therabridge.com
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
+    branch: main
+
+  - type: redis
+    name: therabridge-redis
+    ipAllowList: []
+    plan: starter
