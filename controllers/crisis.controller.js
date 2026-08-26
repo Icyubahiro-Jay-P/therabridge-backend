@@ -81,7 +81,7 @@ export const createCrisisAlert = async (req, res) => {
             urgent
               ? `A user needs immediate help: ${alertType.replace(/_/g, " ")}`
               : `A user has reported a crisis: ${alertType.replace(/_/g, " ")}`,
-            { crisisId: crisis._id, userId: req.user.id, source: "manual", severity, ...(urgent ? { priority: "urgent" } : {}) },
+            { crisisId: crisis._id, userId: req.user.id, source: "manual", severity, url: `/crisis/${crisis._id}`, ...(urgent ? { priority: "urgent" } : {}) },
             req.user.id
           )
         )
@@ -222,7 +222,17 @@ export const getCrisisLogs = async (req, res) => {
     const filter = {};
     if (req.query.source) filter.source = req.query.source;
     if (req.query.severity) filter.severity = req.query.severity;
-    if (req.query.userId) filter.user = req.query.userId;
+    if (req.query.userId) {
+      if (req.user.role === "therapist") {
+        const client = await User.findById(req.query.userId).select("therapist");
+        if (!client?.therapist || client.therapist.toString() !== req.user.id) {
+          return res.status(403).json({ error: { message: "You can only view crisis logs for your assigned clients.", code: "FORBIDDEN" } });
+        }
+      }
+      filter.user = req.query.userId;
+    } else if (req.user.role === "user") {
+      filter.user = req.user.id;
+    }
 
     const total = await CrisisLog.countDocuments(filter);
     const logs = await CrisisLog.find(filter)
