@@ -2,6 +2,7 @@ import Notification from "../models/notification.model.js";
 import { encryptField, encryptionEnabled, decryptField } from "../utils/crypto.js";
 import { emitToUser } from "../sockets/chatSocket.js";
 import { sendPushToUser } from "./push.service.js";
+import { invalidateUnreadCount } from "./cache.js";
 import logger from "../utils/logger.js";
 
 // Where a device-notification tap should land, by notification type.
