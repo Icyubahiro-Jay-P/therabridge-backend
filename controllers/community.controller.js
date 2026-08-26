@@ -111,7 +111,7 @@ export const joinCommunity = async (req, res) => {
   try {
     const { inviteKey } = req.body;
 
-    const community = await Community.findOne({ inviteKey });
+    const community = await Community.findOne({ inviteKey: inviteKey.toUpperCase() });
     if (!community) {
       return res
         .status(404)
@@ -346,21 +346,23 @@ export const sendCommunityMessage = async (req, res) => {
       .filter((id) => id !== req.user.id);
 
     const plaintext = content.trim();
-    for (const memberId of memberIds) {
-      await createNotification(
-        memberId,
-        "community_update",
-        `${senderName} · ${community.name}`,
-        plaintext,
-        {
-          url: community.inviteKey
-            ? `/community/${community.inviteKey}`
-            : "/community",
-        },
-        req.user.id,
-        { skipIfOnline: true },
-      );
-    }
+    await Promise.all(
+      memberIds.map((memberId) =>
+        createNotification(
+          memberId,
+          "community_update",
+          `${senderName} · ${community.name}`,
+          plaintext,
+          {
+            url: community.inviteKey
+              ? `/community/${community.inviteKey}`
+              : "/community",
+          },
+          req.user.id,
+          { skipIfOnline: true },
+        ),
+      ),
+    );
 
     res.status(201).json({ ...messageObj, pointsEarned });
   } catch (error) {
@@ -655,6 +657,14 @@ export const getCommunityByKey = async (req, res) => {
       (m) => m._id.toString() === req.user.id,
     );
     if (!isMember) {
+      const isPending = community.pendingMembers.some(
+        (m) => m._id.toString() === req.user.id,
+      );
+      if (isPending) {
+        return res
+          .status(403)
+          .json({ error: { message: "Your join request is pending approval.", code: "PENDING_APPROVAL" } });
+      }
       return res
         .status(403)
         .json({ error: { message: "You are not a member of this community.", code: "FORBIDDEN" } });
@@ -675,17 +685,10 @@ export const markCommunityMessagesRead = async (req, res) => {
       return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
     }
 
-    let updated = false;
-    for (const msg of community.messages) {
-      if (!msg.readBy.includes(req.user.id)) {
-        msg.readBy.push(req.user.id);
-        updated = true;
-      }
-    }
-
-    if (updated) {
-      await community.save();
-    }
+    await Community.updateOne(
+      { _id: communityId },
+      { $addToSet: { "messages.$[].readBy": req.user.id } },
+    );
 
     res.status(200).json({ message: "Messages marked as read." });
   } catch (error) {
