@@ -80,7 +80,7 @@ export const sendVoiceMessage = async (req, res) => {
       "Voice message",
       { url: sender.username ? `/chat/${sender.username}` : "/chat" },
       req.user.id,
-      { skipIfOnline: true },
+      { skipIfOnline: true, pushOnly: true },
     );
 
     res.status(201).json({ ...messageObj, pointsEarned });
