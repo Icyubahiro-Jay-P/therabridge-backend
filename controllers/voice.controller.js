@@ -4,7 +4,7 @@ import { emitToUser, emitToCommunity } from "../sockets/chatSocket.js";
 import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
 import { withTransaction } from "../utils/transactions.js";
 import { createNotification } from "../services/notification.service.js";
-import { decryptField } from "../utils/crypto.js";
+import { encryptField, decryptField } from "../utils/crypto.js";
 import { uploadAudioToCloudinary } from "../utils/cloudinary.js";
 import {
   decryptMessageContent,
