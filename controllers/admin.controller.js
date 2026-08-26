@@ -90,6 +90,7 @@ export const disableUser = async (req, res) => {
     }
     user.isDisabled = !user.isDisabled;
     await user.save();
+    await cacheDelPattern("admin:dashboard");
     res.status(200).json({
       message: `User ${user.isDisabled ? "disabled" : "enabled"} successfully.`,
       user: {
@@ -116,6 +117,7 @@ export const changeUserRole = async (req, res) => {
     }
     user.role = role;
     await user.save();
+    await cacheDelPattern("admin:dashboard");
     res.status(200).json({
       message: `User role updated to ${role}.`,
       user: { _id: user._id, username: user.username, role: user.role },
@@ -137,6 +139,7 @@ export const deleteUserByAdmin = async (req, res) => {
     }
 
     await deleteUserAndData(id);
+    await cacheDelPattern("admin:dashboard");
     await logAccess({
       actor: req.user.id,
       actorRole: req.user.role,
