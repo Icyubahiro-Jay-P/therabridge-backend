@@ -294,6 +294,27 @@ export const getTherapistById = async (req, res) => {
   }
 };
 
+export const getTherapistByUsername = async (req, res) => {
+  try {
+    const therapist = await User.findOne({
+      username: req.params.username,
+      role: "therapist",
+    }).select(
+      "-password -oldPasswords -refreshTokens -verificationCode -verificationCodeExpire -resetPasswordToken -resetPasswordExpire -twoFactorSecret -twoFactorBackupCodes",
+    );
+    if (!therapist) {
+      return res
+        .status(404)
+        .json({ error: { message: "Therapist not found.", code: "NOT_FOUND", category: "USER" } });
+    }
+    const ratings = await getRatingsFor([therapist._id]);
+    const agg = ratings.get(therapist._id.toString()) || { rating: 0, reviewCount: 0 };
+    res.status(200).json({ ...therapist.toObject(), ...agg });
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const getAllUsers = async (req, res) => {
   try {
     const { limit, offset } = getPaginationParams(req.query, 500);
