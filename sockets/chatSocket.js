@@ -6,6 +6,7 @@ import { Message, Community } from "../models/chat.model.js";
 import { encryptField } from "../utils/crypto.js";
 import { redis } from "../services/cache.js";
 import logger from "../utils/logger.js";
+import { recordLegacyScreenshotEvent } from "../services/screenshotEvent.service.js";
 
 // ====================== RATE LIMITING ======================
 // Possible-screenshot notices are noisy by nature (tab switches, shortcut
