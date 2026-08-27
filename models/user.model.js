@@ -84,6 +84,49 @@ const userSchema = new mongoose.Schema(
       default: "",
       maxlength: 300,
     },
+    // Therapist profile display fields (only meaningful for role === "therapist")
+    specialization: {
+      type: [String],
+      default: [],
+    },
+    credentials: {
+      type: String,
+      default: "",
+      maxlength: 200,
+    },
+    yearsExperience: {
+      type: Number,
+      default: 0,
+    },
+    languages: {
+      type: [String],
+      default: [],
+    },
+    sessionPrice: {
+      type: Number,
+      default: 0,
+    },
+    // Weekly bookable windows: [{ dayOfWeek: 0-6, startTime: "09:00", endTime: "17:00" }]
+    weeklyAvailability: {
+      type: [
+        {
+          dayOfWeek: { type: Number, min: 0, max: 6 },
+          startTime: { type: String, default: "09:00", match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+          endTime: { type: String, default: "17:00", match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+        },
+      ],
+      default: [],
+    },
+    subscription: {
+      plan: { type: String, enum: ["monthly"], default: null },
+      status: {
+        type: String,
+        enum: ["none", "active", "cancelled", "past_due"],
+        default: "none",
+      },
+      cycleEndsAt: { type: Date, default: null },
+      stripeCustomerId: { type: String, default: null },
+    },
     chatSettings: {
       readReceipts: { type: Boolean, default: true },
     },
