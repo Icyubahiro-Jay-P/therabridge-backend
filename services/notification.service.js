@@ -17,6 +17,10 @@ const DEFAULT_URLS = {
   streak_milestone: "/",
   system: "/notifications",
   mood_checkin: "/chat/therry",
+  session_booked: "/sessions",
+  session_cancelled: "/sessions",
+  session_reminder: "/sessions",
+  billing: "/billing",
 };
 
 export const createNotification = async (
@@ -117,6 +121,18 @@ export const createNotification = async (
 
 // Worker processor for notification push queue
 export const processNotificationJob = async (job) => {
+  if (job.name === "send-session-reminder") {
+    const { userId, appointmentId, therapistName, date, time } = job.data;
+    await createNotification(
+      userId,
+      "session_reminder",
+      "Upcoming video session",
+      `Your session with ${therapistName} starts today at ${time}. Be ready!`,
+      { url: "/sessions", appointmentId },
+      null,
+    );
+    return;
+  }
   const { recipientId, payload, skipIfOnline } = job.data;
   await sendPushToUser(recipientId, payload, { skipIfOnline });
 };
