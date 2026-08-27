@@ -176,8 +176,6 @@ describe("recordScreenshotEvent", () => {
       confidence: "probable",
       detectionMethod: "web_heuristic",
     })
-    // eslint-disable-next-line no-console
-    console.log("DEBUG res:", JSON.stringify(res))
     expect(res.status).toBe(201)
     expect(mockCreate).toHaveBeenCalled()
   })
