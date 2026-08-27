@@ -262,6 +262,54 @@ const notifyOwner = async ({ ownerId, actorId, actorName, contentId, contentType
 // ====================== SHARED UTILITIES ======================
 export const makeEventId = () => crypto.randomUUID();
 
+// Legacy DM privacy-shield path (no viewing session because DMs aren't
+// session-tracked). Records a paper-trail ScreenshotEvent in the new
+// collection so web-heuristic captures are auditable, without changing the
+// existing in-thread Message flow. contentId is resolved from the most recent
+// message between the pair; the peer is the owner to notify.
+export const recordLegacyScreenshotEvent = async ({
+  actorId,
+  peerId,
+  contentId = null,
+}) => {
+  try {
+    const resolvedContentId =
+      contentId || (await Message.latestContentIdBetween(actorId, peerId));
+    if (!resolvedContentId) return { recorded: false };
+
+    const ingestionKey = buildDedupKey({
+      contentId: resolvedContentId,
+      actorId,
+      eventType: "SCREENSHOT",
+      detectedAt: Date.now(),
+    });
+    const claimed = await claimDedup(ingestionKey);
+    if (claimed === false || (await ScreenshotEvent.exists({ ingestionKey }))) {
+      return { recorded: false, deduplicated: true };
+    }
+
+    const event = await ScreenshotEvent.create({
+      contentId: resolvedContentId,
+      contentType: "message",
+      actorId,
+      ownerId: peerId,
+      viewingSessionId: null,
+      platform: "web",
+      detectionMethod: "web_heuristic",
+      confidence: "heuristic",
+      eventType: "SCREENSHOT",
+      eventId: crypto.randomUUID(),
+      ingestionKey,
+      detectedAt: new Date(),
+    });
+    return { recorded: true, event };
+  } catch (err) {
+    if (err?.code === 11000) return { recorded: false, deduplicated: true };
+    logger.error({ err, actorId, peerId }, "failed to record legacy screenshot event");
+    return { recorded: false };
+  }
+};
+
 export const isSessionTokenValid = async ({ sessionToken, actorId, contentId }) => {
   const res = await findLiveSession({ sessionToken, actorId, contentId });
   return { valid: !res.error };
