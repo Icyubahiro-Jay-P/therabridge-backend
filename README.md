@@ -493,8 +493,13 @@ A "privacy shield" feature set that raises the bar and creates a paper trail for
 - **Socket.io** (`sockets/chatSocket.js`): the client connects with the same JWT used for the API. Every authenticated socket joins a `user:<id>` room.
 - **Possible-screenshot notices**: when the client detects a screenshot attempt it emits `possible_screenshot` with `{ conversationId }`. The server rate-limits per user to **1 notice / 10 s**, persists a `Message` with `kind: "screenshot-notice"`, and pushes `possible_screenshot` to the peer in real time.
 - **Server-side watermark stamp**: `POST /api/chat/watermark-stamp` renders text to a PNG with a tiled low-opacity watermark using Sharp.
+- **Protected-content layer** (`models/screenshotEvent.model.js`, `models/viewingSession.model.js`, `services/screenshotEvent.service.js`, `routes/screenshotEvent.route.js`):
+  - `POST /api/protected/session` mints a server-issued **ViewingSession** + `sessionToken` when a user opens protected content.
+  - `POST /api/screenshot-events` records a session-gated **ScreenshotEvent**. The real actor is always `req.user.id` and the owner is derived server-side from the session — ownership is never trusted from the client. Events are deduped via a Redis `SET NX` ingestion key (`contentId + actorId + eventType + window`) with a Mongo unique-index backstop, so a single capture yields at most one notification while legitimate captures at different times still record.
+  - A new `screenshot` notification type (`Notification.type`) notifies the content owner: `"[Username] took a screenshot of your content."` via socket + queued push, reusing the existing notification pipeline.
+  - Redis-backed request rate limiting (`rl:screenshot:`) guards the endpoints.
 
-**Honest limitation:** blur/blackout, notices, and watermarks discourage casual copying and leave an audit trail, but anyone determined to record content can still do so.
+**Honest limitation:** blur/blackout, notices, watermarks, and screenshots-event paper trails discourage casual copying and leave an audit trail, but anyone determined to record content can still do so. See `docs/screenshot-native.md` for the (not-yet-built) native Android/iOS detection blueprint and the honest capability matrix.
 
 ## Field-Level Encryption
 
