@@ -15,10 +15,14 @@ vi.mock("../services/notification.service.js", () => ({
 vi.mock("../utils/crypto.js", () => ({
   encryptField: (v) => v,
 }))
+vi.mock("../services/queue.js", () => ({
+  moodCheckinQueue: { add: vi.fn() },
+}))
 
 import {
   computeMoodCheckin,
   maybeSendMoodCheckin,
+  processMoodCheckinJob,
   CHECKIN_TITLE,
   CHECKIN_BODY,
 } from "../services/moodCheckin.service.js"
@@ -26,6 +30,7 @@ import Mood from "../models/mood.model.js"
 import Notification from "../models/notification.model.js"
 import { TherryMessage } from "../models/therryMessage.model.js"
 import { createNotification } from "../services/notification.service.js"
+import { moodCheckinQueue } from "../services/queue.js"
 
 const daysAgo = (n) => new Date(Date.now() - n * 86400000)
 
@@ -39,6 +44,18 @@ const DECLINE_ENTRIES = [
   { mood: "bad", date: daysAgo(1) },
 ]
 
+// Most recent entries are above/at baseline -> no decline detected.
+const NO_DECLINE_ENTRIES = [
+  { mood: "bad", date: daysAgo(6) },
+  { mood: "bad", date: daysAgo(5) },
+  { mood: "bad", date: daysAgo(4) },
+  { mood: "great", date: daysAgo(3) },
+  { mood: "good", date: daysAgo(2) },
+  { mood: "good", date: daysAgo(1) },
+]
+
+const JOB = { data: { userId: "user123" } }
+
 function mockMoodFind(entries) {
   Mood.find.mockReturnValue({
     sort: vi.fn().mockReturnThis(),
@@ -48,21 +65,25 @@ function mockMoodFind(entries) {
   })
 }
 
+function mockNoRecentCheckin() {
+  Notification.findOne.mockReturnValue({
+    select: vi.fn().mockResolvedValue(null),
+  })
+}
+
+function mockRecentCheckin() {
+  Notification.findOne.mockReturnValue({
+    select: vi.fn().mockResolvedValue({ _id: "existing" }),
+  })
+}
+
 describe("computeMoodCheckin", () => {
   it("returns null with fewer than 3 entries", () => {
     expect(computeMoodCheckin([{ mood: "good", date: daysAgo(1) }])).toBeNull()
   })
 
   it("returns null when the recent entries are not all below baseline", () => {
-    const entries = [
-      { mood: "bad", date: daysAgo(6) },
-      { mood: "bad", date: daysAgo(5) },
-      { mood: "bad", date: daysAgo(4) },
-      { mood: "great", date: daysAgo(3) },
-      { mood: "good", date: daysAgo(2) },
-      { mood: "good", date: daysAgo(1) },
-    ]
-    expect(computeMoodCheckin(entries)).toBeNull()
+    expect(computeMoodCheckin(NO_DECLINE_ENTRIES)).toBeNull()
   })
 
   it("detects a decline when the 3 most recent entries are below the 14-day baseline", () => {
@@ -91,13 +112,40 @@ describe("maybeSendMoodCheckin", () => {
     vi.clearAllMocks()
   })
 
-  it("sends a notification and persists a Therry assistant message on decline", async () => {
-    mockMoodFind(DECLINE_ENTRIES)
-    Notification.findOne.mockReturnValue({
-      select: vi.fn().mockResolvedValue(null),
-    })
+  it("queues a mood check-in job for async processing", async () => {
+    moodCheckinQueue.add.mockResolvedValue({ id: "job-1" })
 
     const result = await maybeSendMoodCheckin("user123")
+
+    expect(result).toEqual({ queued: true })
+    expect(moodCheckinQueue.add).toHaveBeenCalledWith(
+      "check-mood",
+      { userId: "user123" },
+      expect.objectContaining({ attempts: 2 })
+    )
+  })
+
+  it("returns null when queueing fails", async () => {
+    moodCheckinQueue.add.mockRejectedValue(new Error("redis down"))
+
+    const result = await maybeSendMoodCheckin("user123")
+
+    expect(result).toBeNull()
+    expect(createNotification).not.toHaveBeenCalled()
+    expect(TherryMessage.create).not.toHaveBeenCalled()
+  })
+})
+
+describe("processMoodCheckinJob", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("sends a notification and persists a Therry assistant message on decline", async () => {
+    mockMoodFind(DECLINE_ENTRIES)
+    mockNoRecentCheckin()
+
+    const result = await processMoodCheckinJob(JOB)
 
     expect(result).toEqual({ sent: true })
     expect(createNotification).toHaveBeenCalledWith(
@@ -118,11 +166,9 @@ describe("maybeSendMoodCheckin", () => {
 
   it("skips when the user was already checked in within 3 days", async () => {
     mockMoodFind(DECLINE_ENTRIES)
-    Notification.findOne.mockReturnValue({
-      select: vi.fn().mockResolvedValue({ _id: "existing" }),
-    })
+    mockRecentCheckin()
 
-    const result = await maybeSendMoodCheckin("user123")
+    const result = await processMoodCheckinJob(JOB)
 
     expect(result).toEqual({ skipped: "rate_limited" })
     expect(createNotification).not.toHaveBeenCalled()
@@ -130,18 +176,11 @@ describe("maybeSendMoodCheckin", () => {
   })
 
   it("does nothing when there is no decline", async () => {
-    mockMoodFind([
-      { mood: "bad", date: daysAgo(6) },
-      { mood: "bad", date: daysAgo(5) },
-      { mood: "bad", date: daysAgo(4) },
-      { mood: "great", date: daysAgo(3) },
-      { mood: "good", date: daysAgo(2) },
-      { mood: "good", date: daysAgo(1) },
-    ])
+    mockMoodFind(NO_DECLINE_ENTRIES)
 
-    const result = await maybeSendMoodCheckin("user123")
+    const result = await processMoodCheckinJob(JOB)
 
-    expect(result).toBeNull()
+    expect(result).toEqual({ skipped: "no_decline" })
     expect(createNotification).not.toHaveBeenCalled()
     expect(TherryMessage.create).not.toHaveBeenCalled()
   })
@@ -149,9 +188,10 @@ describe("maybeSendMoodCheckin", () => {
   it("does nothing with insufficient history", async () => {
     mockMoodFind([])
 
-    const result = await maybeSendMoodCheckin("user123")
+    const result = await processMoodCheckinJob(JOB)
 
-    expect(result).toBeNull()
+    expect(result).toEqual({ skipped: "no_decline" })
     expect(createNotification).not.toHaveBeenCalled()
+    expect(TherryMessage.create).not.toHaveBeenCalled()
   })
 })
