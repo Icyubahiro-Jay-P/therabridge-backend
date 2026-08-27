@@ -152,7 +152,18 @@ export const getUserById = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { firstName, lastName, dateOfBirth, bio } = req.body;
+    const {
+      firstName,
+      lastName,
+      dateOfBirth,
+      bio,
+      specialization,
+      credentials,
+      yearsExperience,
+      languages,
+      sessionPrice,
+      weeklyAvailability,
+    } = req.body;
 
     const updates = {};
 
@@ -195,6 +206,15 @@ export const updateProfile = async (req, res) => {
 
     if (bio !== undefined) updates.bio = bio;
 
+    // Therapist display/booking fields are only persisted for therapists.
+    const isTherapist = req.user.role === "therapist";
+    if (specialization !== undefined && isTherapist) updates.specialization = specialization;
+    if (credentials !== undefined && isTherapist) updates.credentials = credentials;
+    if (yearsExperience !== undefined && isTherapist) updates.yearsExperience = yearsExperience;
+    if (languages !== undefined && isTherapist) updates.languages = languages;
+    if (sessionPrice !== undefined && isTherapist) updates.sessionPrice = sessionPrice;
+    if (weeklyAvailability !== undefined && isTherapist) updates.weeklyAvailability = weeklyAvailability;
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: updates },
@@ -236,9 +256,39 @@ export const getTherapists = async (req, res) => {
       .limit(limit)
       .skip(offset);
 
+    const ratings = await getRatingsFor(therapists.map((t) => t._id));
+    const data = therapists.map((t) => {
+      const { rating, reviewCount } = ratings.get(t._id.toString()) || {
+        rating: 0,
+        reviewCount: 0,
+      };
+      return { ...t.toObject(), rating, reviewCount };
+    });
+
     res
       .status(200)
-      .json(formatPaginatedResponse(therapists, total, page, limit));
+      .json(formatPaginatedResponse(data, total, page, limit));
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getTherapistById = async (req, res) => {
+  try {
+    const therapist = await User.findOne({
+      _id: req.params.id,
+      role: "therapist",
+    }).select(
+      "-password -oldPasswords -refreshTokens -verificationCode -verificationCodeExpire -resetPasswordToken -resetPasswordExpire -twoFactorSecret -twoFactorBackupCodes",
+    );
+    if (!therapist) {
+      return res
+        .status(404)
+        .json({ error: { message: "Therapist not found.", code: "NOT_FOUND", category: "USER" } });
+    }
+    const ratings = await getRatingsFor([therapist._id]);
+    const agg = ratings.get(therapist._id.toString()) || { rating: 0, reviewCount: 0 };
+    res.status(200).json({ ...therapist.toObject(), ...agg });
   } catch (error) {
     throw error;
   }
