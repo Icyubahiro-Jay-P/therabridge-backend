@@ -161,7 +161,7 @@ export const getAvailability = async (req, res) => {
       return res.status(404).json({ error: { message: "Therapist not found.", code: "NOT_FOUND", category: "USER" } });
     }
 
-    const from = startOfDay(new Date());
+    const from = new Date();
     const to = addDays(from, nDays);
     const active = await Appointment.find({
       therapist: therapist._id,
