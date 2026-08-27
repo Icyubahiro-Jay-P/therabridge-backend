@@ -2,6 +2,7 @@ import crypto from "crypto";
 import ScreenshotEvent from "../models/screenshotEvent.model.js";
 import ViewingSession from "../models/viewingSession.model.js";
 import User from "../models/user.model.js";
+import { Message } from "../models/chat.model.js";
 import { createNotification } from "./notification.service.js";
 import { redis } from "./cache.js";
 import logger from "../utils/logger.js";
