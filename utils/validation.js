@@ -65,20 +65,7 @@ export const updateProfileSchema = z.object({
     .optional(),
 })
 
-export const weeklyAvailabilitySchema = z.object({
-  weeklyAvailability: z
-    .array(
-      z.object({
-        dayOfWeek: z.number().int().min(0).max(6),
-        startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Start time must be HH:mm"),
-        endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "End time must be HH:mm"),
-      }),
-    )
-    .max(20),
-})
-
-export const weeklyAvailabilitySchema = z.object({
-  rating: z.number().int().min(1, "Rating must be between 1 and 5").max(5, "Rating must be between 1 and 5"),
+export const reviewSchema = z.object({
   title: z.string().trim().max(80).optional(),
   content: z.string().trim().min(1, "Review content is required").max(500),
 })
