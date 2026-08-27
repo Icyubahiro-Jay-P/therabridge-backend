@@ -16,31 +16,15 @@ vi.mock("../models/screenshotEvent.model.js", () => ({
 vi.mock("../models/viewingSession.model.js", () => ({
   default: class {
     constructor(fields) {
-      this._fields = fields
-    }
-    get _id() {
-      return "sessionid123"
-    }
-    get contentId() {
-      return this._fields.contentId
-    }
-    get contentType() {
-      return this._fields.contentType
-    }
-    get contentType$() {
-      return this._fields.contentType
-    }
-    get viewerId() {
-      return this._fields.viewerId
-    }
-    get ownerId() {
-      return this._fields.ownerId
-    }
-    get sessionToken() {
-      return this._fields.sessionToken
-    }
-    get protectionMode() {
-      return this._fields.protectionMode
+      this._id = { toString: () => "sessionid123" }
+      this.contentId = fields.contentId
+      this.contentType = fields.contentType
+      this.viewerId = fields.viewerId
+      this.ownerId = fields.ownerId || null
+      this.sessionToken = fields.sessionToken
+      this.protectionMode = fields.protectionMode
+      this.platform = fields.platform
+      this.lastSeenAt = fields.lastSeenAt || new Date()
     }
     save() {
       return mockSave()
