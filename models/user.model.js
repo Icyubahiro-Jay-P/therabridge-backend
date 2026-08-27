@@ -102,10 +102,6 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    sessionPrice: {
-      type: Number,
-      default: 0,
-    },
     // Weekly bookable windows: [{ dayOfWeek: 0-6, startTime: "09:00", endTime: "17:00" }]
     weeklyAvailability: {
       type: [
@@ -116,16 +112,6 @@ const userSchema = new mongoose.Schema(
         },
       ],
       default: [],
-    },
-    subscription: {
-      plan: { type: String, enum: ["monthly"], default: null },
-      status: {
-        type: String,
-        enum: ["none", "active", "cancelled", "past_due"],
-        default: "none",
-      },
-      cycleEndsAt: { type: Date, default: null },
-      stripeCustomerId: { type: String, default: null },
     },
     chatSettings: {
       readReceipts: { type: Boolean, default: true },
