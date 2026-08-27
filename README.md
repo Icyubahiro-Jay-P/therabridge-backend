@@ -125,6 +125,10 @@ All endpoints below are mounted under `/api` and require the JWT cookie unless n
 | DELETE | `/chat/messages` | Delete all my DMs |
 | POST | `/chat/screenshot-notice` | Possible-screenshot notice (rate-limited) |
 | POST | `/chat/watermark-stamp` | Watermark stamp to PNG |
+| POST | `/protected/session` | Open protected content -> viewing session + token |
+| POST | `/protected/session/refresh` | Refresh a live viewing session |
+| POST | `/screenshot-events` | Session-gated screenshot/capture event (deduped, validated) |
+| GET | `/chat/communities` | List my communities |
 | POST | `/chat/communities` | Create community |
 | POST | `/chat/communities/join` | Join by invite key |
 | GET | `/chat/communities/by-key/:inviteKey` | Look up community by key |
