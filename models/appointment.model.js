@@ -37,10 +37,6 @@ const appointmentSchema = new mongoose.Schema(
       enum: ["confirmed", "completed", "cancelled", "missed"],
       default: "confirmed",
     },
-    paid: {
-      type: Boolean,
-      default: false,
-    },
     cancelledBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
