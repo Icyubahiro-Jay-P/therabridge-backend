@@ -35,22 +35,19 @@ describe("computeFreeSlots", () => {
     expect(slots[2].getMinutes()).toBe(40);
   });
 
-  it("repeats the window for every day in range", () => {
+  it("repeats the window for every matching day in range", () => {
+    const secondDow = (dow + 1) % 7;
     const slots = computeFreeSlots({
-      weeklyAvailability: [{ dayOfWeek: dow, startTime: "09:00", endTime: "10:00" }],
+      weeklyAvailability: [
+        { dayOfWeek: dow, startTime: "09:00", endTime: "10:00" },
+        { dayOfWeek: secondDow, startTime: "09:00", endTime: "10:00" },
+      ],
       from,
       to,
       duration: 50,
     });
     const uniqueDays = new Set(slots.map((s) => dateToStr(s)));
-    expect(uniqueDays.size).toBe(1);
-    const weekly = computeFreeSlots({
-      weeklyAvailability: [{ dayOfWeek: [1, 2, 3, 4, 5].map((d) => d) }[0], startTime: "09:00", endTime: "10:00" }],
-      from,
-      to,
-      duration: 50,
-    });
-    expect(weekly.length).toBe(0);
+    expect(uniqueDays.size).toBe(2);
   });
 
   it("skips slots earlier than `from` on the first day", () => {
