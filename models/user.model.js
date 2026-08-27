@@ -115,6 +115,8 @@ const userSchema = new mongoose.Schema(
     },
     chatSettings: {
       readReceipts: { type: Boolean, default: true },
+      screenshotProtection: { type: Boolean, default: false },
+      watermarkEnabled: { type: Boolean, default: false },
     },
     privacySettings: {
       firstName: {
