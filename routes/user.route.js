@@ -41,6 +41,8 @@ import { requireAdmin, requireTherapist, requireAdminOrTherapist } from "../midd
 import { uploadProfilePic } from "../middleware/upload.js";
 import { jsonBody } from "../middleware/jsonBody.js";
 import { validate } from "../utils/validation.js";
+import { getTherapistById } from "../controllers/profile.controller.js";
+import { createTherapistReview, getTherapistReviews } from "../controllers/review.controller.js";
 import {
   registerSchema,
   loginSchema,
@@ -54,6 +56,7 @@ import {
   inviteMemberSchema,
   assignTherapistSchema,
   deleteProfileSchema,
+  reviewSchema,
   verifyTwoFactorSetupSchema,
   validateTwoFactorSchema,
   disableTwoFactorSchema,
@@ -77,6 +80,9 @@ router.post("/resend-verification", validate(resendVerificationSchema), resendVe
 router.get("/profile", authMiddleware, profile);
 router.get("/users", authMiddleware, requireAdmin, getAllUsers);
 router.get("/therapists", authMiddleware, getTherapists);
+router.get("/therapists/:id", authMiddleware, getTherapistById);
+router.get("/therapists/:id/reviews", authMiddleware, getTherapistReviews);
+router.post("/therapists/:id/reviews", authMiddleware, validate(reviewSchema), createTherapistReview);
 router.get("/users/:id", authMiddleware, getUserById);
 
 router.put("/profile", authMiddleware, validate(updateProfileSchema), updateProfile);
