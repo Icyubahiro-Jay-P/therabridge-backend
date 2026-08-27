@@ -58,18 +58,14 @@ export const computeFreeSlots = ({
       (w) => w.dayOfWeek === day.getDay()
     );
     const dayStr = dateToStr(day);
-    const isFirstDay = dayStr === dateToStr(from);
 
     for (const win of windows) {
-      let startMin = timeToMinutes(win.startTime);
+      const startMin = timeToMinutes(win.startTime);
       const endMin = timeToMinutes(win.endTime);
-
-      if (isFirstDay) {
-        startMin = Math.max(startMin, from.getHours() * 60 + from.getMinutes());
-      }
 
       for (let m = startMin; m + duration <= endMin; m += duration) {
         const candidate = slotsToDate(dayStr, minutesToStr(m));
+        if (candidate.getTime() < from.getTime()) continue;
         if (overlapsAny(candidate, duration, appointments)) continue;
         slots.push(candidate);
       }
