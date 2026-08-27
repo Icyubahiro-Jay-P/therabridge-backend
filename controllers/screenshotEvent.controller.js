@@ -4,8 +4,7 @@ import {
   refreshViewingSession,
   recordScreenshotEvent,
 } from "../services/screenshotEvent.service.js";
-import { auditAccess } from "../services/audit.service.js";
-import { ipFromReq, uaFromReq } from "../services/audit.service.js";
+import { logAccess, ipFromReq, uaFromReq } from "../services/audit.service.js";
 
 // POST /api/protected/session
 // Authenticated user opens protected content. The server mints a viewing
@@ -28,7 +27,7 @@ export const openProtectedContent = async (req, res) => {
       .json({ error: { message: "Invalid session parameters.", code: result.error } });
   }
 
-  auditAccess({
+  logAccess({
     actor: req.user.id,
     actorRole: req.user.role,
     action: "protected_content_open",
@@ -110,7 +109,7 @@ export const reportScreenshotEvent = async (req, res) => {
     return res.status(200).json({ message: "duplicate", deduplicated: true });
   }
 
-  auditAccess({
+  logAccess({
     actor: req.user.id,
     actorRole: req.user.role,
     action: "screenshot_event",
