@@ -378,8 +378,10 @@ Every account starts unverified. Registration (`POST /api/users/register`) mints
 
 ## Models
 
-- **User** - firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts), per-field privacy settings, disabled flag, `isAccountVerified` + hashed 6-digit `verificationCode`/`verificationCodeExpire` (email verification), wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter, `aiDisclosureAcknowledgedAt`, `countryCode`.
+- **User** - firstName, lastName, username, email, password (+ `oldPasswords` rotation), role (`user`/`admin`/`therapist`), avatar, bio, chat settings (read receipts, `screenshotProtection`, `watermarkEnabled`), per-field privacy settings, disabled flag, `isAccountVerified` + hashed 6-digit `verificationCode`/`verificationCodeExpire` (email verification), wellness score (exercises + Talking Points), login/exercise streaks & bests, last login/exercise dates, daily talking-points counter, `aiDisclosureAcknowledgedAt`, `countryCode`.
 - **Message** (DM) - sender, recipient, `kind` (`message` | `screenshot-notice`), `noticeType`, content (<=2000, encrypted at rest), read/readAt, `deletedFor`, unsent, edited/editCount/editHistory.
+- **ViewingSession** - a single authenticated user's server-issued session over one protected content item: contentId, contentType, viewerId, ownerId, `sessionToken`, protectionMode, platform, startedAt/lastSeenAt/endedAt.
+- **ScreenshotEvent** - a session-gated capture event: contentId, contentType, actorId, ownerId, viewingSessionId, platform, `detectionMethod`, `confidence`, `eventType`, unique `eventId` + `ingestionKey` (dedup), detectedAt. No images stored.
 - **Community** - name, owner, members, unique `inviteKey`, description, embedded messages (sender, content <=2000 - encrypted at rest, readBy, unsent, edit history).
 - **Mood** - user, mood (`great`/`good`/`okay`/`bad`/`terrible`), note (encrypted at rest), factors, intensity (1-10), date.
 - **Crisis** - user, alertType, `severity` (`mild`/`medium`/`severe`), description (encrypted at rest), source (`manual` | `therry`), status (`active`/`acknowledged`/`resolved`), acknowledgedBy, resolvedAt, resourcesShared.
