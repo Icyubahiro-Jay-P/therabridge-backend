@@ -189,6 +189,8 @@ export const privacySettingsSchema = z.object({
 export const chatSettingsSchema = z.object({
   chatSettings: z.object({
     readReceipts: z.boolean().optional(),
+    screenshotProtection: z.boolean().optional(),
+    watermarkEnabled: z.boolean().optional(),
   }),
 })
 
@@ -242,6 +244,61 @@ export const screenshotNoticeSchema = z.object({
 export const watermarkStampSchema = z.object({
   text: z.string().min(1, "text is required").max(2000),
   viewerId: z.string().min(1, "viewerId is required").max(64),
+})
+
+const contentIdSchema = z
+  .string()
+  .min(1, "contentId is required")
+  .max(24)
+  .regex(/^[0-9a-fA-F]{24}$/, "contentId must be a valid ObjectId")
+
+const platformSchema = z.enum(["web", "android", "ios"])
+const contentTypeSchema = z.enum([
+  "message",
+  "snap",
+  "photo",
+  "video",
+  "document",
+  "profile",
+  "other",
+]).default("other")
+const protectionModeSchema = z.enum(["notify", "prevent", "notify-and-prevent"]).default("notify")
+
+export const createSessionSchema = z.object({
+  contentId: contentIdSchema,
+  contentType: contentTypeSchema,
+  protectionMode: protectionModeSchema,
+  platform: platformSchema.default("web"),
+  ownerId: z.string().max(24).regex(/^[0-9a-fA-F]{24}$/).optional(),
+})
+
+export const refreshSessionSchema = z.object({
+  sessionId: z.string().min(1, "sessionId is required").max(24),
+})
+
+export const screenshotEventSchema = z.object({
+  eventId: z.string().min(1).max(64).optional(),
+  contentId: contentIdSchema,
+  contentType: contentTypeSchema,
+  sessionToken: z.string().min(1, "sessionToken is required").max(64),
+  platform: platformSchema.default("web"),
+  detectionMethod: z
+    .enum([
+      "android_os",
+      "ios_os",
+      "web_heuristic",
+      "web_visibility",
+      "manual",
+      "unknown",
+    ])
+    .default("unknown"),
+  confidence: z
+    .enum(["confirmed", "probable", "heuristic", "unknown"])
+    .default("unknown"),
+  eventType: z
+    .enum(["SCREENSHOT", "SCREEN_RECORDING", "SCREEN_CAPTURE", "UNKNOWN_CAPTURE"])
+    .default("UNKNOWN_CAPTURE"),
+  detectedAt: z.coerce.date().optional(),
 })
 
 export const deleteProfileSchema = z.object({
