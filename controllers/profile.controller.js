@@ -161,7 +161,6 @@ export const updateProfile = async (req, res) => {
       credentials,
       yearsExperience,
       languages,
-      sessionPrice,
       weeklyAvailability,
     } = req.body;
 
@@ -212,7 +211,6 @@ export const updateProfile = async (req, res) => {
     if (credentials !== undefined && isTherapist) updates.credentials = credentials;
     if (yearsExperience !== undefined && isTherapist) updates.yearsExperience = yearsExperience;
     if (languages !== undefined && isTherapist) updates.languages = languages;
-    if (sessionPrice !== undefined && isTherapist) updates.sessionPrice = sessionPrice;
     if (weeklyAvailability !== undefined && isTherapist) updates.weeklyAvailability = weeklyAvailability;
 
     const user = await User.findByIdAndUpdate(
