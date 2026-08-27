@@ -39,7 +39,6 @@ import medicationRoutes from "./routes/medication.route.js";
 import petRoutes from "./routes/pet.route.js";
 import habitRoutes from "./routes/habit.route.js";
 import appointmentRoutes from "./routes/appointment.route.js";
-import billingRoutes from "./routes/billing.route.js";
 import {
   errorHandler,
   notFoundHandler,
@@ -229,7 +228,6 @@ app.use("/api/medications", medicationRoutes);
 app.use("/api/pet", petRoutes);
 app.use("/api/habits", habitRoutes);
 app.use("/api/appointments", appointmentRoutes);
-app.use("/api/billing", billingRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
