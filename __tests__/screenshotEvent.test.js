@@ -15,6 +15,8 @@ vi.mock("../models/screenshotEvent.model.js", () => ({
 
 vi.mock("../models/viewingSession.model.js", () => ({
   default: class {
+    static findOne = (...args) => mockFindOne(...args)
+    static findById = (...args) => mockFindById(...args)
     constructor(fields) {
       this._id = { toString: () => "sessionid123" }
       this.contentId = fields.contentId
@@ -52,7 +54,6 @@ import {
   createViewingSession,
   recordScreenshotEvent,
 } from "../services/screenshotEvent.service.js"
-import { Message } from "../models/chat.model.js"
 import { redis } from "../services/cache.js"
 
 beforeEach(() => {
@@ -214,6 +215,3 @@ describe("recordScreenshotEvent", () => {
     expect(res.body.deduplicated).toBe(true)
   })
 })
-
-// Silence unused import guard — Message is used by a sibling export path.
-void Message
