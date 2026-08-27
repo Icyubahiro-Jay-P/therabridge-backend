@@ -129,7 +129,7 @@ export const createAppointment = async (req, res) => {
 export const getMyAppointments = async (req, res) => {
   try {
     const appointments = await Appointment.find({ user: req.user.id })
-      .populate("therapist", "firstName lastName username avatar specialization sessionPrice")
+      .populate("therapist", "firstName lastName username avatar specialization")
       .sort({ start: -1 })
       .limit(100);
     res.status(200).json({ data: appointments.map(serialize) });
