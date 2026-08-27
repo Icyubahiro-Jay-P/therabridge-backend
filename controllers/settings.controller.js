@@ -13,7 +13,7 @@ export const updateChatSettings = async (req, res) => {
   try {
     const { chatSettings } = req.body;
 
-    const allowedFields = ["readReceipts"];
+    const allowedFields = ["readReceipts", "screenshotProtection", "watermarkEnabled"];
     const updates = {};
     for (const field of allowedFields) {
       if (chatSettings[field] !== undefined) {
