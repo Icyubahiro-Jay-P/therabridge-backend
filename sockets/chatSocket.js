@@ -115,6 +115,12 @@ export const recordPossibleScreenshot = async ({
   };
   ioInstance?.to(`user:${peerId}`).emit("possible_screenshot", notice);
 
+  // Best-effort paper trail into the new ScreenshotEvent collection so
+  // web-heuristic captures are auditable alongside session-gated events.
+  // Never blocks or changes the existing real-time flow.
+  recordLegacyScreenshotEvent({ actorId: initiatorId, peerId })
+    .catch((err) => logger.error({ err }, "legacy screenshot event record failed"));
+
   return { notice };
 };
 
