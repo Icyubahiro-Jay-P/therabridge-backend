@@ -52,7 +52,6 @@ export const updateProfileSchema = z.object({
   credentials: z.string().trim().max(200).optional(),
   yearsExperience: z.number().int().min(0).max(80).optional(),
   languages: z.array(z.string().trim().min(1).max(40)).max(10).optional(),
-  sessionPrice: z.number().min(0).max(10000).optional(),
   weeklyAvailability: z
     .array(
       z.object({
@@ -81,11 +80,6 @@ export const createAppointmentSchema = z.object({
 
 export const updateAppointmentStatusSchema = z.object({
   status: z.enum(["confirmed", "completed", "missed", "cancelled"]),
-})
-
-export const checkoutSchema = z.object({
-  intent: z.enum(["subscribe", "session"]),
-  appointmentId: z.string().optional(),
 })
 
 export const changePasswordSchema = z.object({
