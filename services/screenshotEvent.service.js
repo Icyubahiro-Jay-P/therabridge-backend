@@ -274,8 +274,16 @@ export const recordLegacyScreenshotEvent = async ({
   contentId = null,
 }) => {
   try {
-    const resolvedContentId =
-      contentId || (await Message.latestContentIdBetween(actorId, peerId));
+    let resolvedContentId = contentId;
+    if (!resolvedContentId) {
+      const latest = await Message.findOne({
+        $or: [
+          { sender: actorId, recipient: peerId },
+          { sender: peerId, recipient: actorId },
+        ],
+      }).sort({ createdAt: -1 }).select("_id").lean();
+      resolvedContentId = latest?._id?.toString() ?? null;
+    }
     if (!resolvedContentId) return { recorded: false };
 
     const ingestionKey = buildDedupKey({
