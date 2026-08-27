@@ -39,6 +39,7 @@ import medicationRoutes from "./routes/medication.route.js";
 import petRoutes from "./routes/pet.route.js";
 import habitRoutes from "./routes/habit.route.js";
 import appointmentRoutes from "./routes/appointment.route.js";
+import screenshotEventRoutes from "./routes/screenshotEvent.route.js";
 import {
   errorHandler,
   notFoundHandler,
@@ -111,7 +112,7 @@ app.use(
 
 // Rate limiters are created after Redis connects (see startup block below).
 // These placeholders are replaced before the server starts listening.
-let authLimiter, passwordResetLimiter, twoFactorLimiter, crisisLimiter, generalLimiter;
+let authLimiter, passwordResetLimiter, twoFactorLimiter, crisisLimiter, generalLimiter, screenshotLimiter;
 
 function createLimiters(useRedis) {
   const storeOpts = useRedis
@@ -154,6 +155,18 @@ function createLimiters(useRedis) {
     legacyHeaders: false,
     store: makeStore("rl:crisis:"),
     message: { error: { message: "Too many alerts, please contact your therapist directly", code: "RATE_LIMITED" } },
+  });
+
+  // Screenshot/event reporting is noisy by nature (tab switches, shortcut
+  // presses can fire several signals), so give it a per-user-ish window while
+  // still capping abuse; the server-side dedup collapses bursts into one event.
+  screenshotLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: makeStore("rl:screenshot:"),
+    message: { error: { message: "Too many capture reports, try again later", code: "RATE_LIMITED" } },
   });
 
   // Long-poll + layout polling endpoints run frequently (every ~10s), so they
@@ -228,6 +241,15 @@ app.use("/api/medications", medicationRoutes);
 app.use("/api/pet", petRoutes);
 app.use("/api/habits", habitRoutes);
 app.use("/api/appointments", appointmentRoutes);
+// Protected-content screenshot events get a dedicated limiter (alongside the
+// general limiter which also applies) to guard against notification abuse.
+app.use("/api", (req, res, next) => {
+  if (req.path === "/screenshot-events" || req.path.startsWith("/protected/")) {
+    return screenshotLimiter(req, res, next);
+  }
+  return next();
+});
+app.use("/api", screenshotEventRoutes);
 
 // ====================== HEALTH CHECK ======================
 app.get("/health", async (req, res) => {
