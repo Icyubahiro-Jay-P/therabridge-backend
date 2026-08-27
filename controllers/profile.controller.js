@@ -1,4 +1,5 @@
 import User from "../models/user.model.js";
+import Review from "../models/review.model.js";
 import {
   getPaginationParams,
   formatPaginatedResponse,
@@ -6,6 +7,27 @@ import {
   parseFilterParams,
 } from "../utils/pagination.js";
 import { logAccess, ipFromReq, uaFromReq } from "../services/audit.service.js";
+
+// Aggregate rating + review count per therapist id (used by list + detail).
+const getRatingsFor = async (therapistIds) => {
+  if (therapistIds.length === 0) return new Map();
+  const rows = await Review.aggregate([
+    { $match: { therapist: { $in: therapistIds }, isHidden: false } },
+    {
+      $group: {
+        _id: "$therapist",
+        avg: { $avg: "$rating" },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+  return new Map(
+    rows.map((r) => [
+      r._id.toString(),
+      { rating: Math.round(r.avg * 10) / 10, reviewCount: r.count },
+    ]),
+  );
+};
 
 export const profile = async (req, res) => {
   try {
