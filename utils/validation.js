@@ -48,6 +48,56 @@ export const updateProfileSchema = z.object({
     )
     .optional(),
   bio: z.string().trim().max(300).optional(),
+  specialization: z.array(z.string().trim().min(1).max(60)).max(10).optional(),
+  credentials: z.string().trim().max(200).optional(),
+  yearsExperience: z.number().int().min(0).max(80).optional(),
+  languages: z.array(z.string().trim().min(1).max(40)).max(10).optional(),
+  sessionPrice: z.number().min(0).max(10000).optional(),
+  weeklyAvailability: z
+    .array(
+      z.object({
+        dayOfWeek: z.number().int().min(0).max(6),
+        startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Start time must be HH:mm"),
+        endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "End time must be HH:mm"),
+      }),
+    )
+    .max(20)
+    .optional(),
+})
+
+export const weeklyAvailabilitySchema = z.object({
+  weeklyAvailability: z
+    .array(
+      z.object({
+        dayOfWeek: z.number().int().min(0).max(6),
+        startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Start time must be HH:mm"),
+        endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "End time must be HH:mm"),
+      }),
+    )
+    .max(20),
+})
+
+export const weeklyAvailabilitySchema = z.object({
+  rating: z.number().int().min(1, "Rating must be between 1 and 5").max(5, "Rating must be between 1 and 5"),
+  title: z.string().trim().max(80).optional(),
+  content: z.string().trim().min(1, "Review content is required").max(500),
+})
+
+export const createAppointmentSchema = z.object({
+  therapistId: z.string().min(1, "Therapist is required"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:mm"),
+  duration: z.number().int().min(15).max(120).optional(),
+  notes: z.string().trim().max(500).optional(),
+})
+
+export const updateAppointmentStatusSchema = z.object({
+  status: z.enum(["confirmed", "completed", "missed", "cancelled"]),
+})
+
+export const checkoutSchema = z.object({
+  intent: z.enum(["subscribe", "session"]),
+  appointmentId: z.string().optional(),
 })
 
 export const changePasswordSchema = z.object({
