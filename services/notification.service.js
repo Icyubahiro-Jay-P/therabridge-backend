@@ -20,6 +20,7 @@ const DEFAULT_URLS = {
   session_booked: "/sessions",
   session_cancelled: "/sessions",
   session_reminder: "/sessions",
+  screenshot: "/chat",
 };
 
 export const createNotification = async (
