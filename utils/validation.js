@@ -66,6 +66,7 @@ export const updateProfileSchema = z.object({
 })
 
 export const reviewSchema = z.object({
+  rating: z.number().int().min(1, "Rating must be between 1 and 5").max(5, "Rating must be between 1 and 5"),
   title: z.string().trim().max(80).optional(),
   content: z.string().trim().min(1, "Review content is required").max(500),
 })
