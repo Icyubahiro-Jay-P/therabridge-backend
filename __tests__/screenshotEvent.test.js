@@ -112,7 +112,7 @@ describe("createViewingSession", () => {
 describe("recordScreenshotEvent", () => {
   const validContext = {
     actorId: "aaaabbbbccccddddeeeeffff",
-    contentId: "bbbcccddddeeeffff00011111",
+    contentId: "123456789012345678901234",
     sessionToken: "tok123",
   }
 
