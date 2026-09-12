@@ -64,8 +64,12 @@ export const updateCommunity = async (req, res) => {
         .json({ error: { message: "Only the owner can update this community.", code: "FORBIDDEN" } });
     }
 
-    if (name) {
-      community.name = name.trim();
+    if (name !== undefined) {
+      const trimmedName = name.trim();
+      if (trimmedName.length < 2) {
+        return res.status(400).json({ error: { message: "Community name must be at least 2 characters.", code: "BAD_REQUEST" } });
+      }
+      community.name = trimmedName;
     }
     if (description !== undefined) {
       community.description = description.trim();
@@ -93,7 +97,8 @@ export const updateCommunity = async (req, res) => {
     await community.populate("moderators", "username firstName lastName avatar");
     await community.populate("pendingMembers", "username firstName lastName avatar");
 
-    res.status(200).json(community);
+    const { messages: _messages, ...safeCommunity } = community.toObject();
+    res.status(200).json(safeCommunity);
   } catch (error) {
     throw error;
   }
