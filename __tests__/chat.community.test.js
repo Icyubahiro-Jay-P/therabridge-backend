@@ -134,6 +134,7 @@ describe("Chat – Community Operations", () => {
         inviteKey: "ABCD1234",
         save: vi.fn().mockResolvedValue(true),
         populate: vi.fn().mockResolvedValue(true),
+        toObject() { return this },
       })
       const { req, res } = mockReqRes({
         body: { inviteKey: "ABCD1234" },
@@ -216,6 +217,7 @@ describe("Chat – Community Operations", () => {
         pendingMembers: [],
         save: vi.fn().mockResolvedValue(true),
         populate: vi.fn().mockResolvedValue(true),
+        toObject() { return this },
       }
     }
 
@@ -290,6 +292,7 @@ describe("Chat – Community Operations", () => {
         pendingMembers: [{ toString: () => "user456" }],
         save: vi.fn().mockResolvedValue(true),
         populate: vi.fn().mockResolvedValue(true),
+        toObject() { return this },
       }
     }
 
