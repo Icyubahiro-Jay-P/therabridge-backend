@@ -11,6 +11,7 @@ import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 import mongoose from "mongoose";
 import { connectDB } from "./db/connectDB.js";
+import allowedOrigins from "./config/allowedOrigins.js";
 import { initChatSocket } from "./sockets/chatSocket.js";
 import { redis } from "./services/cache.js";
 import userRoutes from "./routes/user.route.js";
@@ -99,12 +100,8 @@ app.use(
   cors({
     credentials: true,
     origin: (origin, callback) => {
-      const allowed = [
-        process.env.CLIENT_URL || "http://localhost:5173",
-        "https://therabridge.vercel.app",
-      ].filter(Boolean);
       if (!origin) return callback(null, true);
-      if (allowed.includes(origin)) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
       return callback(new Error("CORS policy: Origin not allowed"));
     },
   }),
