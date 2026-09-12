@@ -31,9 +31,11 @@ const getRatingsFor = async (therapistIds) => {
 
 export const profile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select(
-      "-password -oldPasswords -refreshTokens -resetPasswordToken -resetPasswordExpire -verificationCode -verificationCodeExpire",
-    );
+    const user = await User.findById(req.user.id)
+      .select(
+        "-password -oldPasswords -refreshTokens -resetPasswordToken -resetPasswordExpire -verificationCode -verificationCodeExpire",
+      )
+      .populate("pendingTherapistRequest", "username firstName lastName avatar");
     if (!user) {
       return res.status(404).json({ error: { message: "User not found", code: "NOT_FOUND", category: "USER" } });
     }
