@@ -270,6 +270,12 @@ export const updateCrisisLogAction = async (req, res) => {
     if (!log) {
       return res.status(404).json({ error: { message: "Crisis log not found.", code: "NOT_FOUND" } });
     }
+    if (req.user.role === "therapist") {
+      const client = await User.findById(log.user);
+      if (!client?.therapist || client.therapist.toString() !== req.user.id) {
+        return res.status(403).json({ error: { message: "You can only act on crisis logs for your assigned clients.", code: "FORBIDDEN" } });
+      }
+    }
 
     log.actionTaken = actionTaken;
     if (actionTaken === "therapist_messaged" || actionTaken === "crisis_alert_created") {
