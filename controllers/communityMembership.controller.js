@@ -22,9 +22,10 @@ export const joinCommunity = async (req, res) => {
       await community.populate("owner", "username firstName lastName avatar");
       await community.populate("members", "username firstName lastName avatar");
       await community.populate("moderators", "username firstName lastName avatar");
+      const { messages: _messages, ...safeCommunity } = community.toObject();
       return res
         .status(200)
-        .json({ message: "You're already a member of this community.", community, alreadyMember: true });
+        .json({ message: "You're already a member of this community.", community: safeCommunity, alreadyMember: true });
     }
 
     if (community.isPrivate) {
@@ -49,9 +50,10 @@ export const joinCommunity = async (req, res) => {
     await community.populate("members", "username firstName lastName avatar");
     await community.populate("moderators", "username firstName lastName avatar");
 
+    const { messages: _messages, ...safeCommunity } = community.toObject();
     res
       .status(200)
-      .json({ message: "Joined community successfully!", community });
+      .json({ message: "Joined community successfully!", community: safeCommunity });
   } catch (error) {
     throw error;
   }
@@ -171,7 +173,8 @@ export const respondToJoinRequest = async (req, res) => {
     await community.populate("moderators", "username firstName lastName avatar");
     await community.populate("pendingMembers", "username firstName lastName avatar");
 
-    res.status(200).json({ message, community });
+    const { messages: _messages, ...safeCommunity } = community.toObject();
+    res.status(200).json({ message, community: safeCommunity });
   } catch (error) {
     throw error;
   }
@@ -223,7 +226,8 @@ export const inviteMember = async (req, res) => {
     await community.populate("moderators", "username firstName lastName avatar");
     await community.populate("pendingMembers", "username firstName lastName avatar");
 
-    res.status(200).json({ message: "Member invited successfully!", community });
+    const { messages: _messages, ...safeCommunity } = community.toObject();
+    res.status(200).json({ message: "Member invited successfully!", community: safeCommunity });
   } catch (error) {
     throw error;
   }
