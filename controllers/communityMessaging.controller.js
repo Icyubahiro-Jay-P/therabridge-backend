@@ -122,6 +122,12 @@ export const sendCommunityMessage = async (req, res) => {
     const { communityId } = req.params;
     const { content, replyToMessageId } = req.body;
 
+    if (!content || content.trim() === "") {
+      return res
+        .status(400)
+        .json({ error: { message: "Message content cannot be empty.", code: "BAD_REQUEST" } });
+    }
+
     const community = await Community.findById(communityId);
     if (!community) {
       return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
@@ -252,6 +258,12 @@ export const editCommunityMessage = async (req, res) => {
         .json({ error: { message: "You can only edit your own messages.", code: "FORBIDDEN" } });
     }
 
+    if (!community.members.some((m) => m.toString() === myId)) {
+      return res
+        .status(403)
+        .json({ error: { message: "You are no longer a member of this community.", code: "FORBIDDEN" } });
+    }
+
     if (message.unsent) {
       return res
         .status(400)
@@ -316,9 +328,10 @@ export const unsendCommunityMessage = async (req, res) => {
       return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
     }
 
+    const isMember = community.members.some((m) => m.toString() === myId);
     const isSender = message.sender.toString() === myId;
     const isModerator = canModerate(community, myId, req.user.role);
-    if (!isSender && !isModerator) {
+    if ((!isSender || !isMember) && !isModerator) {
       return res
         .status(403)
         .json({ error: { message: "You can only unsend your own messages.", code: "FORBIDDEN" } });
@@ -353,6 +366,15 @@ export const markCommunityMessagesRead = async (req, res) => {
     const community = await Community.findById(communityId);
     if (!community) {
       return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
+    }
+
+    const isMember = community.members.some(
+      (m) => m.toString() === req.user.id,
+    );
+    if (!isMember) {
+      return res
+        .status(403)
+        .json({ error: { message: "You are not a member of this community.", code: "FORBIDDEN" } });
     }
 
     await Community.updateOne(
