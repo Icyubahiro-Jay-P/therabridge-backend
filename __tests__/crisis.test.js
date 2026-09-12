@@ -13,7 +13,7 @@ vi.mock("../models/crisis.model.js", () => {
 })
 
 vi.mock("../models/crisisLog.model.js", () => ({
-  default: { create: vi.fn() },
+  default: { create: vi.fn(), findById: vi.fn() },
 }))
 
 vi.mock("../models/user.model.js", () => ({
@@ -43,7 +43,7 @@ import Crisis from "../models/crisis.model.js"
 import CrisisLog from "../models/crisisLog.model.js"
 import User from "../models/user.model.js"
 import { createNotification as mockCreateNotification } from "../services/notification.service.js"
-import { createCrisisAlert, acknowledgeCrisis, resolveCrisis } from "../controllers/crisis.controller.js"
+import { createCrisisAlert, acknowledgeCrisis, resolveCrisis, updateCrisisLogAction } from "../controllers/crisis.controller.js"
 
 function mockReqRes(overrides = {}) {
   const req = {
@@ -262,6 +262,63 @@ describe("crisis alert authorization", () => {
       user: { id: "admin123", role: "admin" },
     })
     await acknowledgeCrisis(req, res)
+    expect(res.status).toHaveBeenCalledWith(200)
+  })
+})
+
+describe("crisis log update authorization", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("forbids a therapist from updating an unassigned client's crisis log", async () => {
+    CrisisLog.findById.mockResolvedValue({
+      _id: "log123",
+      user: "owner456",
+      save: vi.fn().mockResolvedValue(true),
+    })
+    User.findById.mockResolvedValue({ therapist: "otherTherapist" })
+    const { req, res } = mockReqRes({
+      params: { logId: "log123" },
+      body: { actionTaken: "therapist_messaged" },
+      user: { id: "therapist123", role: "therapist" },
+    })
+    await updateCrisisLogAction(req, res)
+    expect(res.status).toHaveBeenCalledWith(403)
+  })
+
+  it("lets an assigned therapist update a crisis log", async () => {
+    const log = {
+      _id: "log123",
+      user: "owner456",
+      save: vi.fn().mockResolvedValue(true),
+    }
+    CrisisLog.findById.mockResolvedValue(log)
+    User.findById.mockResolvedValue({ therapist: "therapist123" })
+    const { req, res } = mockReqRes({
+      params: { logId: "log123" },
+      body: { actionTaken: "therapist_messaged" },
+      user: { id: "therapist123", role: "therapist" },
+    })
+    await updateCrisisLogAction(req, res)
+    expect(res.status).toHaveBeenCalledWith(200)
+    expect(log.actionTaken).toBe("therapist_messaged")
+  })
+
+  it("lets an admin update any crisis log without an ownership check", async () => {
+    const log = {
+      _id: "log123",
+      user: "owner456",
+      save: vi.fn().mockResolvedValue(true),
+    }
+    CrisisLog.findById.mockResolvedValue(log)
+    const { req, res } = mockReqRes({
+      params: { logId: "log123" },
+      body: { actionTaken: "none" },
+      user: { id: "admin123", role: "admin" },
+    })
+    await updateCrisisLogAction(req, res)
+    expect(User.findById).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(200)
   })
 })
