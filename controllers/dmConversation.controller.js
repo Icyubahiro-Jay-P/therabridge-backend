@@ -98,7 +98,9 @@ export const getConversation = async (req, res) => {
             sender: userId,
             recipient: myId,
             read: false,
-          }).sort({ _id: 1 }),
+          })
+            .sort({ _id: 1 })
+            .limit(limit),
         ),
       ]);
 
@@ -108,6 +110,12 @@ export const getConversation = async (req, res) => {
       messages = [...byId.values()].sort((a, b) =>
         a._id.toString() < b._id.toString() ? -1 : 1,
       );
+      // The merge above can exceed `limit` (recent + unread windows can be
+      // disjoint) - keep only the most recent `limit` so the page-size
+      // contract holds regardless of how many unread messages exist.
+      if (messages.length > limit) {
+        messages = messages.slice(messages.length - limit);
+      }
 
       if (messages.length > 0) {
         const oldestId = messages[0]._id;
