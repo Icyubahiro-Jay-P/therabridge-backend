@@ -49,6 +49,8 @@ vi.mock("../services/notification.service.js", () => ({
 import {
   editCommunityMessage,
   unsendCommunityMessage,
+  sendCommunityMessage,
+  markCommunityMessagesRead,
   reportPossibleScreenshot,
 } from "../controllers/chat.controller.js"
 import { Community } from "../models/chat.model.js"
