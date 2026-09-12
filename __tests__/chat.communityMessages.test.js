@@ -155,6 +155,16 @@ describe("Chat – Community Messages", () => {
       expect(community.save).toHaveBeenCalled()
       expect(res.status).toHaveBeenCalledWith(200)
     })
+
+    it("should reject editing after being removed from the community", async () => {
+      Community.findOne.mockResolvedValue(makeMockCommunity({ members: [] }))
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123", messageId: "msg123" },
+        body: { content: "edited" },
+      })
+      await editCommunityMessage(req, res)
+      expect(res.status).toHaveBeenCalledWith(403)
+    })
   })
 
   describe("unsendCommunityMessage", () => {
