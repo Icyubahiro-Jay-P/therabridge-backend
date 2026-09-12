@@ -221,6 +221,63 @@ describe("Chat – Community Messages", () => {
         expect.objectContaining({ message: "Message unsent." })
       )
     })
+
+    it("should reject unsending own message after being removed from the community", async () => {
+      Community.findOne.mockResolvedValue(makeMockCommunity({ members: [] }))
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123", messageId: "msg123" },
+      })
+      await unsendCommunityMessage(req, res)
+      expect(res.status).toHaveBeenCalledWith(403)
+    })
+
+    it("lets a moderator unsend a member's message even if the moderator didn't send it", async () => {
+      const community = makeMockCommunity({
+        senderId: "otheruser",
+        members: ["user123", "otheruser"],
+        moderators: ["user123"],
+      })
+      Community.findOne.mockResolvedValue(community)
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123", messageId: "msg123" },
+      })
+      await unsendCommunityMessage(req, res)
+      expect(community.save).toHaveBeenCalled()
+      expect(res.status).toHaveBeenCalledWith(200)
+    })
+  })
+
+  describe("sendCommunityMessage", () => {
+    it("should reject whitespace-only content", async () => {
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123" },
+        body: { content: "   " },
+      })
+      await sendCommunityMessage(req, res)
+      expect(res.status).toHaveBeenCalledWith(400)
+      expect(Community.findById).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("markCommunityMessagesRead", () => {
+    it("should reject a non-member", async () => {
+      Community.findById.mockResolvedValue({ _id: "comm123", members: ["otheruser"] })
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123" },
+      })
+      await markCommunityMessagesRead(req, res)
+      expect(res.status).toHaveBeenCalledWith(403)
+    })
+
+    it("should allow a member to mark messages read", async () => {
+      Community.findById.mockResolvedValue({ _id: "comm123", members: ["user123"] })
+      Community.updateOne = vi.fn().mockResolvedValue({})
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123" },
+      })
+      await markCommunityMessagesRead(req, res)
+      expect(res.status).toHaveBeenCalledWith(200)
+    })
   })
 
   describe("reportPossibleScreenshot", () => {
