@@ -75,6 +75,13 @@ const userSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+    // Therapist who has requested to manage this user, awaiting the user's
+    // consent via respondTherapistRequest. Cleared on approve or reject.
+    pendingTherapistRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     avatar: {
       type: String,
       default: null,
