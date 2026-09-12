@@ -53,6 +53,7 @@ import {
   inviteMember,
   respondToJoinRequest,
   deleteCommunity,
+  updateCommunity,
 } from "../controllers/chat.controller.js"
 import { Community } from "../models/chat.model.js"
 import User from "../models/user.model.js"
@@ -329,6 +330,44 @@ describe("Chat – Community Operations", () => {
       })
       await deleteCommunity(req, res)
       expect(res.status).toHaveBeenCalledWith(404)
+    })
+  })
+
+  describe("updateCommunity", () => {
+    function makeCommunity() {
+      return {
+        _id: "comm123",
+        owner: { toString: () => "user123" },
+        name: "Original",
+        messages: [{ _id: "msg1", content: "ciphertext" }],
+        save: vi.fn().mockResolvedValue(true),
+        populate: vi.fn().mockResolvedValue(true),
+        toObject() { return this },
+      }
+    }
+
+    it("should reject a whitespace-only name", async () => {
+      Community.findById.mockResolvedValue(makeCommunity())
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123" },
+        body: { name: "   " },
+      })
+      await updateCommunity(req, res)
+      expect(res.status).toHaveBeenCalledWith(400)
+    })
+
+    it("should update the name and never leak the messages array", async () => {
+      const community = makeCommunity()
+      Community.findById.mockResolvedValue(community)
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123" },
+        body: { name: "New Name" },
+      })
+      await updateCommunity(req, res)
+      expect(res.status).toHaveBeenCalledWith(200)
+      const payload = res.json.mock.calls[0][0]
+      expect(payload.name).toBe("New Name")
+      expect(payload.messages).toBeUndefined()
     })
   })
 })
