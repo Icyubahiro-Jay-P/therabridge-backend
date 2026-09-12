@@ -120,6 +120,10 @@ export const moderateRequestSchema = z.object({
   action: z.enum(["approve", "reject"]),
 })
 
+export const respondTherapistRequestSchema = z.object({
+  action: z.enum(["approve", "reject"]),
+})
+
 export const assignTherapistSchema = z.object({
   userId: z.string().min(1, "User is required"),
   therapistId: z.string().nullable().optional(),

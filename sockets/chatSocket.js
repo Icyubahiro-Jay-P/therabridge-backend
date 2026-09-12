@@ -7,6 +7,7 @@ import { encryptField } from "../utils/crypto.js";
 import { redis } from "../services/cache.js";
 import logger from "../utils/logger.js";
 import { recordLegacyScreenshotEvent } from "../services/screenshotEvent.service.js";
+import allowedOrigins from "../config/allowedOrigins.js";
 
 // ====================== RATE LIMITING ======================
 // Possible-screenshot notices are noisy by nature (tab switches, shortcut
@@ -22,22 +23,16 @@ const isRateLimited = (userId) => {
   return false;
 };
 
-// ====================== CORS (mirrors server.js) ======================
-const getSocketCors = () => {
-  const allowed = [
-    process.env.CLIENT_URL || "http://localhost:5173",
-    "https://therabridge.vercel.app",
-  ].filter(Boolean);
-  return {
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (allowed.includes(origin)) return callback(null, true);
-      return callback(new Error("CORS policy: Origin not allowed"));
-    },
-    credentials: true,
-    methods: ["GET", "POST"],
-  };
-};
+// ====================== CORS ======================
+const getSocketCors = () => ({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("CORS policy: Origin not allowed"));
+  },
+  credentials: true,
+  methods: ["GET", "POST"],
+});
 
 // ====================== AUTH HANDSHAKE ======================
 const extractToken = (handshake) => {

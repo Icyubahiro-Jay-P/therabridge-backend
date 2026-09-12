@@ -21,6 +21,7 @@ const DEFAULT_URLS = {
   session_cancelled: "/sessions",
   session_reminder: "/sessions",
   screenshot: "/chat",
+  therapist_request: "/settings",
 };
 
 export const createNotification = async (

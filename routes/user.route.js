@@ -23,6 +23,7 @@ import {
   getFullUserData,
   getTherapistClients,
   addTherapistClient,
+  respondTherapistRequest,
   assignTherapist,
   acknowledgeAiDisclosure,
   exportMyData,
@@ -55,6 +56,7 @@ import {
   privacySettingsSchema,
   inviteMemberSchema,
   assignTherapistSchema,
+  respondTherapistRequestSchema,
   deleteProfileSchema,
   reviewSchema,
   verifyTwoFactorSetupSchema,
@@ -118,6 +120,7 @@ router.put("/admin/therapist", authMiddleware, requireAdmin, validate(assignTher
 router.get("/therapist/user/:id", authMiddleware, requireAdminOrTherapist, getFullUserData);
 router.get("/therapist/clients", authMiddleware, requireTherapist, getTherapistClients);
 router.post("/therapist/clients", authMiddleware, requireTherapist, validate(inviteMemberSchema), addTherapistClient);
+router.post("/therapist-request/respond", authMiddleware, validate(respondTherapistRequestSchema), respondTherapistRequest);
 
 router.get("/:username", getUserProfile);
 
