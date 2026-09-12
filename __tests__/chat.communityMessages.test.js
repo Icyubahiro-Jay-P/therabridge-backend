@@ -79,6 +79,7 @@ describe("Chat – Community Messages", () => {
     function makeMockCommunity(opts = {}) {
       return {
         _id: "comm123",
+        members: opts.members ?? ["user123"],
         messages: {
           id: vi.fn().mockReturnValue({
             _id: "msg123",
@@ -158,6 +159,9 @@ describe("Chat – Community Messages", () => {
     function makeMockCommunity(opts = {}) {
       return {
         _id: "comm123",
+        members: opts.members ?? ["user123"],
+        moderators: opts.moderators ?? [],
+        owner: opts.owner ?? "someowner",
         messages: {
           id: vi.fn().mockReturnValue({
             _id: "msg123",
