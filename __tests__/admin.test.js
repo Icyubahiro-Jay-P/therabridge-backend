@@ -9,6 +9,14 @@ vi.mock("../models/chat.model.js", () => ({
   Community: { countDocuments: vi.fn(), aggregate: vi.fn() },
 }))
 
+vi.mock("../models/communityMessage.model.js", () => ({
+  CommunityMessage: {
+    countDocuments: vi.fn(),
+    aggregate: vi.fn(),
+    collection: { name: "communitymessages" },
+  },
+}))
+
 vi.mock("../models/mood.model.js", () => ({
   default: { countDocuments: vi.fn(), aggregate: vi.fn() },
 }))
