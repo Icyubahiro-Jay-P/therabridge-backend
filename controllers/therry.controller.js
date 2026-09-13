@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { TherryMessage } from "../models/therryMessage.model.js";
 import Crisis from "../models/crisis.model.js";
 import CrisisLog from "../models/crisisLog.model.js";
@@ -11,7 +11,8 @@ import { getHotlinesForCountry } from "../utils/hotlines.js";
 import { getPanicExercise } from "./exercise.controller.js";
 import logger from "../utils/logger.js";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const GEMINI_MODEL = "gemini-3.8-flash";
 
 const SYSTEM_PROMPT = `You are Therry, an empathetic wellness companion in a mental health support app. You listen with warmth, validate the user's feelings, and offer gentle, practical coping suggestions (e.g. grounding exercises, breathing techniques, journaling prompts). Keep responses warm, concise, and under 6 sentences. Never diagnose or claim to be a licensed therapist. If the user shares thoughts of suicide or self-harm, respond with immediate support and strongly encourage them to contact emergency services (911), call/text 988, or text HOME to 741741.`;
 
@@ -74,11 +75,6 @@ const FALLBACK_RESPONSES = {
 };
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
-
-const model = genAI.getGenerativeModel({
-  model: "gemini-3.5-flash",
-  systemInstruction: SYSTEM_PROMPT,
-});
 
 const saveMessage = async (userId, role, content, category) => {
   try {
@@ -254,8 +250,12 @@ export const chat = async (req, res) => {
       reply = pick(CRISIS_RESPONSES);
     } else {
       try {
-        const result = await model.generateContent(message);
-        reply = result.response.text().trim().slice(0, 4000);
+        const result = await genAI.models.generateContent({
+          model: GEMINI_MODEL,
+          contents: message,
+          config: { systemInstruction: SYSTEM_PROMPT },
+        });
+        reply = result.text.trim().slice(0, 4000);
       } catch (aiError) {
         logger.error({ err: aiError }, "Gemini generation error");
         reply = pick(FALLBACK_RESPONSES[category] || FALLBACK_RESPONSES.general);

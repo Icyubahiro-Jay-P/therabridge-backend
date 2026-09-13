@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
-vi.mock("@google/generative-ai", () => ({
-  GoogleGenerativeAI: class {
-    getGenerativeModel() {
-      return { generateContent: vi.fn().mockResolvedValue({ response: { text: () => "ok" } }) }
+vi.mock("@google/genai", () => ({
+  GoogleGenAI: class {
+    constructor() {
+      this.models = { generateContent: vi.fn().mockResolvedValue({ text: "ok" }) }
     }
   },
 }))
