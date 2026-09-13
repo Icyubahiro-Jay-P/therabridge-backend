@@ -15,9 +15,17 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const SYSTEM_PROMPT = `You are Therry, an empathetic wellness companion in a mental health support app. You listen with warmth, validate the user's feelings, and offer gentle, practical coping suggestions (e.g. grounding exercises, breathing techniques, journaling prompts). Keep responses warm, concise, and under 6 sentences. Never diagnose or claim to be a licensed therapist. If the user shares thoughts of suicide or self-harm, respond with immediate support and strongly encourage them to contact emergency services (911), call/text 988, or text HOME to 741741.`;
 
+// Shared by category classification and alert-type selection so the two
+// can't independently drift on what counts as a crisis statement. Keyword
+// matching necessarily has limited recall - this covers unambiguous method/
+// plan statements and common crisis phrasing beyond the original narrower
+// set, not a claim of complete coverage.
+const SELF_HARM_CRISIS_PATTERN =
+  /suicid|kill myself|end (?:my life|it all)|want to die|self.?harm|cut(?:ting)? myself|hang myself|overdose|jump off|shoot myself|don'?t want to (?:be here|live|exist)|no (?:reason|point) (?:to|in) liv(?:e|ing)|better off dead|can'?t go on|can'?t (?:do this|take (?:it|this)) anymore/i;
+
 function getResponseCategory(message) {
   const lower = message.toLowerCase();
-  if (/suicid|kill myself|end my life|want to die|self.?harm/i.test(lower)) return "crisis";
+  if (SELF_HARM_CRISIS_PATTERN.test(lower)) return "crisis";
   if (/anxious|anxiety|panic|worried|nervous/i.test(lower)) return "anxiety";
   if (/sad|depress|unhappy|cry|crying|hopeless/i.test(lower)) return "sad";
   if (/stress|overwhelm|burnout|exhausted|pressure/i.test(lower)) return "stress";
@@ -88,7 +96,7 @@ const saveMessage = async (userId, role, content, category) => {
 
 const chooseCrisisAlertType = (message) => {
   const lower = message.toLowerCase();
-  if (/suicid|kill myself|end my life|want to die|self.?harm/i.test(lower)) {
+  if (SELF_HARM_CRISIS_PATTERN.test(lower)) {
     return "self_harm_thoughts";
   }
   if (/panic|hyperventilat/i.test(lower)) return "panic_attack";
