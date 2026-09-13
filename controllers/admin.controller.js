@@ -222,12 +222,7 @@ export const getDashboard = async (req, res) => {
       countSince(Crisis, {}, week),
       countSince(Crisis, {}, month),
       countSince(Message, { kind: "message" }, week),
-      await Community.aggregate([
-        { $match: { "messages.createdAt": { $gte: week } } },
-        { $unwind: "$messages" },
-        { $match: { "messages.createdAt": { $gte: week } } },
-        { $count: "count" },
-      ]).then((rows) => rows[0]?.count ?? 0),
+      countSince(CommunityMessage, {}, week),
       countSince(Mood, {}, week),
       countSince(ExerciseLog, { completed: true }, week),
       Notification.countDocuments(),
