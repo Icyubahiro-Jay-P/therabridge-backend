@@ -40,6 +40,7 @@ vi.mock("../models/auditLog.model.js", () => ({
 import { getDashboard } from "../controllers/admin.controller.js"
 import User from "../models/user.model.js"
 import { Message, Community } from "../models/chat.model.js"
+import { CommunityMessage } from "../models/communityMessage.model.js"
 import Mood from "../models/mood.model.js"
 import Crisis from "../models/crisis.model.js"
 import ExerciseLog from "../models/exerciseLog.model.js"
@@ -70,6 +71,7 @@ describe("Admin Controller", () => {
     })
     Message.countDocuments = vi.fn().mockResolvedValue(20)
     Community.countDocuments = vi.fn().mockResolvedValue(6)
+    CommunityMessage.countDocuments = vi.fn().mockResolvedValue(42)
     Mood.countDocuments = vi.fn().mockResolvedValue(12)
     Crisis.countDocuments = vi.fn((filter = {}) => {
       if (filter.status === "active") return Promise.resolve(1)
@@ -82,6 +84,7 @@ describe("Admin Controller", () => {
     const dailyRows = (count) => [{ _id: todayKey, count }]
     User.aggregate = vi.fn().mockResolvedValue(dailyRows(5))
     Message.aggregate = vi.fn().mockResolvedValue(dailyRows(20))
+    CommunityMessage.aggregate = vi.fn().mockResolvedValue(dailyRows(3))
     Crisis.aggregate = vi.fn().mockResolvedValue(dailyRows(2))
     ExerciseLog.aggregate = vi.fn().mockResolvedValue(dailyRows(7))
     Mood.aggregate = vi.fn((pipeline) => {
@@ -105,16 +108,6 @@ describe("Admin Controller", () => {
     )
 
     Community.aggregate = vi.fn((pipeline) => {
-      if (pipeline.some((stage) => stage.$count)) {
-        // Weekly community-message count.
-        return Promise.resolve([{ count: 42 }])
-      }
-      if (
-        pipeline.some((stage) => stage.$group?._id?.$dateToString)
-      ) {
-        // Daily community-message series.
-        return Promise.resolve([{ _id: todayKey, count: 3 }])
-      }
       if (pipeline.some((stage) => stage.$addFields)) {
         // Top communities.
         return Promise.resolve([
@@ -163,29 +156,41 @@ describe("Admin Controller", () => {
       )
     })
 
-    it("should count community messages via unwind aggregation", async () => {
+    it("should count community messages from their own collection", async () => {
       const res = {
         status: vi.fn().mockReturnThis(),
         json: vi.fn().mockReturnThis(),
       }
       await getDashboard({ user: { role: "admin" } }, res)
 
-      const countCall = Community.aggregate.mock.calls.find(([p]) =>
-        p.some((stage) => stage.$count)
+      expect(CommunityMessage.countDocuments).toHaveBeenCalledWith(
+        expect.objectContaining({ createdAt: expect.any(Object) })
       )
-      expect(countCall).toBeTruthy()
-      expect(countCall[0][1]).toEqual({ $unwind: "$messages" })
-
-      const dailyCall = Community.aggregate.mock.calls.find(([p]) =>
-        p.some((stage) => stage.$group?._id?.$dateToString)
-      )
-      expect(dailyCall).toBeTruthy()
-      expect(dailyCall[0][1]).toEqual({ $unwind: "$messages" })
+      expect(CommunityMessage.aggregate).toHaveBeenCalled()
 
       const payload = res.json.mock.calls[0][0]
+      expect(payload.trends.communityMessagesWeek).toBe(42)
       expect(payload.activity).toHaveLength(14)
       expect(payload.activity[13].communityMessages).toBe(3)
       expect(payload.activity[0].communityMessages).toBe(0)
+    })
+
+    it("should compute top-community message counts via a $lookup against CommunityMessage", async () => {
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn().mockReturnThis(),
+      }
+      await getDashboard({ user: { role: "admin" } }, res)
+
+      const topCommunitiesCall = Community.aggregate.mock.calls.find(([p]) =>
+        p.some((stage) => stage.$addFields)
+      )
+      expect(topCommunitiesCall).toBeTruthy()
+      expect(topCommunitiesCall[0][0]).toEqual(
+        expect.objectContaining({
+          $lookup: expect.objectContaining({ from: "communitymessages" }),
+        })
+      )
     })
 
     it("should build a 14-day activity series with zero-filled days", async () => {
