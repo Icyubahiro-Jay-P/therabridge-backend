@@ -40,6 +40,7 @@ vi.mock("../sockets/chatSocket.js", () => ({
   recordPossibleScreenshot: vi.fn(),
   emitToUser: vi.fn(),
   emitToCommunity: vi.fn(),
+  evictUserFromCommunity: vi.fn(),
 }))
 
 vi.mock("../services/notification.service.js", () => ({
