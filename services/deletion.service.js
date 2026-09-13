@@ -1,5 +1,6 @@
 import User from "../models/user.model.js";
 import { Message, Community } from "../models/chat.model.js";
+import { CommunityMessage } from "../models/communityMessage.model.js";
 import Mood from "../models/mood.model.js";
 import Crisis from "../models/crisis.model.js";
 import CrisisLog from "../models/crisisLog.model.js";
@@ -48,9 +49,20 @@ export const deleteUserAndData = async (userId) => {
       await deleteAvatarFile(user.avatar, userId);
     }
 
-    // Communities owned by the user are deleted outright.
+    // Communities owned by the user are deleted outright, along with all of
+    // their messages (not just the owner's).
+    const ownedCommunities = await Community.find({ owner: userId }, "_id", opts).lean();
+    if (ownedCommunities.length > 0) {
+      await CommunityMessage.deleteMany(
+        { community: { $in: ownedCommunities.map((c) => c._id) } },
+        opts,
+      );
+    }
     await Community.deleteMany({ owner: userId }, opts);
-    // Pull the user from any other community and drop their messages there.
+
+    // Pull the user from any other community's rosters, and delete their
+    // own messages there (communities themselves, and other members'
+    // messages, are untouched).
     await Community.updateMany(
       { members: userId },
       {
@@ -58,11 +70,11 @@ export const deleteUserAndData = async (userId) => {
           members: userId,
           moderators: userId,
           pendingMembers: userId,
-          messages: { sender: userId },
         },
       },
       opts,
     );
+    await CommunityMessage.deleteMany({ sender: userId }, opts);
 
     // Direct messages, mood logs, crisis records, Therry history, notifications,
     // exercise history, and push subscriptions.
