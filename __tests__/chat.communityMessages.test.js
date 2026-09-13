@@ -23,6 +23,15 @@ vi.mock("../models/chat.model.js", () => {
   }
 })
 
+vi.mock("../models/communityMessage.model.js", () => ({
+  CommunityMessage: {
+    findOne: vi.fn(),
+    find: vi.fn(),
+    exists: vi.fn(),
+    updateMany: vi.fn(),
+  },
+}))
+
 vi.mock("../models/user.model.js", () => ({
   default: {
     find: vi.fn(),
@@ -55,6 +64,7 @@ import {
   reportPossibleScreenshot,
 } from "../controllers/chat.controller.js"
 import { Community } from "../models/chat.model.js"
+import { CommunityMessage } from "../models/communityMessage.model.js"
 import User from "../models/user.model.js"
 import { recordPossibleScreenshot as mockRecordPossibleScreenshot } from "../sockets/chatSocket.js"
 
@@ -79,31 +89,30 @@ describe("Chat – Community Messages", () => {
   })
 
   describe("editCommunityMessage", () => {
-    function makeMockCommunity(opts = {}) {
+    function makeMockMessage(opts = {}) {
       return {
-        _id: "comm123",
-        members: opts.members ?? ["user123"],
-        messages: {
-          id: vi.fn().mockReturnValue({
-            _id: "msg123",
-            sender: { toString: () => opts.senderId ?? "user123" },
-            content: opts.content ?? "original",
-            createdAt: opts.createdAt ?? new Date(),
-            unsent: opts.unsent ?? false,
-            editCount: opts.editCount ?? 0,
-            editHistory: [],
-            edited: false,
-            toObject: vi.fn().mockReturnValue({ _id: "msg123" }),
-            ...opts.msgOverrides,
-          }),
-        },
+        _id: "msg123",
+        sender: { toString: () => opts.senderId ?? "user123" },
+        content: opts.content ?? "original",
+        createdAt: opts.createdAt ?? new Date(),
+        unsent: opts.unsent ?? false,
+        editCount: opts.editCount ?? 0,
+        editHistory: [],
+        edited: false,
         save: vi.fn().mockResolvedValue(true),
         populate: vi.fn().mockResolvedValue(true),
+        toObject: vi.fn().mockReturnValue({ _id: "msg123" }),
+        ...opts.msgOverrides,
       }
     }
 
+    function mockMembership(members) {
+      Community.findById.mockReturnValue({
+        select: vi.fn().mockResolvedValue({ members }),
+      })
+    }
+
     it("should reject empty edit content", async () => {
-      Community.findOne.mockResolvedValue(makeMockCommunity({}))
       const { req, res } = mockReqRes({
         params: { communityId: "comm123", messageId: "msg123" },
         body: { content: "" },
@@ -116,7 +125,7 @@ describe("Chat – Community Messages", () => {
     })
 
     it("should reject non-existent message", async () => {
-      Community.findOne.mockResolvedValue(null)
+      CommunityMessage.findOne.mockResolvedValue(null)
       const { req, res } = mockReqRes({
         params: { communityId: "comm123", messageId: "nonexistent" },
         body: { content: "edited" },
@@ -126,7 +135,7 @@ describe("Chat – Community Messages", () => {
     })
 
     it("should reject editing another user's message", async () => {
-      Community.findOne.mockResolvedValue(makeMockCommunity({ senderId: "otheruser" }))
+      CommunityMessage.findOne.mockResolvedValue(makeMockMessage({ senderId: "otheruser" }))
       const { req, res } = mockReqRes({
         params: { communityId: "comm123", messageId: "msg123" },
         body: { content: "edited" },
@@ -136,7 +145,8 @@ describe("Chat – Community Messages", () => {
     })
 
     it("should reject editing an unsent message", async () => {
-      Community.findOne.mockResolvedValue(makeMockCommunity({ unsent: true }))
+      CommunityMessage.findOne.mockResolvedValue(makeMockMessage({ unsent: true }))
+      mockMembership(["user123"])
       const { req, res } = mockReqRes({
         params: { communityId: "comm123", messageId: "msg123" },
         body: { content: "edited" },
@@ -146,19 +156,21 @@ describe("Chat – Community Messages", () => {
     })
 
     it("should edit own message", async () => {
-      const community = makeMockCommunity({})
-      Community.findOne.mockResolvedValue(community)
+      const message = makeMockMessage({})
+      CommunityMessage.findOne.mockResolvedValue(message)
+      mockMembership(["user123"])
       const { req, res } = mockReqRes({
         params: { communityId: "comm123", messageId: "msg123" },
         body: { content: "edited content" },
       })
       await editCommunityMessage(req, res)
-      expect(community.save).toHaveBeenCalled()
+      expect(message.save).toHaveBeenCalled()
       expect(res.status).toHaveBeenCalledWith(200)
     })
 
     it("should reject editing after being removed from the community", async () => {
-      Community.findOne.mockResolvedValue(makeMockCommunity({ members: [] }))
+      CommunityMessage.findOne.mockResolvedValue(makeMockMessage({}))
+      mockMembership([])
       const { req, res } = mockReqRes({
         params: { communityId: "comm123", messageId: "msg123" },
         body: { content: "edited" },
@@ -169,30 +181,32 @@ describe("Chat – Community Messages", () => {
   })
 
   describe("unsendCommunityMessage", () => {
-    function makeMockCommunity(opts = {}) {
+    function makeMockMessage(opts = {}) {
       return {
-        _id: "comm123",
-        members: opts.members ?? ["user123"],
-        moderators: opts.moderators ?? [],
-        owner: opts.owner ?? "someowner",
-        messages: {
-          id: vi.fn().mockReturnValue({
-            _id: "msg123",
-            sender: { toString: () => opts.senderId ?? "user123" },
-            content: "original",
-            createdAt: new Date(),
-            unsent: false,
-            toObject: vi.fn().mockReturnValue({ _id: "msg123" }),
-            ...opts.msgOverrides,
-          }),
-        },
+        _id: "msg123",
+        sender: { toString: () => opts.senderId ?? "user123" },
+        content: "original",
+        createdAt: new Date(),
+        unsent: false,
         save: vi.fn().mockResolvedValue(true),
         populate: vi.fn().mockResolvedValue(true),
+        toObject: vi.fn().mockReturnValue({ _id: "msg123" }),
+        ...opts.msgOverrides,
       }
     }
 
+    function mockCommunity(opts = {}) {
+      Community.findById.mockReturnValue({
+        select: vi.fn().mockResolvedValue({
+          members: opts.members ?? ["user123"],
+          moderators: opts.moderators ?? [],
+          owner: opts.owner ?? "someowner",
+        }),
+      })
+    }
+
     it("should reject non-existent message", async () => {
-      Community.findOne.mockResolvedValue(null)
+      CommunityMessage.findOne.mockResolvedValue(null)
       const { req, res } = mockReqRes({
         params: { communityId: "comm123", messageId: "nonexistent" },
       })
@@ -201,7 +215,8 @@ describe("Chat – Community Messages", () => {
     })
 
     it("should reject unsending another user's message", async () => {
-      Community.findOne.mockResolvedValue(makeMockCommunity({ senderId: "otheruser" }))
+      CommunityMessage.findOne.mockResolvedValue(makeMockMessage({ senderId: "otheruser" }))
+      mockCommunity({})
       const { req, res } = mockReqRes({
         params: { communityId: "comm123", messageId: "msg123" },
       })
@@ -210,13 +225,14 @@ describe("Chat – Community Messages", () => {
     })
 
     it("should unsend own message", async () => {
-      const community = makeMockCommunity({})
-      Community.findOne.mockResolvedValue(community)
+      const message = makeMockMessage({})
+      CommunityMessage.findOne.mockResolvedValue(message)
+      mockCommunity({})
       const { req, res } = mockReqRes({
         params: { communityId: "comm123", messageId: "msg123" },
       })
       await unsendCommunityMessage(req, res)
-      expect(community.save).toHaveBeenCalled()
+      expect(message.save).toHaveBeenCalled()
       expect(res.status).toHaveBeenCalledWith(200)
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ message: "Message unsent." })
@@ -224,7 +240,8 @@ describe("Chat – Community Messages", () => {
     })
 
     it("should reject unsending own message after being removed from the community", async () => {
-      Community.findOne.mockResolvedValue(makeMockCommunity({ members: [] }))
+      CommunityMessage.findOne.mockResolvedValue(makeMockMessage({}))
+      mockCommunity({ members: [] })
       const { req, res } = mockReqRes({
         params: { communityId: "comm123", messageId: "msg123" },
       })
@@ -233,17 +250,14 @@ describe("Chat – Community Messages", () => {
     })
 
     it("lets a moderator unsend a member's message even if the moderator didn't send it", async () => {
-      const community = makeMockCommunity({
-        senderId: "otheruser",
-        members: ["user123", "otheruser"],
-        moderators: ["user123"],
-      })
-      Community.findOne.mockResolvedValue(community)
+      const message = makeMockMessage({ senderId: "otheruser" })
+      CommunityMessage.findOne.mockResolvedValue(message)
+      mockCommunity({ members: ["user123", "otheruser"], moderators: ["user123"] })
       const { req, res } = mockReqRes({
         params: { communityId: "comm123", messageId: "msg123" },
       })
       await unsendCommunityMessage(req, res)
-      expect(community.save).toHaveBeenCalled()
+      expect(message.save).toHaveBeenCalled()
       expect(res.status).toHaveBeenCalledWith(200)
     })
   })
@@ -262,7 +276,9 @@ describe("Chat – Community Messages", () => {
 
   describe("markCommunityMessagesRead", () => {
     it("should reject a non-member", async () => {
-      Community.findById.mockResolvedValue({ _id: "comm123", members: ["otheruser"] })
+      Community.findById.mockReturnValue({
+        select: vi.fn().mockResolvedValue({ _id: "comm123", members: ["otheruser"] }),
+      })
       const { req, res } = mockReqRes({
         params: { communityId: "comm123" },
       })
@@ -271,13 +287,19 @@ describe("Chat – Community Messages", () => {
     })
 
     it("should allow a member to mark messages read", async () => {
-      Community.findById.mockResolvedValue({ _id: "comm123", members: ["user123"] })
-      Community.updateOne = vi.fn().mockResolvedValue({})
+      Community.findById.mockReturnValue({
+        select: vi.fn().mockResolvedValue({ _id: "comm123", members: ["user123"] }),
+      })
+      CommunityMessage.updateMany.mockResolvedValue({})
       const { req, res } = mockReqRes({
         params: { communityId: "comm123" },
       })
       await markCommunityMessagesRead(req, res)
       expect(res.status).toHaveBeenCalledWith(200)
+      expect(CommunityMessage.updateMany).toHaveBeenCalledWith(
+        { community: "comm123" },
+        { $addToSet: { readBy: "user123" } },
+      )
     })
   })
 
