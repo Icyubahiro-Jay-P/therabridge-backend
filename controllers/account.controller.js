@@ -1,5 +1,6 @@
 import User from "../models/user.model.js";
 import { Message, Community } from "../models/chat.model.js";
+import { CommunityMessage } from "../models/communityMessage.model.js";
 import Mood from "../models/mood.model.js";
 import Crisis from "../models/crisis.model.js";
 import { TherryMessage } from "../models/therryMessage.model.js";
