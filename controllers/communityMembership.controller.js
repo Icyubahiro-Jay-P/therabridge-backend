@@ -1,6 +1,7 @@
 import { Community } from "../models/chat.model.js";
 import User from "../models/user.model.js";
 import { canModerate } from "./chat.utils.js";
+import { emitToUser, emitToCommunity, evictUserFromCommunity } from "../sockets/chatSocket.js";
 
 export const joinCommunity = async (req, res) => {
   try {
@@ -173,6 +174,8 @@ export const respondToJoinRequest = async (req, res) => {
     await community.populate("moderators", "username firstName lastName avatar");
     await community.populate("pendingMembers", "username firstName lastName avatar");
 
+    emitToCommunity(communityId, "community_updated", { communityId });
+
     const { messages: _messages, ...safeCommunity } = community.toObject();
     res.status(200).json({ message, community: safeCommunity });
   } catch (error) {
@@ -226,6 +229,8 @@ export const inviteMember = async (req, res) => {
     await community.populate("moderators", "username firstName lastName avatar");
     await community.populate("pendingMembers", "username firstName lastName avatar");
 
+    emitToCommunity(communityId, "community_updated", { communityId });
+
     const { messages: _messages, ...safeCommunity } = community.toObject();
     res.status(200).json({ message: "Member invited successfully!", community: safeCommunity });
   } catch (error) {
@@ -257,11 +262,23 @@ export const removeMember = async (req, res) => {
       return res.status(400).json({ error: { message: "You cannot remove the owner.", code: "BAD_REQUEST" } });
     }
 
+    const targetIsModerator = (community.moderators ?? []).some((m) => m.toString() === userId);
+    const actingIsOwner = community.owner.toString() === req.user.id;
+    if (targetIsModerator && !actingIsOwner && req.user.role !== "admin") {
+      return res.status(403).json({
+        error: { message: "Only the owner can remove a moderator from the community.", code: "FORBIDDEN" },
+      });
+    }
+
     community.members = community.members.filter((m) => m.toString() !== userId);
     community.moderators = (community.moderators ?? []).filter((m) => m.toString() !== userId);
     community.pendingMembers = (community.pendingMembers ?? []).filter((m) => m.toString() !== userId);
 
     await community.save();
+
+    evictUserFromCommunity(userId, communityId);
+    emitToUser(userId, "community_removed", { communityId });
+    emitToCommunity(communityId, "community_updated", { communityId });
 
     res.status(200).json({ message: "Member removed successfully." });
   } catch (error) {
