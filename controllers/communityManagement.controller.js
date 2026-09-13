@@ -1,4 +1,5 @@
 import { Community } from "../models/chat.model.js";
+import { CommunityMessage } from "../models/communityMessage.model.js";
 import crypto from "crypto";
 import { emitToCommunity } from "../sockets/chatSocket.js";
 
@@ -123,6 +124,7 @@ export const deleteCommunity = async (req, res) => {
       });
     }
     await Community.findByIdAndDelete(communityId);
+    await CommunityMessage.deleteMany({ community: communityId });
     res.status(200).json({ message: "Community deleted successfully." });
   } catch (error) {
     throw error;
@@ -154,7 +156,6 @@ export const getCommunityByKey = async (req, res) => {
     const community = await Community.findOne({
       inviteKey: inviteKey.toUpperCase(),
     })
-      .select("-messages")
       .populate("owner", "username firstName lastName avatar")
       .populate("members", "username firstName lastName avatar")
       .populate("moderators", "username firstName lastName avatar")
