@@ -1,5 +1,6 @@
 import { Community } from "../models/chat.model.js";
 import crypto from "crypto";
+import { emitToCommunity } from "../sockets/chatSocket.js";
 
 export const createCommunity = async (req, res) => {
   try {
@@ -97,6 +98,8 @@ export const updateCommunity = async (req, res) => {
     await community.populate("moderators", "username firstName lastName avatar");
     await community.populate("pendingMembers", "username firstName lastName avatar");
 
+    emitToCommunity(communityId, "community_updated", { communityId });
+
     const { messages: _messages, ...safeCommunity } = community.toObject();
     res.status(200).json(safeCommunity);
   } catch (error) {
@@ -151,7 +154,7 @@ export const getCommunityByKey = async (req, res) => {
     const community = await Community.findOne({
       inviteKey: inviteKey.toUpperCase(),
     })
-      .populate("messages.sender", "username firstName lastName avatar")
+      .select("-messages")
       .populate("owner", "username firstName lastName avatar")
       .populate("members", "username firstName lastName avatar")
       .populate("moderators", "username firstName lastName avatar")
@@ -209,6 +212,7 @@ export const addModerator = async (req, res) => {
     await community.save();
     await community.populate("moderators", "username firstName lastName avatar");
 
+    emitToCommunity(communityId, "community_updated", { communityId });
     res.status(200).json({ message: "Moderator added.", moderators: community.moderators });
   } catch (error) {
     throw error;
@@ -236,6 +240,7 @@ export const removeModerator = async (req, res) => {
     await community.save();
     await community.populate("moderators", "username firstName lastName avatar");
 
+    emitToCommunity(communityId, "community_updated", { communityId });
     res.status(200).json({ message: "Moderator removed.", moderators: community.moderators });
   } catch (error) {
     throw error;
