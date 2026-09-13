@@ -1,4 +1,5 @@
 import { Message, Community } from "../models/chat.model.js";
+import { CommunityMessage } from "../models/communityMessage.model.js";
 import User from "../models/user.model.js";
 import { emitToUser, emitToCommunity } from "../sockets/chatSocket.js";
 import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
@@ -113,7 +114,7 @@ export const sendCommunityVoiceMessage = async (req, res) => {
 
     let replyToSnapshot = undefined;
     if (replyToMessageId) {
-      const original = community.messages.id(replyToMessageId);
+      const original = await CommunityMessage.findOne({ _id: replyToMessageId, community: communityId });
       if (original && !original.unsent) {
         const origSender = await User.findById(original.sender).select("username avatar");
         replyToSnapshot = {
@@ -126,7 +127,8 @@ export const sendCommunityVoiceMessage = async (req, res) => {
       }
     }
 
-    community.messages.push({
+    const message = new CommunityMessage({
+      community: communityId,
       sender: req.user.id,
       type: "voice",
       content: encryptField(""),
@@ -136,15 +138,18 @@ export const sendCommunityVoiceMessage = async (req, res) => {
     });
 
     const pointsEarned = await withTransaction(async (session) => {
-      await community.save(session ? { session } : undefined);
+      const opts = session ? { session } : undefined;
+      await message.save(opts);
+      await Community.updateOne(
+        { _id: communityId },
+        { $set: { updatedAt: new Date() } },
+        opts,
+      );
       return awardMessagePoints(req.user.id, MESSAGE_POINTS.community, session);
     });
 
-    const updatedCommunity = await Community.findById(communityId).populate(
-      "messages.sender", "username firstName lastName avatar",
-    );
-    const newMessage = updatedCommunity.messages[updatedCommunity.messages.length - 1];
-    const messageObj = decryptCommunityMessageContent(newMessage.toObject());
+    await message.populate("sender", "username firstName lastName avatar");
+    const messageObj = decryptCommunityMessageContent(message.toObject());
 
     emitToCommunity(communityId, "community_message", { communityId, message: messageObj });
 
