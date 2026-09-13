@@ -3,6 +3,7 @@ import { chat, getHistory, editMessage } from "../controllers/therry.controller.
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { jsonBody } from "../middleware/jsonBody.js";
 import { validate, therryChatSchema, therryEditSchema } from "../utils/validation.js";
+import { therryLimiter } from "../middleware/messageLimiters.js";
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ router.use(jsonBody("32kb"));
 router.use(authMiddleware);
 
 router.get("/messages", getHistory);
-router.post("/chat", validate(therryChatSchema), chat);
+router.post("/chat", therryLimiter, validate(therryChatSchema), chat);
 router.put("/messages/:messageId", validate(therryEditSchema), editMessage);
 
 export default router;
