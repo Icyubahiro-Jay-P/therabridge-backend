@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "vapid": "node ./scripts/generateVapidKeys.js",
-    "migrate:encrypt": "node ./scripts/migrate-encrypt.js"
+    "migrate:encrypt": "node ./scripts/migrate-encrypt.js",
+    "migrate:community-messages": "node ./scripts/migrateCommunityMessages.js"
   },
   "keywords": [],
   "author": "",
