@@ -1,7 +1,8 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import { encryptField, encryptionEnabled } from "../utils/crypto.js";
-import { Message, Community } from "../models/chat.model.js";
+import { Message } from "../models/chat.model.js";
+import { CommunityMessage } from "../models/communityMessage.model.js";
 import Mood from "../models/mood.model.js";
 import Crisis from "../models/crisis.model.js";
 import { TherryMessage } from "../models/therryMessage.model.js";
@@ -115,22 +116,14 @@ const migrateNotifications = async () => {
   );
 };
 
-const migrateCommunities = async () => {
+const migrateCommunityMessages = async () => {
   await batch(
-    Community,
-    { "messages.content": { $regex: /^[^:]+$/ } },
+    CommunityMessage,
+    { $or: [{ content: { $regex: /^[^:]+$/ } }, { content: "" }] },
     (doc) => {
-      let changed = false;
-      if (Array.isArray(doc.messages)) {
-        doc.messages = doc.messages.map((msg) => {
-          if (isPlaintext(msg.content)) {
-            msg.content = encryptField(msg.content);
-            changed = true;
-          }
-          return msg;
-        });
-      }
-      return changed;
+      if (!isPlaintext(doc.content)) return false;
+      doc.content = encryptField(doc.content);
+      return true;
     },
     "Community messages",
   );
@@ -150,7 +143,7 @@ const run = async () => {
     await migrateCrises();
     await migrateTherryMessages();
     await migrateNotifications();
-    await migrateCommunities();
+    await migrateCommunityMessages();
     console.log("\nMigration complete.");
   } catch (err) {
     console.error("Migration failed:", err);
