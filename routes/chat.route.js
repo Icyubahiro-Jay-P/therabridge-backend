@@ -40,6 +40,7 @@ import {
 } from "../controllers/chat.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { spamFilter } from "../middleware/spamFilter.js";
+import { messageLimiter } from "../middleware/messageLimiters.js";
 import { jsonBody } from "../middleware/jsonBody.js";
 import { uploadVoiceNote } from "../middleware/upload.js";
 import { validate, chatSettingsSchema, createCommunitySchema, editMessageSchema, editCommunityMessageSchema, inviteMemberSchema, moderateRequestSchema, sendMessageSchema, screenshotNoticeSchema, watermarkStampSchema, joinCommunitySchema, sendCommunityMessageSchema, updateCommunitySchema } from "../utils/validation.js";
@@ -56,7 +57,7 @@ router.get("/conversations", getMyConversations);
 router.get("/conversation/:userId", getConversation);
 router.put("/conversation/:userId/read", markConversationRead);
 router.get("/conversation/:userId/updates", getConversationUpdates);
-router.post("/send", spamFilter, validate(sendMessageSchema), sendMessage);
+router.post("/send", messageLimiter, spamFilter, validate(sendMessageSchema), sendMessage);
 router.get("/search", searchUsers);
 router.get("/suggestions", getSuggestedUsers);
 router.get("/settings", getChatSettings);
@@ -74,7 +75,7 @@ router.get("/communities/by-key/:inviteKey", getCommunityByKey);
 router.get("/communities/:communityId", getCommunityMessages);
 router.get("/communities/:communityId/updates", getCommunityUpdates);
 router.put("/communities/:communityId", validate(updateCommunitySchema), updateCommunity);
-router.post("/communities/:communityId/messages", spamFilter, validate(sendCommunityMessageSchema), sendCommunityMessage);
+router.post("/communities/:communityId/messages", messageLimiter, spamFilter, validate(sendCommunityMessageSchema), sendCommunityMessage);
 router.put("/communities/:communityId/messages/:messageId", validate(editCommunityMessageSchema), editCommunityMessage);
 router.delete("/communities/:communityId/messages/:messageId", unsendCommunityMessage);
 router.post("/communities/:communityId/read", markCommunityMessagesRead);
@@ -94,7 +95,7 @@ router.put("/edit/:messageId", validate(editMessageSchema), editMessage);
 router.delete("/unsend/:messageId", unsendMessage);
 
 // ====================== VOICE NOTES ======================
-router.post("/voice", uploadVoiceNote, sendVoiceMessage);
-router.post("/communities/:communityId/voice", uploadVoiceNote, sendCommunityVoiceMessage);
+router.post("/voice", messageLimiter, uploadVoiceNote, sendVoiceMessage);
+router.post("/communities/:communityId/voice", messageLimiter, uploadVoiceNote, sendCommunityVoiceMessage);
 
 export default router;
