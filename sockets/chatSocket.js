@@ -54,6 +54,13 @@ export const emitToCommunity = (communityId, event, payload) => {
   ioInstance?.to(`community:${communityId}`).emit(event, payload);
 };
 
+// Force any of a removed member's live sockets out of a community's room so
+// they stop receiving that room's broadcasts immediately, rather than
+// relying on their (untrusted) client to voluntarily leave.
+export const evictUserFromCommunity = (userId, communityId) => {
+  ioInstance?.in(`user:${userId}`).socketsLeave(`community:${communityId}`);
+};
+
 // True when the user has at least one live socket (i.e. the site is open).
 // Used to avoid pushing device notifications to users who will already get the
 // in-app event in real time.
