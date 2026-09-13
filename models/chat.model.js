@@ -172,7 +172,6 @@ const communitySchema = new mongoose.Schema(
       default: "",
       maxlength: 500,
     },
-    messages: [communityMessageSchema],
     description: {
       type: String,
       default: "",
