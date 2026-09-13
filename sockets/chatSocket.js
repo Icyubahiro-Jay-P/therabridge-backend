@@ -126,6 +126,134 @@ export const recordPossibleScreenshot = async ({
   return { notice };
 };
 
+// ====================== WEBRTC CALL STATE ======================
+// Tracks which two users are in a given call (by callId) and a per-user
+// "busy" flag. Backed by Redis when available so any server instance can
+// service any call's signaling events - the same reason the Redis adapter
+// is attached above. Falls back to a local Map when Redis isn't connected,
+// so calling still works on a single instance without Redis (Redis is
+// optional everywhere else in this app; call signaling shouldn't be the one
+// place that hard-depends on it).
+const RING_TIMEOUT_MS = 30_000;
+const RINGING_TTL_SEC = Math.ceil(RING_TIMEOUT_MS / 1000) + 10;
+// Once answered, the record is kept around (well past any plausible call
+// duration) purely as a safety net for a crashed instance; call:end and
+// disconnect delete it explicitly the moment a call actually ends.
+const CONNECTED_TTL_SEC = 6 * 60 * 60;
+
+const localCalls = new Map(); // callId -> { callerId, calleeId }
+const localBusy = new Map(); // userId -> callId
+const callTimers = new Map(); // callId -> setTimeout handle (this instance only, best-effort)
+
+const redisReady = () => redis.status === "ready";
+
+async function getCall(callId) {
+  if (redisReady()) {
+    try {
+      const raw = await redis.get(`call:active:${callId}`);
+      if (raw) return JSON.parse(raw);
+    } catch (err) {
+      logger.warn({ err, callId }, "redis getCall failed, falling back to local state");
+    }
+  }
+  return localCalls.get(callId) ?? null;
+}
+
+async function getUserCallId(userId) {
+  if (redisReady()) {
+    try {
+      const callId = await redis.get(`call:busy:${userId}`);
+      if (callId) return callId;
+    } catch (err) {
+      logger.warn({ err, userId }, "redis getUserCallId failed, falling back to local state");
+    }
+  }
+  return localBusy.get(userId) ?? null;
+}
+
+async function saveCall(callId, callerId, calleeId, ttlSeconds) {
+  localCalls.set(callId, { callerId, calleeId });
+  localBusy.set(callerId, callId);
+  localBusy.set(calleeId, callId);
+  if (redisReady()) {
+    try {
+      await Promise.all([
+        redis.set(`call:active:${callId}`, JSON.stringify({ callerId, calleeId }), "EX", ttlSeconds),
+        redis.set(`call:busy:${callerId}`, callId, "EX", ttlSeconds),
+        redis.set(`call:busy:${calleeId}`, callId, "EX", ttlSeconds),
+      ]);
+    } catch (err) {
+      logger.warn({ err, callId }, "redis saveCall failed, relying on local state");
+    }
+  }
+}
+
+async function deleteCall(callId, callerId, calleeId) {
+  const timer = callTimers.get(callId);
+  if (timer) {
+    clearTimeout(timer);
+    callTimers.delete(callId);
+  }
+  localCalls.delete(callId);
+  localBusy.delete(callerId);
+  localBusy.delete(calleeId);
+  if (redisReady()) {
+    try {
+      await Promise.all([
+        redis.del(`call:active:${callId}`),
+        redis.del(`call:busy:${callerId}`),
+        redis.del(`call:busy:${calleeId}`),
+      ]);
+    } catch (err) {
+      logger.warn({ err, callId }, "redis deleteCall failed - the TTL will expire it eventually");
+    }
+  }
+}
+
+async function createMissedCallMessage(callerId, calleeId) {
+  try {
+    const caller = await User.findById(callerId).select("firstName username");
+    const callee = await User.findById(calleeId).select("_id");
+    if (!caller || !callee) return;
+
+    const message = new Message({
+      sender: callerId,
+      recipient: calleeId,
+      kind: "missed-call",
+      content: encryptField("Missed call"),
+    });
+    await message.save();
+
+    const senderObj = {
+      _id: caller._id.toString(),
+      username: caller.username,
+      firstName: caller.firstName,
+      lastName: "",
+    };
+    const recipientObj = {
+      _id: callee._id.toString(),
+      username: "",
+      firstName: "",
+      lastName: "",
+    };
+
+    const payload = {
+      _id: message._id.toString(),
+      sender: senderObj,
+      recipient: recipientObj,
+      content: "Missed call",
+      read: false,
+      createdAt: message.createdAt.toISOString(),
+      kind: "missed-call",
+    };
+
+    ioInstance?.to(`user:${callerId}`).emit("dm_message", payload);
+    ioInstance?.to(`user:${calleeId}`).emit("dm_message", payload);
+  } catch (err) {
+    logger.error({ err }, "failed to create missed call message");
+  }
+}
+
 export const initChatSocket = (server) => {
   const io = new Server(server, { cors: getSocketCors() });
   ioInstance = io;
@@ -222,93 +350,32 @@ export const initChatSocket = (server) => {
     });
 
     // ====================== WEBRTC SIGNALING ======================
-    // Active call tracking: callId -> { callerId, calleeId, timer }
-    // Stored on the io instance so all handlers can access it.
-    if (!io._activeCalls) io._activeCalls = new Map();
-
-    const RING_TIMEOUT_MS = 30_000;
-
-    function clearCallTimeout(callId) {
-      const call = io._activeCalls?.get(callId);
-      if (call?.timer) {
-        clearTimeout(call.timer);
-        call.timer = null;
-      }
-    }
-
-    async function createMissedCallMessage(callerId, calleeId) {
-      try {
-        const caller = await User.findById(callerId).select("firstName username");
-        const callee = await User.findById(calleeId).select("_id");
-        if (!caller || !callee) return;
-
-        const message = new Message({
-          sender: callerId,
-          recipient: calleeId,
-          kind: "missed-call",
-          content: encryptField("Missed call"),
-        });
-        await message.save();
-
-        const senderObj = {
-          _id: caller._id.toString(),
-          username: caller.username,
-          firstName: caller.firstName,
-          lastName: "",
-        };
-        const recipientObj = {
-          _id: callee._id.toString(),
-          username: "",
-          firstName: "",
-          lastName: "",
-        };
-
-        const payload = {
-          _id: message._id.toString(),
-          sender: senderObj,
-          recipient: recipientObj,
-          content: "Missed call",
-          read: false,
-          createdAt: message.createdAt.toISOString(),
-          kind: "missed-call",
-        };
-
-        io.to(`user:${callerId}`).emit("dm_message", payload);
-        io.to(`user:${calleeId}`).emit("dm_message", payload);
-      } catch (err) {
-        logger.error({ err }, "failed to create missed call message");
-      }
-    }
-
-    socket.on("call:initiate", ({ calleeId } = {}) => {
+    socket.on("call:initiate", async ({ calleeId } = {}) => {
       if (!calleeId || calleeId === id) return;
 
-      // Reject if callee already in a call
-      for (const [, call] of io._activeCalls) {
-        if (call.callerId === calleeId || call.calleeId === calleeId) {
-          socket.emit("call:busy", { calleeId });
-          return;
-        }
+      if (await getUserCallId(calleeId)) {
+        socket.emit("call:busy", { calleeId });
+        return;
       }
-
-      // Reject if caller already in a call
-      for (const [, call] of io._activeCalls) {
-        if (call.callerId === id || call.calleeId === id) {
-          socket.emit("call:busy", { calleeId });
-          return;
-        }
+      if (await getUserCallId(id)) {
+        socket.emit("call:busy", { calleeId });
+        return;
       }
 
       const callId = `call_${id}_${calleeId}_${Date.now()}`;
+      await saveCall(callId, id, calleeId, RINGING_TTL_SEC);
 
       const timer = setTimeout(async () => {
-        io._activeCalls.delete(callId);
+        // Skip if the call was already answered/rejected/ended elsewhere
+        // (possibly on a different instance) by the time this fires.
+        const stillRinging = await getCall(callId);
+        if (!stillRinging) return;
+        await deleteCall(callId, id, calleeId);
         io.to(`user:${id}`).emit("call:missed", { callId });
         io.to(`user:${calleeId}`).emit("call:ended", { callId, endedBy: id });
         await createMissedCallMessage(id, calleeId);
       }, RING_TIMEOUT_MS);
-
-      io._activeCalls.set(callId, { callerId: id, calleeId, timer });
+      callTimers.set(callId, timer);
 
       io.to(`user:${calleeId}`).emit("call:incoming", {
         callId,
@@ -321,8 +388,8 @@ export const initChatSocket = (server) => {
       socket.emit("call:initiated", { callId, calleeId });
     });
 
-    socket.on("call:offer", ({ callId, sdp, calleeId } = {}) => {
-      const call = io._activeCalls?.get(callId);
+    socket.on("call:offer", async ({ callId, sdp, calleeId } = {}) => {
+      const call = await getCall(callId);
       if (!call || call.callerId !== id || call.calleeId !== calleeId) return;
       io.to(`user:${calleeId}`).emit("call:offer", {
         callId,
@@ -331,10 +398,13 @@ export const initChatSocket = (server) => {
       });
     });
 
-    socket.on("call:answer", ({ callId, sdp, callerId } = {}) => {
-      const call = io._activeCalls?.get(callId);
+    socket.on("call:answer", async ({ callId, sdp, callerId } = {}) => {
+      const call = await getCall(callId);
       if (!call || call.calleeId !== id) return;
-      clearCallTimeout(callId);
+      // Extend the record's TTL now that the call is connected - it's still
+      // needed for ICE-candidate validation for the call's duration, and
+      // call:end/disconnect delete it explicitly when the call actually ends.
+      await saveCall(callId, call.callerId, call.calleeId, CONNECTED_TTL_SEC);
       io.to(`user:${callerId}`).emit("call:answer", {
         callId,
         sdp,
@@ -342,8 +412,8 @@ export const initChatSocket = (server) => {
       });
     });
 
-    socket.on("call:ice-candidate", ({ callId, candidate, targetId } = {}) => {
-      const call = io._activeCalls?.get(callId);
+    socket.on("call:ice-candidate", async ({ callId, candidate, targetId } = {}) => {
+      const call = await getCall(callId);
       if (!call) return;
       const isParticipant = call.callerId === id || call.calleeId === id;
       const validTarget =
@@ -357,43 +427,39 @@ export const initChatSocket = (server) => {
       });
     });
 
-    socket.on("call:end", ({ callId } = {}) => {
-      const call = io._activeCalls?.get(callId);
+    socket.on("call:end", async ({ callId } = {}) => {
+      const call = await getCall(callId);
       if (!call) return;
       if (call.callerId !== id && call.calleeId !== id) return;
-      clearCallTimeout(callId);
       const peerId =
         call.callerId === id ? call.calleeId : call.callerId;
-      io._activeCalls.delete(callId);
+      await deleteCall(callId, call.callerId, call.calleeId);
       io.to(`user:${peerId}`).emit("call:ended", { callId, endedBy: id });
     });
 
-    socket.on("call:reject", ({ callId } = {}) => {
-      const call = io._activeCalls?.get(callId);
+    socket.on("call:reject", async ({ callId } = {}) => {
+      const call = await getCall(callId);
       if (!call || call.calleeId !== id) return;
-      clearCallTimeout(callId);
-      io._activeCalls.delete(callId);
+      await deleteCall(callId, call.callerId, call.calleeId);
       io.to(`user:${call.callerId}`).emit("call:rejected", {
         callId,
         calleeId: id,
       });
     });
 
-    socket.on("disconnect", () => {
-      // Clean up any active calls this socket was part of
-      if (io._activeCalls) {
-        for (const [callId, call] of io._activeCalls) {
-          if (call.callerId === id || call.calleeId === id) {
-            clearCallTimeout(callId);
-            const peerId =
-              call.callerId === id ? call.calleeId : call.callerId;
-            io._activeCalls.delete(callId);
-            io.to(`user:${peerId}`).emit("call:ended", {
-              callId,
-              endedBy: id,
-            });
+    socket.on("disconnect", async () => {
+      try {
+        const callId = await getUserCallId(id);
+        if (callId) {
+          const call = await getCall(callId);
+          if (call) {
+            const peerId = call.callerId === id ? call.calleeId : call.callerId;
+            await deleteCall(callId, call.callerId, call.calleeId);
+            io.to(`user:${peerId}`).emit("call:ended", { callId, endedBy: id });
           }
         }
+      } catch (err) {
+        logger.error({ err, userId: id }, "failed to clean up call on disconnect");
       }
       logger.info({ userId: id }, "socket disconnected");
     });
