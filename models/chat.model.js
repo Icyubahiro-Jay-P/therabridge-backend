@@ -106,78 +106,9 @@ messageSchema.index({ kind: 1, createdAt: -1 });
 
 export const Message = mongoose.model("Message", messageSchema);
 
-// Community Room model - group chat with unique invite key
-const communityMessageSchema = new mongoose.Schema({
-  sender: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
-  // "text" = plain text, "voice" = audio note
-  type: {
-    type: String,
-    enum: ["text", "voice"],
-    default: "text",
-  },
-  content: {
-    type: String,
-    required: [
-      function () { return this.type !== "voice" },
-      "Content is required",
-    ],
-    // Encrypted at rest; enforce the plaintext cap against the decrypted value.
-    validate: {
-      validator: (v) => typeof v === "string" && decryptFieldLength(v) <= 2000,
-      message: "Message must be at most 2000 characters",
-    },
-  },
-  // Voice note fields (only set when type === "voice")
-  audioUrl: {
-    type: String,
-    default: null,
-  },
-  duration: {
-    type: Number,
-    default: null,
-  },
-  // Reply-to snapshot
-  replyTo: {
-    _id: { type: mongoose.Schema.Types.ObjectId },
-    senderUsername: { type: String },
-    senderAvatar: { type: String, default: null },
-    content: { type: String },
-    type: { type: String, enum: ["text", "voice"], default: "text" },
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  readBy: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-  ],
-  unsent: {
-    type: Boolean,
-    default: false,
-  },
-  edited: {
-    type: Boolean,
-    default: false,
-  },
-  editCount: {
-    type: Number,
-    default: 0,
-  },
-  editHistory: [
-    {
-      content: { type: String, required: true },
-      editedAt: { type: Date, default: Date.now },
-    },
-  ],
-});
-
+// Community Room model - group chat with unique invite key. Messages are
+// NOT embedded here - see models/communityMessage.model.js for why (16MB
+// document-limit risk + no real pagination on an embedded array).
 const communitySchema = new mongoose.Schema(
   {
     name: {
