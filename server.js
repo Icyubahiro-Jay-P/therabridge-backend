@@ -50,6 +50,7 @@ import { scheduleRetentionPurge } from "./services/queue.js";
 import { startWorkers } from "./workers/startWorkers.js";
 import logger from "./utils/logger.js";
 import RedisStore from "rate-limit-redis";
+import { createMessageLimiters } from "./middleware/messageLimiters.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -335,6 +336,7 @@ connectDB()
       await redis.connect();
       redisConnected = true;
       createLimiters(true);
+      createMessageLimiters(true);
       logger.info("Redis connected successfully — rate limiters using Redis store");
     } catch (err) {
       logger.warn({ err }, "Redis connection failed — running without cache/queues (memory rate limiting)");
