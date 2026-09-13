@@ -271,9 +271,20 @@ export const getDashboard = async (req, res) => {
         .lean(),
       Community.aggregate([
         {
+          $lookup: {
+            from: CommunityMessage.collection.name,
+            let: { communityId: "$_id" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$community", "$$communityId"] } } },
+              { $count: "count" },
+            ],
+            as: "messageCountLookup",
+          },
+        },
+        {
           $addFields: {
             memberCount: { $size: { $ifNull: ["$members", []] } },
-            messageCount: { $size: { $ifNull: ["$messages", []] } },
+            messageCount: { $ifNull: [{ $arrayElemAt: ["$messageCountLookup.count", 0] }, 0] },
           },
         },
         { $sort: { memberCount: -1, messageCount: -1 } },
