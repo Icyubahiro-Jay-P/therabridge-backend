@@ -1,4 +1,5 @@
 import { Community } from "../models/chat.model.js";
+import { CommunityMessage } from "../models/communityMessage.model.js";
 import User from "../models/user.model.js";
 import { emitToCommunity } from "../sockets/chatSocket.js";
 import { awardMessagePoints, MESSAGE_POINTS } from "../utils/points.js";
@@ -10,31 +11,22 @@ import {
   canModerate,
   LONG_POLL_INTERVAL_MS,
   LONG_POLL_TIMEOUT_MS,
+  INITIAL_CATCHUP_WINDOW_MS,
 } from "./chat.utils.js";
+import {
+  getCursorPaginationParams,
+  formatCursorPaginatedResponse,
+} from "../utils/pagination.js";
 
-const fetchCommunityMessages = async (communityId, userId) => {
-  const community = await Community.findById(communityId)
-    .populate("messages.sender", "username firstName lastName avatar")
-    .populate("owner", "username firstName lastName avatar")
-    .populate("members", "username firstName lastName avatar")
-    .populate("moderators", "username firstName lastName avatar")
-    .populate("pendingMembers", "username firstName lastName avatar");
+const populateCommunityMessages = (query) =>
+  query.populate("sender", "username firstName lastName avatar");
 
-  if (!community) return null;
-
-  const isMember = community.members.some((m) => m._id.toString() === userId);
-  if (!isMember) return null;
-
-  community.messages = community.messages.map(decryptCommunityMessageContent);
-
-  return community;
-};
-
-const getLatestCommunityTimestamp = async (communityId) => {
-  const community = await Community.findById(communityId)
+const getLatestCommunityMessageTimestamp = async (communityId) => {
+  const latest = await CommunityMessage.findOne({ community: communityId })
+    .sort({ updatedAt: -1 })
     .select("updatedAt")
     .lean();
-  return community?.updatedAt;
+  return latest?.updatedAt;
 };
 
 const waitForCommunityUpdate = async (communityId, since) => {
@@ -42,7 +34,7 @@ const waitForCommunityUpdate = async (communityId, since) => {
   const sinceDate = new Date(since);
   if (Number.isNaN(sinceDate.getTime())) return true;
 
-  const initialTimestamp = await getLatestCommunityTimestamp(communityId);
+  const initialTimestamp = await getLatestCommunityMessageTimestamp(communityId);
   if (initialTimestamp && initialTimestamp > sinceDate) {
     return true;
   }
@@ -50,7 +42,7 @@ const waitForCommunityUpdate = async (communityId, since) => {
   const deadline = Date.now() + LONG_POLL_TIMEOUT_MS;
   while (Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, LONG_POLL_INTERVAL_MS));
-    const updatedTimestamp = await getLatestCommunityTimestamp(communityId);
+    const updatedTimestamp = await getLatestCommunityMessageTimestamp(communityId);
     if (updatedTimestamp && updatedTimestamp > sinceDate) {
       return true;
     }
@@ -59,21 +51,68 @@ const waitForCommunityUpdate = async (communityId, since) => {
   return false;
 };
 
+// Shared membership check every read/write endpoint below gates on.
+const requireMembership = async (communityId, userId) => {
+  const community = await Community.findById(communityId).select(
+    "members moderators owner name inviteKey isDisabled",
+  );
+  if (!community) return { community: null, isMember: false };
+  const isMember = community.members.some((m) => m.toString() === userId);
+  return { community, isMember };
+};
+
 export const getCommunityMessages = async (req, res) => {
   try {
     const { communityId } = req.params;
-
-    const community = await fetchCommunityMessages(communityId, req.user.id);
-    if (!community) {
+    const { community, isMember } = await requireMembership(communityId, req.user.id);
+    if (!community || !isMember) {
       return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
     }
 
-    const lastUpdated = await getLatestCommunityTimestamp(communityId);
+    const { cursor, limit } = getCursorPaginationParams(req.query, 100);
+
+    let messages;
+    let nextCursor = null;
+
+    if (cursor) {
+      const fetched = await populateCommunityMessages(
+        CommunityMessage.find({ community: communityId, _id: { $lt: cursor } })
+          .sort({ _id: -1 })
+          .limit(limit + 1),
+      );
+      const hasMore = fetched.length > limit;
+      if (hasMore) fetched.pop();
+      nextCursor = hasMore ? fetched[fetched.length - 1]?._id : null;
+      messages = fetched.reverse();
+    } else {
+      const fetched = await populateCommunityMessages(
+        CommunityMessage.find({ community: communityId })
+          .sort({ _id: -1 })
+          .limit(limit),
+      );
+      messages = fetched.reverse();
+      if (messages.length > 0) {
+        const oldestId = messages[0]._id;
+        const hasOlder = await CommunityMessage.exists({
+          community: communityId,
+          _id: { $lt: oldestId },
+        });
+        nextCursor = hasOlder ? oldestId : null;
+      }
+    }
+
+    const lastUpdated = await getLatestCommunityMessageTimestamp(communityId);
     if (lastUpdated) {
       res.set("X-Last-Updated", lastUpdated.toISOString());
     }
 
-    res.status(200).json(community);
+    res.status(200).json(
+      formatCursorPaginatedResponse(
+        messages.map((m) => decryptCommunityMessageContent(m.toObject())),
+        limit,
+        nextCursor,
+      ),
+    );
   } catch (error) {
     throw error;
   }
@@ -84,16 +123,25 @@ export const getCommunityUpdates = async (req, res) => {
     const { communityId } = req.params;
     const { since } = req.query;
 
+    const { community, isMember } = await requireMembership(communityId, req.user.id);
+    if (!community || !isMember) {
+      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
+    }
+
+    const lastUpdated = await getLatestCommunityMessageTimestamp(communityId);
+    if (lastUpdated) {
+      res.set("X-Last-Updated", lastUpdated.toISOString());
+    }
+
     if (!since) {
-      const community = await fetchCommunityMessages(communityId, req.user.id);
-      if (!community) {
-        return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
-      }
-      const lastUpdated = await getLatestCommunityTimestamp(communityId);
-      if (lastUpdated) {
-        res.set("X-Last-Updated", lastUpdated.toISOString());
-      }
-      return res.status(200).json(community);
+      const sinceDate = new Date(Date.now() - INITIAL_CATCHUP_WINDOW_MS);
+      const messages = await populateCommunityMessages(
+        CommunityMessage.find({
+          community: communityId,
+          updatedAt: { $gt: sinceDate },
+        }).sort({ createdAt: 1 }),
+      );
+      return res.status(200).json(messages.map((m) => decryptCommunityMessageContent(m.toObject())));
     }
 
     const hasUpdates = await waitForCommunityUpdate(communityId, since);
@@ -101,17 +149,19 @@ export const getCommunityUpdates = async (req, res) => {
       return res.status(204).end();
     }
 
-    const community = await fetchCommunityMessages(communityId, req.user.id);
-    if (!community) {
-      return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
+    const sinceDate = new Date(since);
+    if (Number.isNaN(sinceDate.getTime())) {
+      return res.status(200).json([]);
     }
 
-    const lastUpdated = await getLatestCommunityTimestamp(communityId);
-    if (lastUpdated) {
-      res.set("X-Last-Updated", lastUpdated.toISOString());
-    }
+    const messages = await populateCommunityMessages(
+      CommunityMessage.find({
+        community: communityId,
+        updatedAt: { $gt: sinceDate },
+      }).sort({ createdAt: 1 }),
+    );
 
-    res.status(200).json(community);
+    res.status(200).json(messages.map((m) => decryptCommunityMessageContent(m.toObject())));
   } catch (error) {
     throw error;
   }
@@ -150,7 +200,7 @@ export const sendCommunityMessage = async (req, res) => {
 
     let replyToSnapshot = undefined;
     if (replyToMessageId) {
-      const original = community.messages.id(replyToMessageId);
+      const original = await CommunityMessage.findOne({ _id: replyToMessageId, community: communityId });
       if (original && !original.unsent) {
         const origSender = await User.findById(original.sender).select("username avatar");
         replyToSnapshot = {
@@ -163,28 +213,29 @@ export const sendCommunityMessage = async (req, res) => {
       }
     }
 
-    community.messages.push({
+    const message = new CommunityMessage({
+      community: communityId,
       sender: req.user.id,
       content: encryptField(content.trim()),
       ...(replyToSnapshot && { replyTo: replyToSnapshot }),
     });
 
     const pointsEarned = await withTransaction(async (session) => {
-      await community.save(session ? { session } : undefined);
+      const opts = session ? { session } : undefined;
+      await message.save(opts);
+      // Community.updatedAt drives getMyCommunities' "most recently active
+      // first" sort - bump it explicitly since messages are no longer
+      // embedded subdocuments that would do this via community.save().
+      await Community.updateOne(
+        { _id: communityId },
+        { $set: { updatedAt: new Date() } },
+        opts,
+      );
       return awardMessagePoints(req.user.id, MESSAGE_POINTS.community, session);
     });
 
-    const updatedCommunity = await Community.findById(communityId).populate(
-      "messages.sender",
-      "username firstName lastName avatar",
-    );
-
-    const newMessage =
-      updatedCommunity.messages[updatedCommunity.messages.length - 1];
-
-    const messageObj = decryptCommunityMessageContent(
-      newMessage.toObject(),
-    );
+    await message.populate("sender", "username firstName lastName avatar");
+    const messageObj = decryptCommunityMessageContent(message.toObject());
 
     emitToCommunity(communityId, "community_message", {
       communityId,
@@ -239,15 +290,7 @@ export const editCommunityMessage = async (req, res) => {
         .json({ error: { message: "Message is too long (maximum 2000 characters).", code: "BAD_REQUEST" } });
     }
 
-    const community = await Community.findOne({
-      _id: communityId,
-      "messages._id": messageId,
-    });
-    if (!community) {
-      return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
-    }
-
-    const message = community.messages.id(messageId);
+    const message = await CommunityMessage.findOne({ _id: messageId, community: communityId });
     if (!message) {
       return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
     }
@@ -258,7 +301,8 @@ export const editCommunityMessage = async (req, res) => {
         .json({ error: { message: "You can only edit your own messages.", code: "FORBIDDEN" } });
     }
 
-    if (!community.members.some((m) => m.toString() === myId)) {
+    const community = await Community.findById(communityId).select("members");
+    if (!community || !community.members.some((m) => m.toString() === myId)) {
       return res
         .status(403)
         .json({ error: { message: "You are no longer a member of this community.", code: "FORBIDDEN" } });
@@ -292,14 +336,10 @@ export const editCommunityMessage = async (req, res) => {
     message.edited = true;
     message.editCount += 1;
 
-    await community.save();
-    await community.populate(
-      "messages.sender",
-      "username firstName lastName avatar",
-    );
+    await message.save();
+    await message.populate("sender", "username firstName lastName avatar");
 
-    const updated = community.messages.id(messageId);
-    const updatedObj = decryptCommunityMessageContent(updated.toObject());
+    const updatedObj = decryptCommunityMessageContent(message.toObject());
     emitToCommunity(communityId, "community_message_updated", {
       communityId,
       message: updatedObj,
@@ -315,16 +355,13 @@ export const unsendCommunityMessage = async (req, res) => {
     const { communityId, messageId } = req.params;
     const myId = req.user.id;
 
-    const community = await Community.findOne({
-      _id: communityId,
-      "messages._id": messageId,
-    });
-    if (!community) {
+    const message = await CommunityMessage.findOne({ _id: messageId, community: communityId });
+    if (!message) {
       return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
     }
 
-    const message = community.messages.id(messageId);
-    if (!message) {
+    const community = await Community.findById(communityId).select("members moderators owner");
+    if (!community) {
       return res.status(404).json({ error: { message: "Message not found.", code: "NOT_FOUND" } });
     }
 
@@ -339,14 +376,10 @@ export const unsendCommunityMessage = async (req, res) => {
 
     message.unsent = true;
     message.content = encryptField("Message removed");
-    await community.save();
-    await community.populate(
-      "messages.sender",
-      "username firstName lastName avatar",
-    );
+    await message.save();
+    await message.populate("sender", "username firstName lastName avatar");
 
-    const updated = community.messages.id(messageId);
-    const updatedObj = decryptCommunityMessageContent(updated.toObject());
+    const updatedObj = decryptCommunityMessageContent(message.toObject());
     emitToCommunity(communityId, "community_message_unsent", {
       communityId,
       message: updatedObj,
@@ -363,7 +396,7 @@ export const markCommunityMessagesRead = async (req, res) => {
   try {
     const { communityId } = req.params;
 
-    const community = await Community.findById(communityId);
+    const community = await Community.findById(communityId).select("members");
     if (!community) {
       return res.status(404).json({ error: { message: "Community not found.", code: "NOT_FOUND" } });
     }
@@ -377,9 +410,9 @@ export const markCommunityMessagesRead = async (req, res) => {
         .json({ error: { message: "You are not a member of this community.", code: "FORBIDDEN" } });
     }
 
-    await Community.updateOne(
-      { _id: communityId },
-      { $addToSet: { "messages.$[].readBy": req.user.id } },
+    await CommunityMessage.updateMany(
+      { community: communityId },
+      { $addToSet: { readBy: req.user.id } },
     );
 
     res.status(200).json({ message: "Messages marked as read." });
@@ -392,23 +425,17 @@ export const deleteAllMyCommunityMessages = async (req, res) => {
   try {
     const myId = req.user.id;
 
-    const communities = await Community.find({ members: myId });
+    const communities = await Community.find({ members: myId }).select("_id");
+    const communityIds = communities.map((c) => c._id);
 
-    let deletedCount = 0;
-    for (const community of communities) {
-      const before = community.messages.length;
-      community.messages = community.messages.filter(
-        (msg) => msg.sender.toString() !== myId,
-      );
-      deletedCount += before - community.messages.length;
-      if (community.messages.length !== before) {
-        await community.save();
-      }
-    }
+    const result = await CommunityMessage.deleteMany({
+      community: { $in: communityIds },
+      sender: myId,
+    });
 
     res.status(200).json({
-      message: `Deleted ${deletedCount} community messages.`,
-      deletedCount,
+      message: `Deleted ${result.deletedCount} community messages.`,
+      deletedCount: result.deletedCount,
     });
   } catch (error) {
     throw error;
