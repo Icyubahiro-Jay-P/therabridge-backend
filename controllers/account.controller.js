@@ -137,6 +137,13 @@ export const exportMyData = async (req, res) => {
   try {
     const userId = req.user.id;
 
+    // Fetched up front (not inside the Promise.all below) so its ids can
+    // scope the CommunityMessage query to communities this user belongs to.
+    const communities = await Community.find({
+      $or: [{ owner: userId }, { members: userId }],
+    }).sort({ createdAt: 1 }).lean();
+    const communityIds = communities.map((c) => c._id);
+
     const [
       user,
       moods,
@@ -144,7 +151,6 @@ export const exportMyData = async (req, res) => {
       therryMessages,
       notifications,
       messages,
-      communities,
       communityMessages,
       exerciseLogs,
       pushSubscriptions,
@@ -174,10 +180,7 @@ export const exportMyData = async (req, res) => {
       Message.find({
         $or: [{ sender: userId }, { recipient: userId }],
       }).sort({ createdAt: 1 }).lean(),
-      Community.find({
-        $or: [{ owner: userId }, { members: userId }],
-      }).sort({ createdAt: 1 }).lean(),
-      CommunityMessage.find({ sender: userId }).sort({ createdAt: 1 }).lean(),
+      CommunityMessage.find({ community: { $in: communityIds } }).sort({ createdAt: 1 }).lean(),
       ExerciseLog.find({ user: userId }).sort({ createdAt: 1 }).lean(),
       PushSubscription.find({ user: userId }).sort({ createdAt: 1 }).lean(),
       SafetyPlan.findOne({ user: userId }).lean(),
@@ -207,13 +210,18 @@ export const exportMyData = async (req, res) => {
       platform: "Therabridge",
       user: user.toObject(),
       messages: messages.map((m) => ({ ...m, content: decryptField(m.content) })),
-      communities: communities.map((c) => ({
-        ...c,
-        messages: (c.messages || []).map((msg) => ({
-          ...msg,
-          content: decryptField(msg.content),
-        })),
-      })),
+      communities: (() => {
+        const messagesByCommunity = new Map();
+        for (const msg of communityMessages) {
+          const key = msg.community.toString();
+          if (!messagesByCommunity.has(key)) messagesByCommunity.set(key, []);
+          messagesByCommunity.get(key).push({ ...msg, content: decryptField(msg.content) });
+        }
+        return communities.map((c) => ({
+          ...c,
+          messages: messagesByCommunity.get(c._id.toString()) ?? [],
+        }));
+      })(),
       moods: moods.map((m) => ({ ...m, note: decryptField(m.note) })),
       crises: crises.map((c) => ({ ...c, description: decryptField(c.description) })),
       therryMessages: therryMessages.map((t) => ({
