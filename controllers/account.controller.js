@@ -144,6 +144,7 @@ export const exportMyData = async (req, res) => {
       notifications,
       messages,
       communities,
+      communityMessages,
       exerciseLogs,
       pushSubscriptions,
       safetyPlan,
@@ -175,6 +176,7 @@ export const exportMyData = async (req, res) => {
       Community.find({
         $or: [{ owner: userId }, { members: userId }],
       }).sort({ createdAt: 1 }).lean(),
+      CommunityMessage.find({ sender: userId }).sort({ createdAt: 1 }).lean(),
       ExerciseLog.find({ user: userId }).sort({ createdAt: 1 }).lean(),
       PushSubscription.find({ user: userId }).sort({ createdAt: 1 }).lean(),
       SafetyPlan.findOne({ user: userId }).lean(),
