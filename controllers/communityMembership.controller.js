@@ -102,7 +102,6 @@ export const getMyCommunities = async (req, res) => {
       .populate("members", "username firstName lastName avatar")
       .populate("moderators", "username firstName lastName avatar")
       .populate("pendingMembers", "username firstName lastName avatar")
-      .select("-messages")
       .sort({ updatedAt: -1 });
 
     res.status(200).json(communities);
