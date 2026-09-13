@@ -1,5 +1,6 @@
 import User from "../models/user.model.js";
 import { Message, Community } from "../models/chat.model.js";
+import { CommunityMessage } from "../models/communityMessage.model.js";
 import Mood from "../models/mood.model.js";
 import Crisis from "../models/crisis.model.js";
 import ExerciseLog from "../models/exerciseLog.model.js";
@@ -28,23 +29,6 @@ const aggregateDaily = async (Model, dateField, days, extraMatch = {}) => {
       $group: {
         _id: {
           $dateToString: { format: "%Y-%m-%d", date: "$" + dateField },
-        },
-        count: { $sum: 1 },
-      },
-    },
-  ]);
-  return new Map(rows.map((r) => [r._id, r.count]));
-};
-
-const aggregateCommunityMessagesDaily = async (days) => {
-  const rows = await Community.aggregate([
-    { $match: { "messages.createdAt": { $gte: daysAgo(days) } } },
-    { $unwind: "$messages" },
-    { $match: { "messages.createdAt": { $gte: daysAgo(days) } } },
-    {
-      $group: {
-        _id: {
-          $dateToString: { format: "%Y-%m-%d", date: "$messages.createdAt" },
         },
         count: { $sum: 1 },
       },
@@ -263,7 +247,7 @@ export const getDashboard = async (req, res) => {
       topCommunities,
     ] = await Promise.all([
       aggregateDaily(Message, "createdAt", 14, { kind: "message" }),
-      aggregateCommunityMessagesDaily(14),
+      aggregateDaily(CommunityMessage, "createdAt", 14),
       aggregateDaily(Mood, "createdAt", 14),
       aggregateDaily(ExerciseLog, "createdAt", 14, { completed: true }),
       aggregateDaily(Crisis, "createdAt", 14),
