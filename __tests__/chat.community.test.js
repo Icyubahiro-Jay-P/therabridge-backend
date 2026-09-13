@@ -40,6 +40,7 @@ vi.mock("../sockets/chatSocket.js", () => ({
   recordPossibleScreenshot: vi.fn(),
   emitToUser: vi.fn(),
   emitToCommunity: vi.fn(),
+  evictUserFromCommunity: vi.fn(),
 }))
 
 vi.mock("../services/notification.service.js", () => ({
@@ -54,9 +55,14 @@ import {
   respondToJoinRequest,
   deleteCommunity,
   updateCommunity,
+  removeMember,
 } from "../controllers/chat.controller.js"
 import { Community } from "../models/chat.model.js"
 import User from "../models/user.model.js"
+import {
+  evictUserFromCommunity as mockEvictUserFromCommunity,
+  emitToCommunity as mockEmitToCommunity,
+} from "../sockets/chatSocket.js"
 
 function mockReqRes(overrides = {}) {
   const req = {
@@ -368,6 +374,62 @@ describe("Chat – Community Operations", () => {
       const payload = res.json.mock.calls[0][0]
       expect(payload.name).toBe("New Name")
       expect(payload.messages).toBeUndefined()
+    })
+  })
+
+  describe("removeMember", () => {
+    function makeCommunity(opts = {}) {
+      return {
+        _id: "comm123",
+        owner: { toString: () => opts.ownerId ?? "ownerid" },
+        moderators: opts.moderators ?? [],
+        members: opts.members ?? ["ownerid", "user123", "target456"],
+        pendingMembers: [],
+        save: vi.fn().mockResolvedValue(true),
+      }
+    }
+
+    it("lets a moderator remove a regular member", async () => {
+      const community = makeCommunity({ moderators: ["user123"] })
+      Community.findById.mockResolvedValue(community)
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123" },
+        body: { userId: "target456" },
+      })
+      await removeMember(req, res)
+      expect(res.status).toHaveBeenCalledWith(200)
+      expect(mockEvictUserFromCommunity).toHaveBeenCalledWith("target456", "comm123")
+      expect(mockEmitToCommunity).toHaveBeenCalledWith("comm123", "community_updated", { communityId: "comm123" })
+    })
+
+    it("blocks a non-owner moderator from removing a fellow moderator", async () => {
+      const community = makeCommunity({
+        moderators: ["user123", "target456"],
+        ownerId: "someoneelse",
+      })
+      Community.findById.mockResolvedValue(community)
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123" },
+        body: { userId: "target456" },
+      })
+      await removeMember(req, res)
+      expect(res.status).toHaveBeenCalledWith(403)
+      expect(community.save).not.toHaveBeenCalled()
+    })
+
+    it("lets the owner remove a moderator", async () => {
+      const community = makeCommunity({
+        moderators: ["target456"],
+        ownerId: "user123",
+      })
+      Community.findById.mockResolvedValue(community)
+      const { req, res } = mockReqRes({
+        params: { communityId: "comm123" },
+        body: { userId: "target456" },
+      })
+      await removeMember(req, res)
+      expect(res.status).toHaveBeenCalledWith(200)
+      expect(community.save).toHaveBeenCalled()
     })
   })
 })
