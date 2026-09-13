@@ -12,7 +12,7 @@ export const createCommunity = async (req, res) => {
         .json({ error: { message: "Only therapists and admins can create communities.", code: "FORBIDDEN" } });
     }
 
-    if (!name || name.length < 2) {
+    if (!name || name.trim().length < 2) {
       return res
         .status(400)
         .json({ error: { message: "Community name must be at least 2 characters.", code: "BAD_REQUEST" } });
